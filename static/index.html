@@ -26,6 +26,15 @@
   @media (max-width:720px){main{grid-template-columns:1fr}}
   .col h2{font-size:14px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
   .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
+  /* ---- filtros por tipo de erro (coluna Travadas) ---- */
+  .filtros{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+    padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;border:1px solid transparent;
+    transition:opacity .12s,filter .12s}
+  .chip .n{font-weight:800;opacity:.85}
+  .chip[aria-pressed=false]{opacity:.4;filter:grayscale(.5)}
+  .chip.limpar{background:transparent;border-color:var(--line);color:var(--ink2)}
+  .chip.limpar:hover{background:var(--line);color:var(--ink)}
   .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
     border-radius:9px;padding:11px 13px;margin-bottom:9px;animation:in .3s ease}
   .nf.travada{cursor:pointer}
@@ -103,6 +112,7 @@
 <main>
   <div class="col">
     <h2>🔴 Travadas <span class="count" id="c-stuck">0</span></h2>
+    <div class="filtros" id="filtros"></div>
     <div id="stuck"><div class="empty">nada travado 🎉</div></div>
   </div>
   <div class="col">
@@ -161,6 +171,51 @@
     return n.grupo || "—";
   }
 
+  // ---- FILTRO por tipo de erro ----
+  // chave canônica da categoria de cada NF (mesma base do color/label)
+  const catKey = n => n.problema_categoria || n.grupo || "OUTROS";
+  // rótulos legíveis dos filtros (as categorias que gerar_excel_validacao e os feeds produzem)
+  const CAT_LABEL = {
+    FATURAMENTO:"Faturamento", ARQUIVOS:"Arquivos", CORREIOS:"Correios",
+    FINANCEIRO:"Financeiro", B4YOU:"B4You", TRANSPORTADORA:"Transportadora",
+    TRANSFERENCIA:"Transferência", AUDITORIA:"Auditoria SAP",
+    BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
+    RASTREIO:"Rastreio", OUTROS:"Outros",
+  };
+  // cores das categorias que não estão no mapa CORES (barradas do SAP → vermelho do card)
+  const CAT_COR_EXTRA = { TRANSFERENCIA:"#dc2626", AUDITORIA:"#dc2626" };
+  const catCor = k => CORES[k] || CAT_COR_EXTRA[k] || "#64748b";
+  const catsOff = new Set();  // categorias DESLIGADAS (o resto aparece)
+
+  function renderFiltros(){
+    // conta quantas travadas há por categoria
+    const cont = new Map();
+    for(const n of stuck.values()){ const k = catKey(n); cont.set(k, (cont.get(k)||0)+1); }
+    const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
+    const el = $("#filtros");
+    if(cats.length <= 1){ el.innerHTML = ""; return; }  // 0/1 tipo: filtro não ajuda
+    const algumOff = cats.some(k => catsOff.has(k));
+    el.innerHTML = cats.map(k => {
+      const c = catCor(k), on = !catsOff.has(k);
+      return `<span class="chip" role="button" tabindex="0" data-cat="${k}" aria-pressed="${on}"`
+        + ` style="background:${c}22;color:${c};border-color:${c}55">`
+        + `${CAT_LABEL[k]||k} <span class="n">${cont.get(k)}</span></span>`;
+    }).join("")
+      + (algumOff ? `<span class="chip limpar" role="button" tabindex="0" data-cat="__all__">limpar filtro</span>` : "");
+  }
+
+  // um clique liga/desliga a categoria; "limpar filtro" reativa todas
+  $("#filtros").addEventListener("click", e => {
+    const chip = e.target.closest(".chip"); if(!chip) return;
+    const k = chip.dataset.cat;
+    if(k === "__all__") catsOff.clear();
+    else if(catsOff.has(k)) catsOff.delete(k); else catsOff.add(k);
+    render();
+  });
+  $("#filtros").addEventListener("keydown", e => {
+    if((e.key==="Enter"||e.key===" ") && e.target.closest(".chip")){ e.preventDefault(); e.target.click(); }
+  });
+
   // soluções rápidas (contextuais, ainda INATIVAS)
   function solucoesDe(n){
     const c = n.problema_codigo||"", g = n.grupo||"";
@@ -217,10 +272,14 @@
   }
 
   function render(){
+    renderFiltros();
     const es = $("#stuck");
+    const visiveis = [...stuck.values()].filter(n => !catsOff.has(catKey(n)));
     if(!stuck.size){ es.innerHTML = '<div class="empty">nada travado 🎉</div>'; }
-    else{ es.innerHTML = [...stuck.values()].map(cardTravada).join(""); }
-    $("#c-stuck").textContent = stuck.size;
+    else if(!visiveis.length){ es.innerHTML = '<div class="empty">nada nas categorias selecionadas</div>'; }
+    else{ es.innerHTML = visiveis.map(cardTravada).join(""); }
+    // contador mostra "visíveis de total" quando há filtro ativo
+    $("#c-stuck").textContent = catsOff.size ? `${visiveis.length}/${stuck.size}` : stuck.size;
 
     const eu = $("#up");
     eu.innerHTML = up.length ? up.slice(0,12).map(n =>

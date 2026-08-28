@@ -110,7 +110,11 @@ que o dado bate 100% com o email do robô — **antes** de montar a ponte Azure.
 - [ ] **Puxar Pedido e Cliente** (hoje aparecem como "—") — precisam vir do log mestre / B4You;
   ligar nos feeds. **Responsável** e **Soluções** hoje são derivados por regra do código do
   problema (aproximação) — refinar quando as ações ficarem ativas.
-- [ ] Ajuste fino do front (contadores por grupo, responsividade mobile)
+- [x] **Filtro por tipo de erro** na coluna Travadas (28/08) — chips clicáveis por
+  `problema_categoria` (Faturamento, Arquivos, Correios, Financeiro, B4You, Transportadora,
+  Transferência, Auditoria SAP, Marketing, Cancelamento), cada um com contagem e cor;
+  toggle liga/desliga, "limpar filtro" reativa todos, contador vira "visíveis/total"
+- [ ] Ajuste fino do front (responsividade mobile)
 
 **Fase 0 essencialmente fechada** — falta só ajuste fino. Validado ao vivo em 28/08: 12
 travadas batendo com o email (boleto, transferência, marketing), cronômetro e ações OK.
