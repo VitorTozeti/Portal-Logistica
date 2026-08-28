@@ -4,49 +4,50 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Portal da Logística — B4You</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+  /* Paleta Pharmaesthetics — tema claro (Azul Pharma #0A3AAE / navy #134E7A / acento #008CFF) */
   :root{
-    --bg:#eef1f5; --card:#fff; --ink:#161b22; --ink2:#5a6572; --line:#dde3ea;
-    --ok:#1e9e5a; --ok-bg:#dcf1e6; --crit:#d1382c; --crit-bg:#f7dcd9; --warn:#b45309;
-    --panel:#fff; --panel2:#f5f7fa;
-  }
-  @media (prefers-color-scheme:dark){
-    :root{--bg:#0c1016;--card:#141a22;--ink:#e8edf3;--ink2:#a9b4c1;--line:#263041;
-      --ok:#41c47e;--ok-bg:#12321f;--crit:#ec5b50;--crit-bg:#361713;--warn:#e0a53a;
-      --panel:#161d27;--panel2:#1c2531;}
+    --bg:#eef3fb; --card:#ffffff; --ink:#12213f; --ink2:#5D5D5D; --line:#d6e0f0;
+    --brand:#0A3AAE; --brand2:#134E7A; --accent:#008CFF;
+    --ok:#127b3a; --ok-bg:#e3f4ea; --crit:#d1382c; --crit-bg:#fbe4e2; --warn:#b45309;
+    --panel:#ffffff; --panel2:#f3f7fd;
   }
   *{box-sizing:border-box}
-  body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-  header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
-  header b{font-size:16px}
+  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--card);
+    border-bottom:2px solid var(--brand)}
+  header b{font-size:16px;color:var(--brand)}
   .dot{width:9px;height:9px;border-radius:50%;background:#bbb;display:inline-block}
-  .dot.on{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 25%,transparent)}
+  .dot.on{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
   .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
   main{max-width:1000px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
   @media (max-width:720px){main{grid-template-columns:1fr}}
   .col h2{font-size:14px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
   .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
-  /* ---- filtros por tipo de erro (coluna Travadas) ---- */
+  /* ---- filtros (Travadas por tipo de erro / Subiram por semana) ---- */
   .filtros{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
     padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;border:1px solid transparent;
     transition:opacity .12s,filter .12s}
   .chip .n{font-weight:800;opacity:.85}
-  .chip[aria-pressed=false]{opacity:.4;filter:grayscale(.5)}
+  .chip[aria-pressed=false]{opacity:.42;filter:grayscale(.4)}
   .chip.limpar{background:transparent;border-color:var(--line);color:var(--ink2)}
   .chip.limpar:hover{background:var(--line);color:var(--ink)}
   .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
     border-radius:9px;padding:11px 13px;margin-bottom:9px;animation:in .3s ease}
-  .nf.travada{cursor:pointer}
-  .nf.travada:hover{box-shadow:0 1px 6px rgba(0,0,0,.10)}
-  .nf.subiu{border-left-color:var(--ok)}
+  .nf.travada,.nf.subiu{cursor:pointer}
+  .nf.travada:hover,.nf.subiu:hover{box-shadow:0 1px 8px rgba(10,58,174,.12)}
+  .nf.subiu{border-left-color:var(--accent)}
   @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
   .nf .top{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
   .num{font-family:ui-monospace,monospace}
   .fil{font-size:10.5px;font-weight:700;color:var(--ink2);text-transform:uppercase}
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
-  .nf.subiu .tag{background:var(--ok-bg);color:var(--ok)}
+  .nf.subiu .tag{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
   .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
   .desc{font-size:12.5px;color:var(--ink2);margin-top:4px}
   .meta{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap}
@@ -55,11 +56,11 @@
   .empty{color:var(--ink2);font-size:13px;padding:14px;text-align:center}
 
   /* ---- painel lateral (drawer) ---- */
-  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;
+  #scrim{position:fixed;inset:0;background:rgba(18,33,63,.32);opacity:0;pointer-events:none;
     transition:opacity .2s ease;z-index:40}
   #scrim.open{opacity:1;pointer-events:auto}
   #drawer{position:fixed;top:0;right:0;height:100%;width:410px;max-width:90vw;background:var(--panel);
-    border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.18);
+    border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(10,58,174,.16);
     transform:translateX(100%);transition:transform .22s ease;z-index:50;display:flex;flex-direction:column}
   #drawer.open{transform:translateX(0)}
   .dw-head{padding:18px 20px 14px;border-bottom:1px solid var(--line)}
@@ -78,6 +79,7 @@
   .info-row .val{font-size:14px;font-weight:700;font-family:ui-monospace,monospace;text-align:right}
   .info-row .val.velho{color:var(--crit)}
   .alert{margin:16px 0 4px;border-radius:11px;padding:13px 15px;background:var(--panel2)}
+  .alert.info{background:color-mix(in srgb,var(--accent) 9%,var(--panel2));border-left:4px solid var(--accent)}
   .alert .at{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
   .alert .ax{font-size:12.5px;color:var(--ink2);margin-top:6px;line-height:1.45}
   .sec-lbl{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--ink2);text-transform:uppercase;margin:20px 0 10px}
@@ -105,7 +107,7 @@
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
     <span id="quem"></span>
-    <a href="/logout" style="color:var(--ink2)">sair</a>
+    <a href="/logout" style="color:var(--brand)">sair</a>
   </span>
 </header>
 
@@ -117,15 +119,16 @@
   </div>
   <div class="col">
     <h2>🟢 Subiram <span class="count" id="c-up">0</span></h2>
+    <div class="filtros" id="filtros-up"></div>
     <div id="up"><div class="empty">aguardando…</div></div>
   </div>
 </main>
 
-<!-- painel lateral de detalhe da NF -->
+<!-- painel lateral de detalhe da NF (travada OU que subiu) -->
 <div id="scrim"></div>
 <aside id="drawer" aria-hidden="true">
   <div class="dw-head">
-    <div class="dw-eyebrow">Nota travada</div>
+    <div class="dw-eyebrow" id="dw-eyebrow">Nota travada</div>
     <div class="dw-titlerow">
       <span class="num" id="dw-num">NF —</span>
       <button class="dw-close" id="dw-close" title="fechar">×</button>
@@ -134,20 +137,26 @@
   </div>
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
-    <button class="btn ign" type="button" title="em breve">🚫 Ignorar nota</button>
+    <button class="btn ign" id="dw-ign" type="button" title="em breve">🚫 Ignorar nota</button>
     <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
-  <div class="soon">ignorar e soluções ainda não ativos — em breve</div>
+  <div class="soon" id="dw-soon">ignorar e soluções ainda não ativos — em breve</div>
 </aside>
 
 <script>
-  const stuck = new Map(), up = [];
+  const stuck = new Map();          // travadas: id -> evento
+  const risen = new Map();          // subiram:  id -> evento
+  const MAX_RISEN = 400;
   const $ = s => document.querySelector(s);
   const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+  // ===== estado dos filtros (um por coluna) =====
+  const filtroTravadas = new Set();  // categorias DESLIGADAS (o resto aparece)
+  let   filtroSubiram  = null;       // semana selecionada: "YYYY-Www" | "todas" (null = default)
+
   // ---- cor por TIPO de erro (tag colorida) ----
   const CORES = {
-    FATURAMENTO:"#2563eb", ARQUIVOS:"#2563eb",
+    FATURAMENTO:"#0A3AAE", ARQUIVOS:"#2563eb",
     FINANCEIRO:"#d97706", CORREIOS:"#9333ea", B4YOU:"#0d9488",
     TRANSPORTADORA:"#ea580c", BARRADAS_SAP:"#dc2626", MARKETING:"#db2777",
     CANCELAMENTO:"#64748b", RASTREIO:"#4f46e5",
@@ -171,10 +180,8 @@
     return n.grupo || "—";
   }
 
-  // ---- FILTRO por tipo de erro ----
-  // chave canônica da categoria de cada NF (mesma base do color/label)
+  // ---- categorias do filtro de Travadas ----
   const catKey = n => n.problema_categoria || n.grupo || "OUTROS";
-  // rótulos legíveis dos filtros (as categorias que gerar_excel_validacao e os feeds produzem)
   const CAT_LABEL = {
     FATURAMENTO:"Faturamento", ARQUIVOS:"Arquivos", CORREIOS:"Correios",
     FINANCEIRO:"Financeiro", B4YOU:"B4You", TRANSPORTADORA:"Transportadora",
@@ -182,44 +189,12 @@
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
     RASTREIO:"Rastreio", OUTROS:"Outros",
   };
-  // cores das categorias que não estão no mapa CORES (barradas do SAP → vermelho do card)
   const CAT_COR_EXTRA = { TRANSFERENCIA:"#dc2626", AUDITORIA:"#dc2626" };
   const catCor = k => CORES[k] || CAT_COR_EXTRA[k] || "#64748b";
-  const catsOff = new Set();  // categorias DESLIGADAS (o resto aparece)
 
-  function renderFiltros(){
-    // conta quantas travadas há por categoria
-    const cont = new Map();
-    for(const n of stuck.values()){ const k = catKey(n); cont.set(k, (cont.get(k)||0)+1); }
-    const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
-    const el = $("#filtros");
-    if(cats.length <= 1){ el.innerHTML = ""; return; }  // 0/1 tipo: filtro não ajuda
-    const algumOff = cats.some(k => catsOff.has(k));
-    el.innerHTML = cats.map(k => {
-      const c = catCor(k), on = !catsOff.has(k);
-      return `<span class="chip" role="button" tabindex="0" data-cat="${k}" aria-pressed="${on}"`
-        + ` style="background:${c}22;color:${c};border-color:${c}55">`
-        + `${CAT_LABEL[k]||k} <span class="n">${cont.get(k)}</span></span>`;
-    }).join("")
-      + (algumOff ? `<span class="chip limpar" role="button" tabindex="0" data-cat="__all__">limpar filtro</span>` : "");
-  }
-
-  // um clique liga/desliga a categoria; "limpar filtro" reativa todas
-  $("#filtros").addEventListener("click", e => {
-    const chip = e.target.closest(".chip"); if(!chip) return;
-    const k = chip.dataset.cat;
-    if(k === "__all__") catsOff.clear();
-    else if(catsOff.has(k)) catsOff.delete(k); else catsOff.add(k);
-    render();
-  });
-  $("#filtros").addEventListener("keydown", e => {
-    if((e.key==="Enter"||e.key===" ") && e.target.closest(".chip")){ e.preventDefault(); e.target.click(); }
-  });
-
-  // soluções rápidas (contextuais, ainda INATIVAS)
+  // soluções rápidas (contextuais, ainda INATIVAS). Boleto NÃO entra aqui — é só aviso.
   function solucoesDe(n){
     const c = n.problema_codigo||"", g = n.grupo||"";
-    if(c.startsWith("BOLETO")) return [{i:"💳",t:"Reprocessar boleto",s:"rebusca na pasta de rede"}];
     if(c.startsWith("ETIQUETA")||c==="MARKETING_ETIQUETA")
       return [{i:"🏷️",t:"Corrigir cadastro no SAP",s:"CEP / endereço"},{i:"🔁",t:"Regerar etiqueta",s:"após o cadastro"}];
     if(c.startsWith("TRANSP")||c==="EMAIL_TRANSP_FALHA")
@@ -248,6 +223,38 @@
     return {texto:`${d}d ${h%24}h`, velho};
   }
 
+  // ===== semana ISO (para o filtro de Subiram) =====
+  function isoSemana(d){
+    const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (dt.getUTCDay()+6)%7;              // segunda=0
+    dt.setUTCDate(dt.getUTCDate() - dayNum + 3);      // quinta da semana
+    const firstThu = new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+    const semana = 1 + Math.round(((dt - firstThu)/86400000 - 3 + ((firstThu.getUTCDay()+6)%7))/7);
+    return `${dt.getUTCFullYear()}-W${String(semana).padStart(2,'0')}`;
+  }
+  const semanaChave = iso => { const t=Date.parse(iso); return isNaN(t)?null:isoSemana(new Date(t)); };
+  const CHAVE_ATUAL   = isoSemana(new Date());
+  const CHAVE_PASSADA = isoSemana(new Date(Date.now()-7*86400000));
+  const MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function segundaDaSemana(chave){
+    const [ano,w] = chave.split('-W').map(Number);
+    const jan4 = new Date(Date.UTC(ano,0,4));
+    const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay()+6)%7));
+    const mon = new Date(week1Mon); mon.setUTCDate(week1Mon.getUTCDate() + (w-1)*7);
+    return mon;
+  }
+  function rotuloSemana(chave){
+    if(chave===CHAVE_ATUAL)   return "Esta semana";
+    if(chave===CHAVE_PASSADA) return "Semana passada";
+    const mon = segundaDaSemana(chave); const dom = new Date(mon); dom.setUTCDate(mon.getUTCDate()+6);
+    return `${mon.getUTCDate()}–${dom.getUTCDate()}/${MES[dom.getUTCMonth()]}`;
+  }
+  function quandoSubiu(iso){
+    const t = Date.parse(iso); if(isNaN(t)) return "—";
+    const d = new Date(t), p = x => String(x).padStart(2,'0');
+    return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
   function grpBadge(n){
     const g = n.grupo, c = corDe(n), st = `background:${c}22;color:${c}`;
     if(g==="BARRADAS_SAP") return `<span class="grp" style="${st}">🚨 barrada no SAP</span>`;
@@ -256,11 +263,12 @@
     return "";
   }
 
+  // ===== cards =====
   function cardTravada(n){
     const t = tempoDesde(n.travada_desde);
     const tempo = t ? `<span class="tempo ${t.velho?"velho":""}" data-iso="${esc(n.travada_desde)}">⏱ ${t.texto}</span>` : "";
     const cor = corDe(n);
-    return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrir('${esc(n.id)}')">`
+    return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrirTravada('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
       + `<span class="tag" style="${estiloTag(n)}">${esc(n.problema_codigo)}</span>`
@@ -270,33 +278,96 @@
       + (tempo ? `<div class="meta">${tempo}</div>` : "")
       + `</div>`;
   }
-
-  function render(){
-    renderFiltros();
-    const es = $("#stuck");
-    const visiveis = [...stuck.values()].filter(n => !catsOff.has(catKey(n)));
-    if(!stuck.size){ es.innerHTML = '<div class="empty">nada travado 🎉</div>'; }
-    else if(!visiveis.length){ es.innerHTML = '<div class="empty">nada nas categorias selecionadas</div>'; }
-    else{ es.innerHTML = visiveis.map(cardTravada).join(""); }
-    // contador mostra "visíveis de total" quando há filtro ativo
-    $("#c-stuck").textContent = catsOff.size ? `${visiveis.length}/${stuck.size}` : stuck.size;
-
-    const eu = $("#up");
-    eu.innerHTML = up.length ? up.slice(0,12).map(n =>
-      `<div class="nf subiu"><div class="top"><span class="num">NF ${esc(n.nf)}</span>`
+  function cardSubiu(n){
+    return `<div class="nf subiu" onclick="abrirSubiu('${esc(n.id)}')">`
+      + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
-      + `<span class="tag">✓ subiu</span><span class="carrier">${esc(n.transportadora)}</span></div></div>`).join("")
-      : '<div class="empty">aguardando…</div>';
-    $("#c-up").textContent = up.length;
+      + `<span class="tag">✓ subiu</span>`
+      + `<span class="carrier">${esc(n.transportadora)}</span></div></div>`;
   }
 
-  // ---- PAINEL LATERAL ----
-  let abertaId = null;
-  function abrir(id){
-    const n = stuck.get(id);
-    if(!n) return;
-    abertaId = id;
+  // ===== filtro: renderer de chip compartilhado =====
+  function chipHTML(label, cor, ativo, dataF, count){
+    const n = count!=null ? ` <span class="n">${count}</span>` : "";
+    return `<span class="chip" role="button" tabindex="0" data-f="${dataF}" aria-pressed="${ativo}"`
+      + ` style="background:${cor}22;color:${cor};border-color:${cor}55">${label}${n}</span>`;
+  }
+
+  function renderTravadas(){
+    const cont = new Map();
+    for(const n of stuck.values()){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
+    const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
+    const bar = $("#filtros");
+    if(cats.length <= 1){ bar.innerHTML = ""; }
+    else{
+      const algumOff = cats.some(k => filtroTravadas.has(k));
+      bar.innerHTML = cats.map(k => chipHTML(CAT_LABEL[k]||k, catCor(k), !filtroTravadas.has(k), `cat:${k}`, cont.get(k))).join("")
+        + (algumOff ? `<span class="chip limpar" role="button" tabindex="0" data-f="cat:__all__">limpar filtro</span>` : "");
+    }
+    const es = $("#stuck");
+    const vis = [...stuck.values()].filter(n => !filtroTravadas.has(catKey(n)));
+    if(!stuck.size)        es.innerHTML = '<div class="empty">nada travado 🎉</div>';
+    else if(!vis.length)   es.innerHTML = '<div class="empty">nada nas categorias selecionadas</div>';
+    else                   es.innerHTML = vis.map(cardTravada).join("");
+    $("#c-stuck").textContent = filtroTravadas.size ? `${vis.length}/${stuck.size}` : stuck.size;
+  }
+
+  function renderSubiram(){
+    const cont = new Map();
+    for(const n of risen.values()){ const k = semanaChave(n.atualizado_em); if(k) cont.set(k,(cont.get(k)||0)+1); }
+    const semanas = [...cont.keys()].sort().reverse();  // mais recente primeiro
+    // default só quando já há dados (senão travaria em "todas" antes do 1º evento do SSE)
+    if(filtroSubiram === null && semanas.length)
+      filtroSubiram = cont.has(CHAVE_ATUAL) ? CHAVE_ATUAL : semanas[0];
+    const bar = $("#filtros-up");
+    if(!semanas.length){ bar.innerHTML = ""; }
+    else{
+      const chips = semanas.map(k => chipHTML(rotuloSemana(k), "#0A3AAE", filtroSubiram===k, `sem:${k}`, cont.get(k)));
+      chips.push(chipHTML("Todas", "#5D5D5D", filtroSubiram==="todas", "sem:todas", risen.size));
+      bar.innerHTML = chips.join("");
+    }
+    let vis = [...risen.values()];
+    if(filtroSubiram !== "todas") vis = vis.filter(n => semanaChave(n.atualizado_em) === filtroSubiram);
+    vis.sort((a,b)=> String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
+    $("#up").innerHTML = vis.length ? vis.map(cardSubiu).join("")
+      : `<div class="empty">${risen.size ? "nenhuma nota nesta semana" : "aguardando…"}</div>`;
+    $("#c-up").textContent = vis.length;
+  }
+
+  function render(){ renderTravadas(); renderSubiram(); }
+
+  // cliques nas barras de filtro (data-f = "cat:<k>" | "sem:<chave>")
+  $("#filtros").addEventListener("click", e => {
+    const chip = e.target.closest(".chip"); if(!chip) return;
+    const k = chip.dataset.f.slice(4);
+    if(k === "__all__") filtroTravadas.clear();
+    else if(filtroTravadas.has(k)) filtroTravadas.delete(k); else filtroTravadas.add(k);
+    render();
+  });
+  $("#filtros-up").addEventListener("click", e => {
+    const chip = e.target.closest(".chip"); if(!chip) return;
+    filtroSubiram = chip.dataset.f.slice(4);
+    render();
+  });
+  for(const id of ["#filtros","#filtros-up"])
+    $(id).addEventListener("keydown", e => {
+      if((e.key==="Enter"||e.key===" ") && e.target.closest(".chip")){ e.preventDefault(); e.target.click(); }
+    });
+
+  // ===== PAINEL LATERAL =====
+  let abertaId = null, tipoAberto = null;
+
+  function abrirDrawer(){
+    $("#drawer").classList.add("open");
+    $("#drawer").setAttribute("aria-hidden","false");
+    $("#scrim").classList.add("open");
+  }
+
+  function abrirTravada(id){
+    const n = stuck.get(id); if(!n) return;
+    abertaId = id; tipoAberto = "travada";
     const cor = corDe(n);
+    $("#dw-eyebrow").textContent = "Nota travada";
     $("#dw-num").textContent = "NF " + (n.nf||"—");
     $("#dw-pills").innerHTML =
       `<span class="pill" style="background:${cor}22;color:${cor}">${esc(catLabel(n))}</span>`
@@ -312,27 +383,60 @@
     const partes = (n.problema_descricao||"").split(" + ");
     const alertTitulo = esc(partes[0] || n.problema_codigo || "Problema");
     const alertTexto = esc(n.problema_descricao || "");
-    const sols = solucoesDe(n);
+    const ehBoleto = n.problema_codigo === "BOLETO_AUSENTE";
 
-    $("#dw-body").innerHTML =
-      rows.map(([l,v,velho,iso]) =>
+    let corpo = rows.map(([l,v,velho,iso]) =>
         `<div class="info-row"><span class="lbl">${l}</span>`
         + `<span class="val ${velho?"velho":""}"${iso?` id="dw-tempo" data-iso="${esc(iso)}"`:""}>${v}</span></div>`).join("")
       + `<div class="alert" style="background:${cor}14;border-left:4px solid ${cor}">`
         + `<div class="at" style="color:${cor}">⚠️ ${alertTitulo}</div>`
-        + `<div class="ax">${alertTexto}</div></div>`
-      + `<div class="sec-lbl">Soluções rápidas</div>`
-      + `<div class="sol-grid">`
+        + `<div class="ax">${alertTexto}</div></div>`;
+
+    if(ehBoleto){
+      // Boleto: SÓ AVISO — resolve sozinho quando o boleto for salvo. Sem botão de solução.
+      corpo += `<div class="alert info"><div class="at" style="color:var(--accent)">ℹ️ Resolve sozinha</div>`
+        + `<div class="ax">Assim que o boleto for emitido e salvo na pasta de rede, a nota sai daqui `
+        + `automaticamente no próximo ciclo. É só um aviso — nenhuma ação no portal é necessária `
+        + `(a emissão fica com o Contas a Receber).</div></div>`;
+    } else {
+      const sols = solucoesDe(n);
+      corpo += `<div class="sec-lbl">Soluções rápidas</div><div class="sol-grid">`
         + sols.map(s => `<div class="sol-card" title="em breve"><div class="si">${s.i}</div>`
             + `<div class="st">${esc(s.t)}</div><div class="ss">${esc(s.s)}</div></div>`).join("")
-      + `</div>`;
-
-    $("#drawer").classList.add("open");
-    $("#drawer").setAttribute("aria-hidden","false");
-    $("#scrim").classList.add("open");
+        + `</div>`;
+    }
+    $("#dw-body").innerHTML = corpo;
+    // rodapé: boleto (auto-resolve) não mostra "Ignorar" nem o aviso "em breve"
+    $("#dw-ign").style.display  = ehBoleto ? "none" : "";
+    $("#dw-soon").style.display = ehBoleto ? "none" : "";
+    abrirDrawer();
   }
+
+  function abrirSubiu(id){
+    const n = risen.get(id); if(!n) return;
+    abertaId = id; tipoAberto = "subiu";
+    $("#dw-eyebrow").textContent = "Nota que subiu";
+    $("#dw-num").textContent = "NF " + (n.nf||"—");
+    $("#dw-pills").innerHTML =
+      `<span class="pill" style="background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)">✓ Processada</span>`
+      + `<span class="pill resp">${esc(n.transportadora||"—")}</span>`;
+    const rows = [
+      ["Transportadora", esc(n.transportadora||"—")],
+      ["Filial", esc(n.filial||"—")],
+      ["NF", esc(n.nf||"—")],
+      ["Subiu em", quandoSubiu(n.atualizado_em)],
+    ];
+    $("#dw-body").innerHTML =
+      rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
+      + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ Processada com sucesso</div>`
+      + `<div class="ax">Nota enviada e confirmada. Cliente e nº do pedido virão do SAP numa próxima versão.</div></div>`;
+    $("#dw-ign").style.display = "none";
+    $("#dw-soon").style.display = "none";
+    abrirDrawer();
+  }
+
   function fechar(){
-    abertaId = null;
+    abertaId = null; tipoAberto = null;
     $("#drawer").classList.remove("open");
     $("#drawer").setAttribute("aria-hidden","true");
     $("#scrim").classList.remove("open");
@@ -342,15 +446,21 @@
   $("#scrim").onclick = fechar;
   document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
 
+  // ===== aplica cada evento do SSE =====
+  function trimRisen(){
+    if(risen.size <= MAX_RISEN) return;
+    const ord = [...risen.entries()].sort((a,b)=> String(a[1].atualizado_em).localeCompare(String(b[1].atualizado_em)));
+    for(let i=0; i < ord.length - MAX_RISEN; i++) risen.delete(ord[i][0]);
+  }
   function aplicar(ev){
     const id = ev.id || ev.nf;
-    if(ev.estado === "travada"){ stuck.set(id, ev); if(abertaId===id) abrir(id); }
+    if(ev.estado === "travada"){ risen.delete(id); stuck.set(id, ev); if(abertaId===id && tipoAberto==="travada") abrirTravada(id); }
     else if(ev.estado === "resolvida"){ stuck.delete(id); if(abertaId===id) fechar(); }
-    else if(ev.estado === "subiu"){ stuck.delete(id); if(abertaId===id) fechar(); up.unshift(ev); if(up.length>50) up.pop(); }
+    else if(ev.estado === "subiu"){ stuck.delete(id); risen.set(id, ev); trimRisen(); if(abertaId===id && tipoAberto==="subiu") abrirSubiu(id); }
     render();
   }
 
-  // atualiza os cronômetros no lugar a cada segundo (sem reconstruir os cards)
+  // atualiza os cronômetros das travadas no lugar a cada segundo
   setInterval(() => {
     document.querySelectorAll(".tempo[data-iso], #dw-tempo[data-iso]").forEach(el => {
       const t = tempoDesde(el.dataset.iso);
@@ -360,7 +470,7 @@
     });
   }, 1000);
 
-  // quem está logado (mostra "usuario · perfil" ao lado do "sair")
+  // quem está logado (usuario · perfil) ao lado do "sair"
   fetch("/api/sessao").then(r => r.json()).then(s => {
     if(s && s.usuario){
       const perfil = s.perfil === "ti" ? "TI" : "Logística";

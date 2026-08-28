@@ -107,13 +107,26 @@ que o dado bate 100% com o email do robô — **antes** de montar a ponte Azure.
 - [~] **Ações e soluções ainda INATIVAS (por decisão, 28/08)** — os botões **🚫 Ignorar nota**
   e os cards de **Soluções rápidas** existem no painel mas não têm ação (aviso "em breve").
   Backend de ocultar pronto (`acoes.py` + rotas `/acoes/*`); religar quando for a hora.
-- [ ] **Puxar Pedido e Cliente** (hoje aparecem como "—") — precisam vir do log mestre / B4You;
-  ligar nos feeds. **Responsável** e **Soluções** hoje são derivados por regra do código do
-  problema (aproximação) — refinar quando as ações ficarem ativas.
+- [ ] **Puxar Pedido e Cliente via SAP** (hoje "—") — **não existem no log mestre** (17 colunas
+  canônicas, sem Cliente/Pedido — `tools/reparar_log_mestre.py`); só vêm do SAP (`OINV.CardName`
+  + nº do pedido) por NF. Enriquecer o feed com um lookup HANA read-only (reusa `sap_feed`).
+  **Adiado por decisão (28/08)**: o drawer da nota que subiu mostra Transportadora/Filial/NF/
+  Subiu em; Cliente/Pedido entram quando o lookup SAP for ligado.
 - [x] **Filtro por tipo de erro** na coluna Travadas (28/08) — chips clicáveis por
   `problema_categoria` (Faturamento, Arquivos, Correios, Financeiro, B4You, Transportadora,
   Transferência, Auditoria SAP, Marketing, Cancelamento), cada um com contagem e cor;
   toggle liga/desliga, "limpar filtro" reativa todos, contador vira "visíveis/total"
+- [x] **Filtro refatorado (genérico p/ as 2 colunas) (28/08)** — mesmo renderer de chips serve
+  Travadas (por tipo de erro) e Subiram (por semana).
+- [x] **Subiram = notas reais clicáveis + filtro por semana (28/08)** — seletor de semana ISO
+  (Esta semana / Semana passada / semanas com contagem / Todas), default = semana atual; clicar
+  abre o drawer com Transportadora/Filial/NF/Subiu em. `MAX_SUBIRAM` 40→400 (env
+  `PORTAL_MAX_SUBIRAM`) p/ haver histórico de semanas.
+- [x] **Boleto (`BOLETO_AUSENTE`) só-aviso (28/08)** — o drawer mostra "Resolve sozinha" (some
+  quando o boleto for salvo; ação do Contas a Receber) e **não** oferece botão de solução nem
+  "Ignorar".
+- [x] **Paleta Pharmaesthetics — tema claro (28/08)** — Azul Pharma `#0A3AAE` + navy `#134E7A`
+  + acento `#008CFF`, fonte Montserrat (Google Fonts, fallback system-ui). Portal e login.
 - [ ] Ajuste fino do front (responsividade mobile)
 
 **Fase 0 essencialmente fechada** — falta só ajuste fino. Validado ao vivo em 28/08: 12

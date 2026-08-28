@@ -27,7 +27,7 @@ LOGS_MESTRE = {
     "Atacado": os.getenv("PORTAL_LOG_ATACADO", r"O:\Logística\0 - B4YOU\Atacado\controle_pedidos_mestre.csv"),
 }
 POLL_SEGUNDOS = int(os.getenv("PORTAL_POLL_SEGUNDOS", "20"))
-MAX_SUBIRAM = 40  # quantas NFs "OK" recentes mostrar (evita despejar o histórico inteiro)
+MAX_SUBIRAM = int(os.getenv("PORTAL_MAX_SUBIRAM", "400"))  # NFs "OK" recentes (cobre várias semanas p/ o filtro por semana; evita despejar o histórico inteiro)
 
 # Constantes espelhadas do config.py do robô (config.py:40,144,216-225).
 CORREIOS_CARRIER = "F0002251"

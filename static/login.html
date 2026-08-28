@@ -4,31 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Entrar — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+  /* Paleta Pharmaesthetics — tema claro (Azul Pharma #0A3AAE) */
   :root{
-    --bg1:#0b1017; --bg2:#0e1a20; --card:#161d27; --line:#26303d;
-    --ink:#e8edf3; --ink2:#8b97a6; --teal:#22c3d6; --teal2:#18a7ba;
-    --field:#1b2430; --purple:#a855f7; --err:#ec5b50;
+    --bg1:#eef3fb; --bg2:#dce7f7; --card:#ffffff; --line:#d6e0f0;
+    --ink:#12213f; --ink2:#5D5D5D; --teal:#0A3AAE; --teal2:#134E7A;
+    --field:#f3f7fd; --purple:#7c3aed; --err:#d1382c;
   }
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;font:15px system-ui,-apple-system,Segoe UI,sans-serif;
+  body{margin:0;min-height:100vh;font:15px 'Montserrat',system-ui,-apple-system,Segoe UI,sans-serif;
     color:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;
-    background:radial-gradient(1100px 600px at 78% 12%,#123038 0%,transparent 55%),
+    background:radial-gradient(1100px 600px at 78% 12%,#cfe0f7 0%,transparent 55%),
       linear-gradient(160deg,var(--bg1),var(--bg2))}
   .card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);
-    border-radius:16px;padding:28px 28px 22px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+    border-radius:16px;padding:28px 28px 22px;box-shadow:0 24px 60px rgba(10,58,174,.14)}
   .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
   .logo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;
-    background:linear-gradient(150deg,var(--teal),var(--teal2));box-shadow:0 6px 16px rgba(34,195,214,.35)}
+    background:linear-gradient(150deg,var(--teal),var(--teal2));box-shadow:0 6px 16px rgba(10,58,174,.28)}
   .logo svg{width:24px;height:24px}
   .brand b{font-size:17px;display:block;line-height:1.2}
   .brand small{font-size:12.5px;color:var(--ink2)}
   label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
   input[type=text],input[type=password]{width:100%;background:var(--field);color:var(--ink);
     border:1px solid var(--line);border-radius:9px;padding:12px 13px;font:inherit;outline:none}
-  input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(34,195,214,.16)}
+  input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(10,58,174,.16)}
   .entrar{width:100%;margin-top:20px;border:0;border-radius:9px;padding:13px;cursor:pointer;
-    font:inherit;font-weight:700;font-size:15px;color:#04242a;
+    font:inherit;font-weight:700;font-size:15px;color:#ffffff;
     background:linear-gradient(150deg,var(--teal),var(--teal2))}
   .entrar:hover{filter:brightness(1.06)}
   .perfil{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
@@ -37,20 +41,20 @@
     font:inherit;font-size:13.5px;font-weight:600;color:var(--ink2)}
   .perfil button .ico{font-size:15px}
   .perfil button[aria-pressed=true]{color:var(--ink);border-color:var(--teal);
-    box-shadow:0 0 0 2px rgba(34,195,214,.18) inset}
+    box-shadow:0 0 0 2px rgba(10,58,174,.18) inset}
   .perfil button[data-perfil=logistica] .ico{color:var(--purple)}
   .perfil button[data-perfil=ti] .ico{color:var(--teal)}
   .erro{margin-top:14px;font-size:13px;color:var(--err);text-align:center;display:none}
   .erro.show{display:block}
   .foot{margin-top:20px;font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
-  .foot b{color:#aeb8c4}
+  .foot b{color:var(--teal2)}
 </style>
 </head>
 <body>
   <form class="card" method="post" action="/login" autocomplete="on">
     <div class="brand">
       <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#04242a" stroke-width="2.2"
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"
              stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l8-4 8 4-8 4-8-4z"/>
           <path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
       </span>
