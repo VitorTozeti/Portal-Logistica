@@ -14,6 +14,17 @@
     --ink:#12213f; --ink2:#5D5D5D; --teal:#0A3AAE; --teal2:#134E7A;
     --field:#f3f7fd; --purple:#7c3aed; --err:#d1382c;
   }
+  /* Modo automático: sistema em ESCURO → tema escuro antigo (teal) */
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg1:#0b1017; --bg2:#0e1a20; --card:#161d27; --line:#26303d;
+      --ink:#e8edf3; --ink2:#8b97a6; --teal:#22c3d6; --teal2:#18a7ba;
+      --field:#1b2430; --purple:#a855f7; --err:#ec5b50;
+    }
+    body{background:radial-gradient(1100px 600px at 78% 12%,#123038 0%,transparent 55%),
+      linear-gradient(160deg,var(--bg1),var(--bg2))}
+    .card{box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  }
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;font:15px 'Montserrat',system-ui,-apple-system,Segoe UI,sans-serif;
     color:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;

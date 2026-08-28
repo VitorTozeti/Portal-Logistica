@@ -15,6 +15,15 @@
     --ok:#127b3a; --ok-bg:#e3f4ea; --crit:#d1382c; --crit-bg:#fbe4e2; --warn:#b45309;
     --panel:#ffffff; --panel2:#f3f7fd;
   }
+  /* Modo automático: se o sistema estiver em ESCURO, volta ao tema escuro antigo */
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0c1016; --card:#141a22; --ink:#e8edf3; --ink2:#a9b4c1; --line:#263041;
+      --brand:#5b9bff; --brand2:#3f6fd6; --accent:#41c47e;
+      --ok:#41c47e; --ok-bg:#12321f; --crit:#ec5b50; --crit-bg:#361713; --warn:#e0a53a;
+      --panel:#161d27; --panel2:#1c2531;
+    }
+  }
   *{box-sizing:border-box}
   body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
   header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--card);
@@ -156,7 +165,7 @@
 
   // ---- cor por TIPO de erro (tag colorida) ----
   const CORES = {
-    FATURAMENTO:"#0A3AAE", ARQUIVOS:"#2563eb",
+    FATURAMENTO:"#2563eb", ARQUIVOS:"#3b82f6",
     FINANCEIRO:"#d97706", CORREIOS:"#9333ea", B4YOU:"#0d9488",
     TRANSPORTADORA:"#ea580c", BARRADAS_SAP:"#dc2626", MARKETING:"#db2777",
     CANCELAMENTO:"#64748b", RASTREIO:"#4f46e5",

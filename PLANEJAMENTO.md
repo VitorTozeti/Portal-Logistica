@@ -125,8 +125,10 @@ que o dado bate 100% com o email do robô — **antes** de montar a ponte Azure.
 - [x] **Boleto (`BOLETO_AUSENTE`) só-aviso (28/08)** — o drawer mostra "Resolve sozinha" (some
   quando o boleto for salvo; ação do Contas a Receber) e **não** oferece botão de solução nem
   "Ignorar".
-- [x] **Paleta Pharmaesthetics — tema claro (28/08)** — Azul Pharma `#0A3AAE` + navy `#134E7A`
-  + acento `#008CFF`, fonte Montserrat (Google Fonts, fallback system-ui). Portal e login.
+- [x] **Paleta Pharmaesthetics — modo automático (28/08)** — segue o `prefers-color-scheme` do
+  sistema: **claro** = paleta nova Pharma (Azul Pharma `#0A3AAE` + navy `#134E7A` + acento
+  `#008CFF`); **escuro** = a paleta escura antiga (bg `#0c1016`, subiu verde `#41c47e`, brand
+  azul claro `#5b9bff`). Fonte Montserrat (Google Fonts, fallback system-ui). Portal e login.
 - [ ] Ajuste fino do front (responsividade mobile)
 
 **Fase 0 essencialmente fechada** — falta só ajuste fino. Validado ao vivo em 28/08: 12
