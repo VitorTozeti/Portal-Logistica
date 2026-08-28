@@ -63,6 +63,9 @@
   .tempo{font-size:12px;font-weight:600;color:var(--warn)}
   .tempo.velho{color:var(--crit)}
   .empty{color:var(--ink2);font-size:13px;padding:14px;text-align:center}
+  .maisbtn{width:100%;margin:2px 0 4px;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand);
+    background:transparent;border:1px dashed var(--line);border-radius:9px;padding:9px;cursor:pointer}
+  .maisbtn:hover{background:var(--panel2)}
 
   /* ---- painel lateral (drawer) ---- */
   #scrim{position:fixed;inset:0;background:rgba(18,33,63,.32);opacity:0;pointer-events:none;
@@ -162,6 +165,8 @@
   // ===== estado dos filtros (um por coluna) =====
   const filtroTravadas = new Set();  // categorias DESLIGADAS (o resto aparece)
   let   filtroSubiram  = null;       // semana selecionada: "YYYY-Www" | "todas" (null = default)
+  const PASSO_SUBIRAM  = 50;         // quantas notas exibir por vez (evita despejar centenas)
+  let   limiteSubiram  = PASSO_SUBIRAM;
 
   // ---- cor por TIPO de erro (tag colorida) ----
   const CORES = {
@@ -258,12 +263,6 @@
     const mon = segundaDaSemana(chave); const dom = new Date(mon); dom.setUTCDate(mon.getUTCDate()+6);
     return `${mon.getUTCDate()}–${dom.getUTCDate()}/${MES[dom.getUTCMonth()]}`;
   }
-  function quandoSubiu(iso){
-    const t = Date.parse(iso); if(isNaN(t)) return "—";
-    const d = new Date(t), p = x => String(x).padStart(2,'0');
-    return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
-  }
-
   function grpBadge(n){
     const g = n.grupo, c = corDe(n), st = `background:${c}22;color:${c}`;
     if(g==="BARRADAS_SAP") return `<span class="grp" style="${st}">🚨 barrada no SAP</span>`;
@@ -323,10 +322,10 @@
 
   function renderSubiram(){
     const cont = new Map();
-    for(const n of risen.values()){ const k = semanaChave(n.atualizado_em); if(k) cont.set(k,(cont.get(k)||0)+1); }
+    for(const n of risen.values()){ const k = n._wk; if(k) cont.set(k,(cont.get(k)||0)+1); }
     const semanas = [...cont.keys()].sort().reverse();  // mais recente primeiro
-    // default só quando já há dados (senão travaria em "todas" antes do 1º evento do SSE)
-    if(filtroSubiram === null && semanas.length)
+    // default (só quando há dados) e fallback: se a semana escolhida sumiu, volta p/ a atual/mais recente
+    if(semanas.length && (filtroSubiram === null || (filtroSubiram !== "todas" && !cont.has(filtroSubiram))))
       filtroSubiram = cont.has(CHAVE_ATUAL) ? CHAVE_ATUAL : semanas[0];
     const bar = $("#filtros-up");
     if(!semanas.length){ bar.innerHTML = ""; }
@@ -336,11 +335,16 @@
       bar.innerHTML = chips.join("");
     }
     let vis = [...risen.values()];
-    if(filtroSubiram !== "todas") vis = vis.filter(n => semanaChave(n.atualizado_em) === filtroSubiram);
-    vis.sort((a,b)=> String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
-    $("#up").innerHTML = vis.length ? vis.map(cardSubiu).join("")
+    if(filtroSubiram !== "todas") vis = vis.filter(n => n._wk === filtroSubiram);
+    vis.sort((a,b)=> b._ord - a._ord);                 // mais recentes primeiro (timestamp)
+    const total = vis.length;
+    const mostra = vis.slice(0, limiteSubiram);         // exibe em blocos (não despeja tudo)
+    let html = mostra.length ? mostra.map(cardSubiu).join("")
       : `<div class="empty">${risen.size ? "nenhuma nota nesta semana" : "aguardando…"}</div>`;
-    $("#c-up").textContent = vis.length;
+    if(total > mostra.length)
+      html += `<button class="maisbtn" type="button" data-mais="1">▾ mostrar mais (${total - mostra.length})</button>`;
+    $("#up").innerHTML = html;
+    $("#c-up").textContent = total;
   }
 
   function render(){ renderTravadas(); renderSubiram(); }
@@ -356,7 +360,12 @@
   $("#filtros-up").addEventListener("click", e => {
     const chip = e.target.closest(".chip"); if(!chip) return;
     filtroSubiram = chip.dataset.f.slice(4);
+    limiteSubiram = PASSO_SUBIRAM;   // troca de semana recomeça a exibição
     render();
+  });
+  // "mostrar mais" da lista de Subiram (exibe mais um bloco)
+  $("#up").addEventListener("click", e => {
+    if(e.target.closest(".maisbtn")){ limiteSubiram += PASSO_SUBIRAM; renderSubiram(); }
   });
   for(const id of ["#filtros","#filtros-up"])
     $(id).addEventListener("keydown", e => {
@@ -427,18 +436,16 @@
     $("#dw-eyebrow").textContent = "Nota que subiu";
     $("#dw-num").textContent = "NF " + (n.nf||"—");
     $("#dw-pills").innerHTML =
-      `<span class="pill" style="background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)">✓ Processada</span>`
-      + `<span class="pill resp">${esc(n.transportadora||"—")}</span>`;
+      `<span class="pill" style="background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)">✓ Processada</span>`;
+    // dados necessários da nota que subiu: só Transportadora e Filial
     const rows = [
       ["Transportadora", esc(n.transportadora||"—")],
       ["Filial", esc(n.filial||"—")],
-      ["NF", esc(n.nf||"—")],
-      ["Subiu em", quandoSubiu(n.atualizado_em)],
     ];
     $("#dw-body").innerHTML =
       rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
       + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ Processada com sucesso</div>`
-      + `<div class="ax">Nota enviada e confirmada. Cliente e nº do pedido virão do SAP numa próxima versão.</div></div>`;
+      + `<div class="ax">Nota enviada e confirmada.</div></div>`;
     $("#dw-ign").style.display = "none";
     $("#dw-soon").style.display = "none";
     abrirDrawer();
@@ -458,14 +465,20 @@
   // ===== aplica cada evento do SSE =====
   function trimRisen(){
     if(risen.size <= MAX_RISEN) return;
-    const ord = [...risen.entries()].sort((a,b)=> String(a[1].atualizado_em).localeCompare(String(b[1].atualizado_em)));
+    const ord = [...risen.entries()].sort((a,b)=> a[1]._ord - b[1]._ord);  // mais antigos primeiro
     for(let i=0; i < ord.length - MAX_RISEN; i++) risen.delete(ord[i][0]);
   }
   function aplicar(ev){
     const id = ev.id || ev.nf;
     if(ev.estado === "travada"){ risen.delete(id); stuck.set(id, ev); if(abertaId===id && tipoAberto==="travada") abrirTravada(id); }
     else if(ev.estado === "resolvida"){ stuck.delete(id); if(abertaId===id) fechar(); }
-    else if(ev.estado === "subiu"){ stuck.delete(id); risen.set(id, ev); trimRisen(); if(abertaId===id && tipoAberto==="subiu") abrirSubiu(id); }
+    else if(ev.estado === "subiu"){
+      stuck.delete(id);
+      ev._wk = semanaChave(ev.atualizado_em);            // semana calculada 1x (não a cada render)
+      ev._ord = Date.parse(ev.atualizado_em) || 0;
+      risen.set(id, ev); trimRisen();
+      if(abertaId===id && tipoAberto==="subiu") abrirSubiu(id);
+    }
     render();
   }
 

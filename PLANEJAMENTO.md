@@ -119,9 +119,12 @@ que o dado bate 100% com o email do robô — **antes** de montar a ponte Azure.
 - [x] **Filtro refatorado (genérico p/ as 2 colunas) (28/08)** — mesmo renderer de chips serve
   Travadas (por tipo de erro) e Subiram (por semana).
 - [x] **Subiram = notas reais clicáveis + filtro por semana (28/08)** — seletor de semana ISO
-  (Esta semana / Semana passada / semanas com contagem / Todas), default = semana atual; clicar
-  abre o drawer com Transportadora/Filial/NF/Subiu em. `MAX_SUBIRAM` 40→400 (env
-  `PORTAL_MAX_SUBIRAM`) p/ haver histórico de semanas.
+  (Esta semana / Semana passada / semanas com contagem / Todas), default = semana atual, com
+  **fallback** se a semana escolhida some. `MAX_SUBIRAM` 40→400 (env `PORTAL_MAX_SUBIRAM`).
+  A semana de cada nota é calculada **1x por evento** (`_wk`/`_ord`), não a cada render.
+  **Lista exibida em blocos** de 50 com botão **"mostrar mais"** (o contador mostra o total
+  real) — evita despejar centenas de cards. **Drawer da nota que subiu = só Transportadora e
+  Filial** (os dados necessários/disponíveis); Cliente/Pedido seguem adiados (só via SAP).
 - [x] **Boleto (`BOLETO_AUSENTE`) só-aviso (28/08)** — o drawer mostra "Resolve sozinha" (some
   quando o boleto for salvo; ação do Contas a Receber) e **não** oferece botão de solução nem
   "Ignorar".
