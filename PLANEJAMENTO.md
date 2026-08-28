@@ -95,8 +95,12 @@ que o dado bate 100% com o email do robô — **antes** de montar a ponte Azure.
 - [x] Limpeza de resolvidas (NF que volta ao normal sai da tela)
 - [x] **Versionar o código** (git init + `.gitignore`) — feito 28/08
 - [x] **Cronômetro "travada há X"** no front (usa `travada_desde`; fica vermelho ≥4h) — feito 28/08
-- [x] **Ações por nota** — ignorar / marcar tratada + reativar (`acoes.py`, persistência em
-  `estado_portal.json`; rotas `/acoes/ocultar|reativar|ocultas`; painel "ver ocultas") — feito 28/08
+- [x] **Detalhe da NF em painel lateral** — clicar no card abre um drawer à direita com os
+  dados da nota (problema, descrição, transportadora, grupo, tempo travada) — feito 28/08
+- [~] **Ações por nota** — os botões **ignorar / ✓ tratada** já existem no painel lateral, mas
+  **ainda NÃO ativos** (por decisão, 28/08). O backend está pronto (`acoes.py`, persistência em
+  `estado_portal.json`, rotas `/acoes/ocultar|reativar|ocultas`); falta só religar o front aos
+  endpoints quando for a hora.
 - [ ] Ajuste fino do front (contadores por grupo, responsividade mobile)
 
 **Fase 0 essencialmente fechada** — falta só ajuste fino. Validado ao vivo em 28/08: 12

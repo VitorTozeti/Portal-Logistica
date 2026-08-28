@@ -26,7 +26,8 @@
   .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
   .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
     border-radius:9px;padding:11px 13px;margin-bottom:9px;animation:in .3s ease}
-  .nf.travada{border-left-color:var(--crit)}
+  .nf.travada{border-left-color:var(--crit);cursor:pointer}
+  .nf.travada:hover{border-color:var(--crit);box-shadow:0 1px 6px rgba(0,0,0,.08)}
   .nf.subiu{border-left-color:var(--ok)}
   @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
   .nf .top{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
@@ -41,18 +42,32 @@
   .meta{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap}
   .tempo{font-size:12px;font-weight:600;color:var(--warn)}
   .tempo.velho{color:var(--crit)}
-  .acts{margin-left:auto;display:flex;gap:6px}
-  .btn{font:inherit;font-size:11.5px;font-weight:600;border:1px solid var(--line);background:transparent;
-    color:var(--ink2);border-radius:7px;padding:3px 9px;cursor:pointer}
-  .btn:hover{background:var(--line);color:var(--ink)}
-  .btn.trat:hover{border-color:var(--ok);color:var(--ok)}
   .empty{color:var(--ink2);font-size:13px;padding:14px;text-align:center}
-  footer{max-width:1000px;margin:0 auto;padding:0 20px 28px}
-  .ocultas-toggle{font-size:12.5px;color:var(--ink2);cursor:pointer;user-select:none}
-  .ocultas-toggle:hover{color:var(--ink)}
-  #ocultas-lista{margin-top:10px}
-  .oc{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}
-  .oc .otipo{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--line)}
+
+  /* ---- painel lateral (drawer) ---- */
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.32);opacity:0;pointer-events:none;
+    transition:opacity .2s ease;z-index:40}
+  #scrim.open{opacity:1;pointer-events:auto}
+  #drawer{position:fixed;top:0;right:0;height:100%;width:380px;max-width:88vw;background:var(--card);
+    border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.12);
+    transform:translateX(100%);transition:transform .22s ease;z-index:50;display:flex;flex-direction:column}
+  #drawer.open{transform:translateX(0)}
+  .dw-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .dw-head .num{font-size:18px}
+  .dw-close{margin-left:auto;border:none;background:transparent;color:var(--ink2);font-size:22px;
+    line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+  .dw-close:hover{background:var(--line);color:var(--ink)}
+  .dw-body{padding:16px 18px;overflow:auto;flex:1}
+  .dw-row{margin-bottom:14px}
+  .dw-row .lbl{font-size:11px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+  .dw-row .val{font-size:14px}
+  .dw-foot{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:9px}
+  .btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:transparent;
+    color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;flex:1}
+  .btn:hover{background:var(--line)}
+  .btn.trat{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+  .btn.ign{color:var(--ink2)}
+  .soon{font-size:11px;color:var(--ink2);text-align:center;padding:0 18px 12px;margin-top:-4px}
 </style>
 </head>
 <body>
@@ -74,10 +89,21 @@
   </div>
 </main>
 
-<footer>
-  <span class="ocultas-toggle" id="oc-toggle">▸ ver notas ocultas (ignoradas / tratadas)</span>
-  <div id="ocultas-lista" hidden></div>
-</footer>
+<!-- painel lateral de detalhe da NF -->
+<div id="scrim"></div>
+<aside id="drawer" aria-hidden="true">
+  <div class="dw-head">
+    <span class="num" id="dw-num">NF —</span>
+    <span class="fil" id="dw-fil"></span>
+    <button class="dw-close" id="dw-close" title="fechar">×</button>
+  </div>
+  <div class="dw-body" id="dw-body"></div>
+  <div class="dw-foot">
+    <button class="btn ign" type="button">ignorar</button>
+    <button class="btn trat" type="button">✓ tratada</button>
+  </div>
+  <div class="soon">ações ainda não ativas — em breve</div>
+</aside>
 
 <script>
   const stuck = new Map(), up = [];
@@ -109,18 +135,15 @@
   function cardTravada(n){
     const t = tempoDesde(n.travada_desde);
     const tempo = t ? `<span class="tempo ${t.velho?"velho":""}">⏱ ${t.texto}</span>` : "";
-    return `<div class="nf travada">`
+    return `<div class="nf travada" onclick="abrir('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
       + `<span class="tag">${esc(n.problema_codigo)}</span>`
       + grpBadge(n.grupo)
       + `<span class="carrier">${esc(n.transportadora)}</span></div>`
       + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
-      + `<div class="meta">${tempo}`
-      + `<span class="acts">`
-      + `<button class="btn" onclick="ocultar('${esc(n.id)}','ignorada')">ignorar</button>`
-      + `<button class="btn trat" onclick="ocultar('${esc(n.id)}','tratada')">✓ tratada</button>`
-      + `</span></div></div>`;
+      + (tempo ? `<div class="meta">${tempo}</div>` : "")
+      + `</div>`;
   }
 
   function render(){
@@ -138,45 +161,45 @@
     $("#c-up").textContent = up.length;
   }
 
+  // ---- PAINEL LATERAL ----
+  let abertaId = null;
+  function abrir(id){
+    const n = stuck.get(id);
+    if(!n) return;
+    abertaId = id;
+    $("#dw-num").textContent = "NF " + (n.nf||"—");
+    $("#dw-fil").textContent = (n.filial||"").toUpperCase();
+    const t = tempoDesde(n.travada_desde);
+    const linhas = [
+      ["Problema", esc(n.problema_codigo||"—")],
+      ["Descrição", esc(n.problema_descricao||"—")],
+      ["Transportadora", esc(n.transportadora||"—")],
+      ["Grupo", esc(n.grupo||"—")],
+      ["Travada", t ? `⏱ ${t.texto}` : "—"],
+    ];
+    $("#dw-body").innerHTML = linhas.map(([l,v]) =>
+      `<div class="dw-row"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join("");
+    $("#drawer").classList.add("open");
+    $("#drawer").setAttribute("aria-hidden","false");
+    $("#scrim").classList.add("open");
+  }
+  function fechar(){
+    abertaId = null;
+    $("#drawer").classList.remove("open");
+    $("#drawer").setAttribute("aria-hidden","true");
+    $("#scrim").classList.remove("open");
+  }
+  $("#dw-close").onclick = fechar;
+  $("#scrim").onclick = fechar;
+  document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
+
   function aplicar(ev){
     const id = ev.id || ev.nf;
     if(ev.estado === "travada"){ stuck.set(id, ev); }
-    else if(ev.estado === "resolvida"){ stuck.delete(id); }
-    else if(ev.estado === "subiu"){ stuck.delete(id); up.unshift(ev); if(up.length>50) up.pop(); }
+    else if(ev.estado === "resolvida"){ stuck.delete(id); if(abertaId===id) fechar(); }
+    else if(ev.estado === "subiu"){ stuck.delete(id); if(abertaId===id) fechar(); up.unshift(ev); if(up.length>50) up.pop(); }
     render();
   }
-
-  // ---- AÇÕES POR NOTA ----
-  async function ocultar(id, tipo){
-    stuck.delete(id); render();                     // some já da tela
-    try{
-      await fetch("/acoes/ocultar", {method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({id, tipo})});
-    }catch(_){}
-    if(!$("#ocultas-lista").hidden) carregarOcultas();
-  }
-  async function reativar(id){
-    try{ await fetch("/acoes/reativar", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id})}); }catch(_){}
-    carregarOcultas();
-  }
-  async function carregarOcultas(){
-    let lista = [];
-    try{ lista = await (await fetch("/acoes/ocultas")).json(); }catch(_){}
-    const el = $("#ocultas-lista");
-    el.innerHTML = lista.length ? lista.map(o =>
-      `<div class="oc"><span class="otipo">${o.tipo==="tratada"?"✓ tratada":"ignorada"}</span>`
-      + `<span class="num">NF ${esc(o.nf)}</span><span class="fil">${esc(o.filial)}</span>`
-      + (o.motivo?`<span style="color:var(--ink2)">${esc(o.motivo)}</span>`:"")
-      + `<button class="btn" style="margin-left:auto" onclick="reativar('${esc(o.id)}')">reativar</button></div>`
-    ).join("") : '<div class="empty">nenhuma nota oculta</div>';
-  }
-  $("#oc-toggle").onclick = () => {
-    const el = $("#ocultas-lista"), t = $("#oc-toggle");
-    el.hidden = !el.hidden;
-    t.textContent = (el.hidden?"▸":"▾") + " ver notas ocultas (ignoradas / tratadas)";
-    if(!el.hidden) carregarOcultas();
-  };
 
   // atualiza os cronômetros sozinho (o dado não muda, só o "há quanto tempo")
   setInterval(() => { if(stuck.size) render(); }, 30000);
