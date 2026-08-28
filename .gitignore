@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Segredos e config local — NUNCA versionar
+.env
+*.env
+!.env.example
+
+# Estado local do portal (Fase 0 — ignorar/ações)
+estado_portal.json
+
+# Sistema
+.DS_Store
+Thumbs.db

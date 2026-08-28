@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal da Logística — B4You</title>
+<style>
+  :root{
+    --bg:#eef1f5; --card:#fff; --ink:#161b22; --ink2:#5a6572; --line:#dde3ea;
+    --ok:#1e9e5a; --ok-bg:#dcf1e6; --crit:#d1382c; --crit-bg:#f7dcd9; --warn:#b45309;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0c1016;--card:#141a22;--ink:#e8edf3;--ink2:#a9b4c1;--line:#263041;
+      --ok:#41c47e;--ok-bg:#12321f;--crit:#ec5b50;--crit-bg:#361713;--warn:#e0a53a;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  header b{font-size:16px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#bbb;display:inline-block}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 25%,transparent)}
+  .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+  main{max-width:1000px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:720px){main{grid-template-columns:1fr}}
+  .col h2{font-size:14px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+  .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
+  .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
+    border-radius:9px;padding:11px 13px;margin-bottom:9px;animation:in .3s ease}
+  .nf.travada{border-left-color:var(--crit)}
+  .nf.subiu{border-left-color:var(--ok)}
+  @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+  .nf .top{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
+  .num{font-family:ui-monospace,monospace}
+  .fil{font-size:10.5px;font-weight:700;color:var(--ink2);text-transform:uppercase}
+  .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--crit-bg);color:var(--crit)}
+  .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:#f6e9cf;color:#8a5a00}
+  @media (prefers-color-scheme:dark){.grp{background:#33260c;color:#e0a53a}}
+  .nf.subiu .tag{background:var(--ok-bg);color:var(--ok)}
+  .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
+  .desc{font-size:12.5px;color:var(--ink2);margin-top:4px}
+  .meta{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap}
+  .tempo{font-size:12px;font-weight:600;color:var(--warn)}
+  .tempo.velho{color:var(--crit)}
+  .acts{margin-left:auto;display:flex;gap:6px}
+  .btn{font:inherit;font-size:11.5px;font-weight:600;border:1px solid var(--line);background:transparent;
+    color:var(--ink2);border-radius:7px;padding:3px 9px;cursor:pointer}
+  .btn:hover{background:var(--line);color:var(--ink)}
+  .btn.trat:hover{border-color:var(--ok);color:var(--ok)}
+  .empty{color:var(--ink2);font-size:13px;padding:14px;text-align:center}
+  footer{max-width:1000px;margin:0 auto;padding:0 20px 28px}
+  .ocultas-toggle{font-size:12.5px;color:var(--ink2);cursor:pointer;user-select:none}
+  .ocultas-toggle:hover{color:var(--ink)}
+  #ocultas-lista{margin-top:10px}
+  .oc{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .oc .otipo{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="dot"></span>
+  <b>Portal da Logística</b>
+  <span style="font-size:12px;color:var(--ink2)">· B4You</span>
+  <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
+</header>
+
+<main>
+  <div class="col">
+    <h2>🔴 Travadas <span class="count" id="c-stuck">0</span></h2>
+    <div id="stuck"><div class="empty">nada travado 🎉</div></div>
+  </div>
+  <div class="col">
+    <h2>🟢 Subiram <span class="count" id="c-up">0</span></h2>
+    <div id="up"><div class="empty">aguardando…</div></div>
+  </div>
+</main>
+
+<footer>
+  <span class="ocultas-toggle" id="oc-toggle">▸ ver notas ocultas (ignoradas / tratadas)</span>
+  <div id="ocultas-lista" hidden></div>
+</footer>
+
+<script>
+  const stuck = new Map(), up = [];
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  // "há quanto tempo" a partir de um ISO; devolve {texto, velho}
+  function tempoDesde(iso){
+    if(!iso) return null;
+    const t = Date.parse(iso);
+    if(isNaN(t)) return null;
+    let min = Math.floor((Date.now() - t) / 60000);
+    if(min < 0) min = 0;
+    const velho = min >= 240; // 4h+ = urgente
+    if(min < 60) return {texto:`há ${min} min`, velho};
+    const h = Math.floor(min/60), m = min%60;
+    if(h < 24) return {texto:`há ${h}h${m?(" "+m+"min"):""}`, velho};
+    const d = Math.floor(h/24);
+    return {texto:`há ${d}d ${h%24}h`, velho};
+  }
+
+  function grpBadge(g){
+    if(g==="BARRADAS_SAP") return `<span class="grp">🚨 barrada no SAP</span>`;
+    if(g==="MARKETING")    return `<span class="grp">🏷️ marketing</span>`;
+    if(g==="CANCELAMENTO") return `<span class="grp">↩️ cancelamento</span>`;
+    return "";
+  }
+
+  function cardTravada(n){
+    const t = tempoDesde(n.travada_desde);
+    const tempo = t ? `<span class="tempo ${t.velho?"velho":""}">⏱ ${t.texto}</span>` : "";
+    return `<div class="nf travada">`
+      + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
+      + `<span class="fil">${esc(n.filial||"")}</span>`
+      + `<span class="tag">${esc(n.problema_codigo)}</span>`
+      + grpBadge(n.grupo)
+      + `<span class="carrier">${esc(n.transportadora)}</span></div>`
+      + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
+      + `<div class="meta">${tempo}`
+      + `<span class="acts">`
+      + `<button class="btn" onclick="ocultar('${esc(n.id)}','ignorada')">ignorar</button>`
+      + `<button class="btn trat" onclick="ocultar('${esc(n.id)}','tratada')">✓ tratada</button>`
+      + `</span></div></div>`;
+  }
+
+  function render(){
+    const es = $("#stuck");
+    if(!stuck.size){ es.innerHTML = '<div class="empty">nada travado 🎉</div>'; }
+    else{ es.innerHTML = [...stuck.values()].map(cardTravada).join(""); }
+    $("#c-stuck").textContent = stuck.size;
+
+    const eu = $("#up");
+    eu.innerHTML = up.length ? up.slice(0,12).map(n =>
+      `<div class="nf subiu"><div class="top"><span class="num">NF ${esc(n.nf)}</span>`
+      + `<span class="fil">${esc(n.filial||"")}</span>`
+      + `<span class="tag">✓ subiu</span><span class="carrier">${esc(n.transportadora)}</span></div></div>`).join("")
+      : '<div class="empty">aguardando…</div>';
+    $("#c-up").textContent = up.length;
+  }
+
+  function aplicar(ev){
+    const id = ev.id || ev.nf;
+    if(ev.estado === "travada"){ stuck.set(id, ev); }
+    else if(ev.estado === "resolvida"){ stuck.delete(id); }
+    else if(ev.estado === "subiu"){ stuck.delete(id); up.unshift(ev); if(up.length>50) up.pop(); }
+    render();
+  }
+
+  // ---- AÇÕES POR NOTA ----
+  async function ocultar(id, tipo){
+    stuck.delete(id); render();                     // some já da tela
+    try{
+      await fetch("/acoes/ocultar", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({id, tipo})});
+    }catch(_){}
+    if(!$("#ocultas-lista").hidden) carregarOcultas();
+  }
+  async function reativar(id){
+    try{ await fetch("/acoes/reativar", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id})}); }catch(_){}
+    carregarOcultas();
+  }
+  async function carregarOcultas(){
+    let lista = [];
+    try{ lista = await (await fetch("/acoes/ocultas")).json(); }catch(_){}
+    const el = $("#ocultas-lista");
+    el.innerHTML = lista.length ? lista.map(o =>
+      `<div class="oc"><span class="otipo">${o.tipo==="tratada"?"✓ tratada":"ignorada"}</span>`
+      + `<span class="num">NF ${esc(o.nf)}</span><span class="fil">${esc(o.filial)}</span>`
+      + (o.motivo?`<span style="color:var(--ink2)">${esc(o.motivo)}</span>`:"")
+      + `<button class="btn" style="margin-left:auto" onclick="reativar('${esc(o.id)}')">reativar</button></div>`
+    ).join("") : '<div class="empty">nenhuma nota oculta</div>';
+  }
+  $("#oc-toggle").onclick = () => {
+    const el = $("#ocultas-lista"), t = $("#oc-toggle");
+    el.hidden = !el.hidden;
+    t.textContent = (el.hidden?"▸":"▾") + " ver notas ocultas (ignoradas / tratadas)";
+    if(!el.hidden) carregarOcultas();
+  };
+
+  // atualiza os cronômetros sozinho (o dado não muda, só o "há quanto tempo")
+  setInterval(() => { if(stuck.size) render(); }, 30000);
+
+  // ---- A LIVE CONNECTION ----
+  const src = new EventSource("/stream");
+  src.onopen  = () => { $("#livetxt").textContent = "conexão ao vivo"; $("#dot").classList.add("on"); };
+  src.onerror = () => { $("#livetxt").textContent = "reconectando…"; $("#dot").classList.remove("on"); };
+  src.onmessage = e => { try{ aplicar(JSON.parse(e.data)); }catch(_){} };
+</script>
+</body>
+</html>
