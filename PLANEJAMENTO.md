@@ -95,12 +95,21 @@ que o dado bate 100% com o email do robô — **antes** de montar a ponte Azure.
 - [x] Limpeza de resolvidas (NF que volta ao normal sai da tela)
 - [x] **Versionar o código** (git init + `.gitignore`) — feito 28/08
 - [x] **Cronômetro "travada há X"** no front (usa `travada_desde`; fica vermelho ≥4h) — feito 28/08
-- [x] **Detalhe da NF em painel lateral** — clicar no card abre um drawer à direita com os
-  dados da nota (problema, descrição, transportadora, grupo, tempo travada) — feito 28/08
-- [~] **Ações por nota** — os botões **ignorar / ✓ tratada** já existem no painel lateral, mas
-  **ainda NÃO ativos** (por decisão, 28/08). O backend está pronto (`acoes.py`, persistência em
-  `estado_portal.json`, rotas `/acoes/ocultar|reativar|ocultas`); falta só religar o front aos
-  endpoints quando for a hora.
+- [x] **Detalhe da NF em painel lateral (drawer)** — clicar no card abre um painel à direita no
+  formato do mockup do gestor (28/08): eyebrow "Nota travada" + NF, pills **categoria** +
+  **Responsável**, linhas Transportadora/Pedido/Cliente/Travada há, **alerta colorido** com
+  título+texto do problema, seção **Soluções rápidas** (cards contextuais) e rodapé.
+- [x] **Cor por tipo de erro nas tags** (28/08) — cada categoria/grupo tem uma cor
+  (financeiro âmbar, faturamento azul, barrada SAP vermelho, marketing rosa, B4You teal,
+  transportadora laranja, cancelamento cinza, rastreio índigo); tinge a tag do card, a borda
+  esquerda e o alerta do painel. Mapa em `CORES` no `index.html`.
+- [x] **Cronômetro em segundos** ao vivo (atualiza no lugar, sem reconstruir o card).
+- [~] **Ações e soluções ainda INATIVAS (por decisão, 28/08)** — os botões **🚫 Ignorar nota**
+  e os cards de **Soluções rápidas** existem no painel mas não têm ação (aviso "em breve").
+  Backend de ocultar pronto (`acoes.py` + rotas `/acoes/*`); religar quando for a hora.
+- [ ] **Puxar Pedido e Cliente** (hoje aparecem como "—") — precisam vir do log mestre / B4You;
+  ligar nos feeds. **Responsável** e **Soluções** hoje são derivados por regra do código do
+  problema (aproximação) — refinar quando as ações ficarem ativas.
 - [ ] Ajuste fino do front (contadores por grupo, responsividade mobile)
 
 **Fase 0 essencialmente fechada** — falta só ajuste fino. Validado ao vivo em 28/08: 12

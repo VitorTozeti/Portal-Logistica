@@ -8,10 +8,12 @@
   :root{
     --bg:#eef1f5; --card:#fff; --ink:#161b22; --ink2:#5a6572; --line:#dde3ea;
     --ok:#1e9e5a; --ok-bg:#dcf1e6; --crit:#d1382c; --crit-bg:#f7dcd9; --warn:#b45309;
+    --panel:#fff; --panel2:#f5f7fa;
   }
   @media (prefers-color-scheme:dark){
     :root{--bg:#0c1016;--card:#141a22;--ink:#e8edf3;--ink2:#a9b4c1;--line:#263041;
-      --ok:#41c47e;--ok-bg:#12321f;--crit:#ec5b50;--crit-bg:#361713;--warn:#e0a53a;}
+      --ok:#41c47e;--ok-bg:#12321f;--crit:#ec5b50;--crit-bg:#361713;--warn:#e0a53a;
+      --panel:#161d27;--panel2:#1c2531;}
   }
   *{box-sizing:border-box}
   body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--ink)}
@@ -26,16 +28,15 @@
   .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
   .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
     border-radius:9px;padding:11px 13px;margin-bottom:9px;animation:in .3s ease}
-  .nf.travada{border-left-color:var(--crit);cursor:pointer}
-  .nf.travada:hover{border-color:var(--crit);box-shadow:0 1px 6px rgba(0,0,0,.08)}
+  .nf.travada{cursor:pointer}
+  .nf.travada:hover{box-shadow:0 1px 6px rgba(0,0,0,.10)}
   .nf.subiu{border-left-color:var(--ok)}
   @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
   .nf .top{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
   .num{font-family:ui-monospace,monospace}
   .fil{font-size:10.5px;font-weight:700;color:var(--ink2);text-transform:uppercase}
-  .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--crit-bg);color:var(--crit)}
-  .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:#f6e9cf;color:#8a5a00}
-  @media (prefers-color-scheme:dark){.grp{background:#33260c;color:#e0a53a}}
+  .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
   .nf.subiu .tag{background:var(--ok-bg);color:var(--ok)}
   .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
   .desc{font-size:12.5px;color:var(--ink2);margin-top:4px}
@@ -45,29 +46,46 @@
   .empty{color:var(--ink2);font-size:13px;padding:14px;text-align:center}
 
   /* ---- painel lateral (drawer) ---- */
-  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.32);opacity:0;pointer-events:none;
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;
     transition:opacity .2s ease;z-index:40}
   #scrim.open{opacity:1;pointer-events:auto}
-  #drawer{position:fixed;top:0;right:0;height:100%;width:380px;max-width:88vw;background:var(--card);
-    border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.12);
+  #drawer{position:fixed;top:0;right:0;height:100%;width:410px;max-width:90vw;background:var(--panel);
+    border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.18);
     transform:translateX(100%);transition:transform .22s ease;z-index:50;display:flex;flex-direction:column}
   #drawer.open{transform:translateX(0)}
-  .dw-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
-  .dw-head .num{font-size:18px}
-  .dw-close{margin-left:auto;border:none;background:transparent;color:var(--ink2);font-size:22px;
-    line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+  .dw-head{padding:18px 20px 14px;border-bottom:1px solid var(--line)}
+  .dw-eyebrow{font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--ink2);text-transform:uppercase}
+  .dw-titlerow{display:flex;align-items:center;gap:10px;margin-top:5px}
+  .dw-titlerow .num{font-size:22px;font-weight:700}
+  .dw-close{margin-left:auto;border:1px solid var(--line);background:transparent;color:var(--ink2);
+    font-size:18px;line-height:1;cursor:pointer;width:34px;height:34px;border-radius:9px}
   .dw-close:hover{background:var(--line);color:var(--ink)}
-  .dw-body{padding:16px 18px;overflow:auto;flex:1}
-  .dw-row{margin-bottom:14px}
-  .dw-row .lbl{font-size:11px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
-  .dw-row .val{font-size:14px}
-  .dw-foot{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:9px}
-  .btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:transparent;
-    color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;flex:1}
+  .dw-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.02em}
+  .pill.resp{background:var(--panel2);color:var(--ink2);border:1px solid var(--line)}
+  .dw-body{padding:16px 20px;overflow:auto;flex:1}
+  .info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .info-row .lbl{font-size:13px;color:var(--ink2)}
+  .info-row .val{font-size:14px;font-weight:700;font-family:ui-monospace,monospace;text-align:right}
+  .info-row .val.velho{color:var(--crit)}
+  .alert{margin:16px 0 4px;border-radius:11px;padding:13px 15px;background:var(--panel2)}
+  .alert .at{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .alert .ax{font-size:12.5px;color:var(--ink2);margin-top:6px;line-height:1.45}
+  .sec-lbl{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--ink2);text-transform:uppercase;margin:20px 0 10px}
+  .sol-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:440px){.sol-grid{grid-template-columns:1fr}}
+  .sol-card{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px;
+    cursor:not-allowed;opacity:.96}
+  .sol-card .si{font-size:20px}
+  .sol-card .st{font-size:13px;font-weight:700;margin-top:7px}
+  .sol-card .ss{font-size:11.5px;color:var(--ink2);margin-top:2px}
+  .dw-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px}
+  .btn{font:inherit;font-size:13.5px;font-weight:700;border:1px solid var(--line);background:transparent;
+    color:var(--ink);border-radius:10px;padding:11px 14px;cursor:pointer;flex:1}
   .btn:hover{background:var(--line)}
-  .btn.trat{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
-  .btn.ign{color:var(--ink2)}
-  .soon{font-size:11px;color:var(--ink2);text-align:center;padding:0 18px 12px;margin-top:-4px}
+  .btn.ign{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 55%,var(--line));cursor:not-allowed}
+  .btn.ign:hover{background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .soon{font-size:11px;color:var(--ink2);text-align:center;padding:0 20px 12px}
 </style>
 </head>
 <body>
@@ -93,16 +111,19 @@
 <div id="scrim"></div>
 <aside id="drawer" aria-hidden="true">
   <div class="dw-head">
-    <span class="num" id="dw-num">NF —</span>
-    <span class="fil" id="dw-fil"></span>
-    <button class="dw-close" id="dw-close" title="fechar">×</button>
+    <div class="dw-eyebrow">Nota travada</div>
+    <div class="dw-titlerow">
+      <span class="num" id="dw-num">NF —</span>
+      <button class="dw-close" id="dw-close" title="fechar">×</button>
+    </div>
+    <div class="dw-pills" id="dw-pills"></div>
   </div>
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
-    <button class="btn ign" type="button">ignorar</button>
-    <button class="btn trat" type="button">✓ tratada</button>
+    <button class="btn ign" type="button" title="em breve">🚫 Ignorar nota</button>
+    <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
-  <div class="soon">ações ainda não ativas — em breve</div>
+  <div class="soon">ignorar e soluções ainda não ativos — em breve</div>
 </aside>
 
 <script>
@@ -110,36 +131,81 @@
   const $ = s => document.querySelector(s);
   const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-  // "há quanto tempo" a partir de um ISO; devolve {texto, velho}
+  // ---- cor por TIPO de erro (tag colorida) ----
+  const CORES = {
+    FATURAMENTO:"#2563eb", ARQUIVOS:"#2563eb",
+    FINANCEIRO:"#d97706", CORREIOS:"#9333ea", B4YOU:"#0d9488",
+    TRANSPORTADORA:"#ea580c", BARRADAS_SAP:"#dc2626", MARKETING:"#db2777",
+    CANCELAMENTO:"#64748b", RASTREIO:"#4f46e5",
+  };
+  const corDe = n => CORES[n.grupo] || CORES[n.problema_categoria] || "#64748b";
+  const estiloTag = n => { const c = corDe(n); return `background:${c}22;color:${c}`; };
+
+  const RESP = {
+    FATURAMENTO:"Faturamento", ARQUIVOS:"Faturamento", FINANCEIRO:"Financeiro",
+    CORREIOS:"Cadastro", TRANSPORTADORA:"Cadastro", B4YOU:"Logística", RASTREIO:"Cadastro",
+  };
+  function respDe(n){
+    if(n.grupo==="BARRADAS_SAP") return "Fiscal";
+    if(n.grupo==="MARKETING") return "Cadastro";
+    if(n.grupo==="CANCELAMENTO") return "Logística";
+    return RESP[n.problema_categoria] || "Logística";
+  }
+  function catLabel(n){
+    if(n.problema_categoria) return n.problema_categoria;
+    if(n.grupo==="BARRADAS_SAP") return "SAP";
+    return n.grupo || "—";
+  }
+
+  // soluções rápidas (contextuais, ainda INATIVAS)
+  function solucoesDe(n){
+    const c = n.problema_codigo||"", g = n.grupo||"";
+    if(c.startsWith("BOLETO")) return [{i:"💳",t:"Reprocessar boleto",s:"rebusca na pasta de rede"}];
+    if(c.startsWith("ETIQUETA")||c==="MARKETING_ETIQUETA")
+      return [{i:"🏷️",t:"Corrigir cadastro no SAP",s:"CEP / endereço"},{i:"🔁",t:"Regerar etiqueta",s:"após o cadastro"}];
+    if(c.startsWith("TRANSP")||c==="EMAIL_TRANSP_FALHA")
+      return [{i:"🚚",t:"Corrigir transportadora no SAP",s:"código da transp. na NF"}];
+    if(c.startsWith("B4YOU")||c.startsWith("XML")||c.startsWith("PDF")||c==="ARQUIVO_IO")
+      return [{i:"📤",t:"Reenviar à B4You",s:"reprocessa o envio"}];
+    if(c==="FALTA_CHAVE"||c==="SEFAZ_BARRADA"||g==="BARRADAS_SAP")
+      return [{i:"🧾",t:"Verificar na SEFAZ",s:"status / chave de acesso"}];
+    if(g==="CANCELAMENTO") return [{i:"↩️",t:"Conferir cancelamento",s:"SAP × B4You"}];
+    return [{i:"🔎",t:"Investigar",s:"ver no pipeline"}];
+  }
+
   function tempoDesde(iso){
     if(!iso) return null;
     const t = Date.parse(iso);
     if(isNaN(t)) return null;
-    let min = Math.floor((Date.now() - t) / 60000);
-    if(min < 0) min = 0;
-    const velho = min >= 240; // 4h+ = urgente
-    if(min < 60) return {texto:`há ${min} min`, velho};
-    const h = Math.floor(min/60), m = min%60;
-    if(h < 24) return {texto:`há ${h}h${m?(" "+m+"min"):""}`, velho};
+    let seg = Math.floor((Date.now() - t) / 1000);
+    if(seg < 0) seg = 0;
+    const min = Math.floor(seg/60);
+    const velho = min >= 240;
+    if(min < 1)  return {texto:`${seg}s`, velho};
+    if(min < 60) return {texto:`${min}m ${seg%60}s`, velho};
+    const h = Math.floor(min/60);
+    if(h < 24) return {texto:`${h}h ${min%60}min`, velho};
     const d = Math.floor(h/24);
-    return {texto:`há ${d}d ${h%24}h`, velho};
+    return {texto:`${d}d ${h%24}h`, velho};
   }
 
-  function grpBadge(g){
-    if(g==="BARRADAS_SAP") return `<span class="grp">🚨 barrada no SAP</span>`;
-    if(g==="MARKETING")    return `<span class="grp">🏷️ marketing</span>`;
-    if(g==="CANCELAMENTO") return `<span class="grp">↩️ cancelamento</span>`;
+  function grpBadge(n){
+    const g = n.grupo, c = corDe(n), st = `background:${c}22;color:${c}`;
+    if(g==="BARRADAS_SAP") return `<span class="grp" style="${st}">🚨 barrada no SAP</span>`;
+    if(g==="MARKETING")    return `<span class="grp" style="${st}">🏷️ marketing</span>`;
+    if(g==="CANCELAMENTO") return `<span class="grp" style="${st}">↩️ cancelamento</span>`;
     return "";
   }
 
   function cardTravada(n){
     const t = tempoDesde(n.travada_desde);
-    const tempo = t ? `<span class="tempo ${t.velho?"velho":""}">⏱ ${t.texto}</span>` : "";
-    return `<div class="nf travada" onclick="abrir('${esc(n.id)}')">`
+    const tempo = t ? `<span class="tempo ${t.velho?"velho":""}" data-iso="${esc(n.travada_desde)}">⏱ ${t.texto}</span>` : "";
+    const cor = corDe(n);
+    return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrir('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
-      + `<span class="tag">${esc(n.problema_codigo)}</span>`
-      + grpBadge(n.grupo)
+      + `<span class="tag" style="${estiloTag(n)}">${esc(n.problema_codigo)}</span>`
+      + grpBadge(n)
       + `<span class="carrier">${esc(n.transportadora)}</span></div>`
       + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
       + (tempo ? `<div class="meta">${tempo}</div>` : "")
@@ -167,18 +233,37 @@
     const n = stuck.get(id);
     if(!n) return;
     abertaId = id;
+    const cor = corDe(n);
     $("#dw-num").textContent = "NF " + (n.nf||"—");
-    $("#dw-fil").textContent = (n.filial||"").toUpperCase();
+    $("#dw-pills").innerHTML =
+      `<span class="pill" style="background:${cor}22;color:${cor}">${esc(catLabel(n))}</span>`
+      + `<span class="pill resp">Responsável: ${esc(respDe(n))}</span>`;
+
     const t = tempoDesde(n.travada_desde);
-    const linhas = [
-      ["Problema", esc(n.problema_codigo||"—")],
-      ["Descrição", esc(n.problema_descricao||"—")],
-      ["Transportadora", esc(n.transportadora||"—")],
-      ["Grupo", esc(n.grupo||"—")],
-      ["Travada", t ? `⏱ ${t.texto}` : "—"],
+    const rows = [
+      ["Transportadora", esc(n.transportadora||"—"), false, null],
+      ["Pedido", esc(n.pedido||"—"), false, null],
+      ["Cliente", esc(n.cliente||"—"), false, null],
+      ["Travada há", t?("⏱ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
     ];
-    $("#dw-body").innerHTML = linhas.map(([l,v]) =>
-      `<div class="dw-row"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join("");
+    const partes = (n.problema_descricao||"").split(" + ");
+    const alertTitulo = esc(partes[0] || n.problema_codigo || "Problema");
+    const alertTexto = esc(n.problema_descricao || "");
+    const sols = solucoesDe(n);
+
+    $("#dw-body").innerHTML =
+      rows.map(([l,v,velho,iso]) =>
+        `<div class="info-row"><span class="lbl">${l}</span>`
+        + `<span class="val ${velho?"velho":""}"${iso?` id="dw-tempo" data-iso="${esc(iso)}"`:""}>${v}</span></div>`).join("")
+      + `<div class="alert" style="background:${cor}14;border-left:4px solid ${cor}">`
+        + `<div class="at" style="color:${cor}">⚠️ ${alertTitulo}</div>`
+        + `<div class="ax">${alertTexto}</div></div>`
+      + `<div class="sec-lbl">Soluções rápidas</div>`
+      + `<div class="sol-grid">`
+        + sols.map(s => `<div class="sol-card" title="em breve"><div class="si">${s.i}</div>`
+            + `<div class="st">${esc(s.t)}</div><div class="ss">${esc(s.s)}</div></div>`).join("")
+      + `</div>`;
+
     $("#drawer").classList.add("open");
     $("#drawer").setAttribute("aria-hidden","false");
     $("#scrim").classList.add("open");
@@ -190,19 +275,27 @@
     $("#scrim").classList.remove("open");
   }
   $("#dw-close").onclick = fechar;
+  $("#dw-fechar").onclick = fechar;
   $("#scrim").onclick = fechar;
   document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
 
   function aplicar(ev){
     const id = ev.id || ev.nf;
-    if(ev.estado === "travada"){ stuck.set(id, ev); }
+    if(ev.estado === "travada"){ stuck.set(id, ev); if(abertaId===id) abrir(id); }
     else if(ev.estado === "resolvida"){ stuck.delete(id); if(abertaId===id) fechar(); }
     else if(ev.estado === "subiu"){ stuck.delete(id); if(abertaId===id) fechar(); up.unshift(ev); if(up.length>50) up.pop(); }
     render();
   }
 
-  // atualiza os cronômetros sozinho (o dado não muda, só o "há quanto tempo")
-  setInterval(() => { if(stuck.size) render(); }, 30000);
+  // atualiza os cronômetros no lugar a cada segundo (sem reconstruir os cards)
+  setInterval(() => {
+    document.querySelectorAll(".tempo[data-iso], #dw-tempo[data-iso]").forEach(el => {
+      const t = tempoDesde(el.dataset.iso);
+      if(!t) return;
+      el.textContent = "⏱ " + t.texto;
+      el.classList.toggle("velho", t.velho);
+    });
+  }, 1000);
 
   // ---- A LIVE CONNECTION ----
   const src = new EventSource("/stream");
