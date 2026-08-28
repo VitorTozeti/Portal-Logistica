@@ -94,6 +94,10 @@
   <b>Portal da Logística</b>
   <span style="font-size:12px;color:var(--ink2)">· B4You</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
+  <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
+    <span id="quem"></span>
+    <a href="/logout" style="color:var(--ink2)">sair</a>
+  </span>
 </header>
 
 <main>
@@ -296,6 +300,14 @@
       el.classList.toggle("velho", t.velho);
     });
   }, 1000);
+
+  // quem está logado (mostra "usuario · perfil" ao lado do "sair")
+  fetch("/api/sessao").then(r => r.json()).then(s => {
+    if(s && s.usuario){
+      const perfil = s.perfil === "ti" ? "TI" : "Logística";
+      $("#quem").textContent = `${s.usuario} · ${perfil}`;
+    }
+  }).catch(()=>{});
 
   // ---- A LIVE CONNECTION ----
   const src = new EventSource("/stream");

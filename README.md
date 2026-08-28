@@ -18,8 +18,21 @@ feed.py  ──publica──>  hub.py (pub/sub em memória)  ──SSE /stream�
 
 - **hub.py** — pub/sub em memória; guarda o último estado de cada NF e empurra para todos os conectados. Não sabe nada de B4You/SAP.
 - **feed.py** — a FONTE REAL (orquestrador + Motor 2 do log mestre). Chama `sap_feed.py`, `marketing_feed.py` e `canc_feed.py` a cada 20s e publica só as mudanças. 100% só-leitura.
-- **app.py** — FastAPI: `/stream` (SSE), `/api/nfs` (snapshot), `/acoes/*` (ignorar/tratada/reativar), `/` (front).
+- **app.py** — FastAPI: `/login`+`/logout`, middleware de auth, `/stream` (SSE), `/api/nfs` (snapshot), `/acoes/*` (ignorar/tratada/reativar), `/` (front).
 - **acoes.py** — estado local das ações (ignorar/tratada) em `estado_portal.json` (Fase 0).
+- **auth.py** — login (2 perfis: TI compartilhado + Logística com usuários cadastrados); credenciais no `.env`, sessão por cookie assinado HMAC.
+
+## Login (acesso restrito)
+
+Tela `/login` com Usuário/Senha e seletor de perfil **Logística / TI**. As credenciais vêm
+do **`.env`** (que no deploy vira **GitHub Secrets**) — ver **`.env.example`**:
+
+- **TI** — 1 credencial compartilhada (`PORTAL_TI_USUARIO` / `PORTAL_TI_SENHA`).
+- **Logística** — usuários cadastrados (`PORTAL_LOGISTICA_USUARIOS="usuario:senha,..."`).
+
+Protótipo: ambos com `user` / `senha`. É a ponte até o **Entra ID** (Fase 2). Copie
+`.env.example` → `.env` e gere a `PORTAL_SECRET_KEY` com
+`python -c "import secrets; print(secrets.token_hex(32))"`.
 
 > 📋 Plano completo do projeto (arquitetura, fases, recursos Azure): **[PLANEJAMENTO.md](PLANEJAMENTO.md)**.
 

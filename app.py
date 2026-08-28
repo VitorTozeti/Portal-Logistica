@@ -13,15 +13,68 @@ Rodar:
 """
 import asyncio
 
-from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import (FileResponse, JSONResponse, RedirectResponse,
+                               StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 
 import acoes
+import auth
 from hub import hub
 from feed import rodar_feed_simulado
 
 app = FastAPI(title="Portal da Logística — B4You")
+
+# rotas que qualquer um alcança sem estar logado (a própria tela de login)
+_PUBLICO = {"/login", "/logout"}
+
+
+@app.middleware("http")
+async def exigir_login(request: Request, call_next):
+    """
+    Porteiro do portal: só passa quem tem cookie de sessão válido (ver auth.py).
+    - Sem sessão + rota de dados (/api, /stream, /acoes) -> 401 JSON.
+    - Sem sessão + qualquer outra (o front) -> manda para /login.
+    """
+    caminho = request.url.path
+    if caminho in _PUBLICO or auth.ler_cookie(request.cookies.get(auth.COOKIE)):
+        return await call_next(request)
+    if caminho.startswith(("/api", "/stream", "/acoes")):
+        return JSONResponse({"erro": "nao autenticado"}, status_code=401)
+    return RedirectResponse("/login", status_code=302)
+
+
+@app.get("/login")
+async def login_form():
+    """A tela de login (static/login.html)."""
+    return FileResponse("static/login.html")
+
+
+@app.post("/login")
+async def login_submit(usuario: str = Form(...), senha: str = Form(...),
+                       perfil: str = Form("logistica")):
+    """Valida a credencial no perfil escolhido e abre a sessão (cookie assinado)."""
+    if not auth.verificar(perfil, usuario, senha):
+        # volta ao form sinalizando erro, preservando o perfil que a pessoa escolheu
+        return RedirectResponse(f"/login?erro=1&perfil={perfil}", status_code=303)
+    resp = RedirectResponse("/", status_code=303)
+    resp.set_cookie(auth.COOKIE, auth.criar_cookie(usuario, perfil),
+                    httponly=True, samesite="lax", max_age=auth.SESSAO_SEG)
+    return resp
+
+
+@app.get("/logout")
+async def logout():
+    resp = RedirectResponse("/login", status_code=303)
+    resp.delete_cookie(auth.COOKIE)
+    return resp
+
+
+@app.get("/api/sessao")
+async def sessao(request: Request):
+    """Quem está logado agora (para o front mostrar usuário + botão sair)."""
+    s = auth.ler_cookie(request.cookies.get(auth.COOKIE)) or {}
+    return {"usuario": s.get("u"), "perfil": s.get("p")}
 
 
 @app.on_event("startup")

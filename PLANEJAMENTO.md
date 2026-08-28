@@ -128,7 +128,8 @@ Expor o portal para o time via a arquitetura da seção 2.
 
 ### ⬜ Fase 2 — Unilog + extras
 - [ ] Versão **Unilog** (troca a família de códigos B4You; SAP/log/encanamento não mudam)
-- [ ] Login **Entra ID** (restrito a Logística/TI)
+- [x] **Login interino** (senha compartilhada via `.env`→GitHub Secrets, 2 perfis TI/Logística) — feito 28/08, ver `auth.py`
+- [ ] Login **Entra ID** (restrito a Logística/TI) — substitui o login interino acima
 - [ ] Página de **OTIF** (reaproveita as medidas DAX do robô OTIF)
 - [ ] Botões de solução rápida por nota (re-rotear, reprocessar etiqueta, etc.)
 
@@ -138,12 +139,15 @@ Expor o portal para o time via a arquitetura da seção 2.
 
 ```
 Portal Logistica/
-├── app.py            # FastAPI: /stream (SSE), /api/nfs (snapshot), /acoes/* (Fase 0), / (front)
+├── app.py            # FastAPI: /login+/logout, middleware auth, /stream (SSE), /api/nfs, /acoes/*, / (front)
+├── auth.py           # login 2 perfis (TI compartilhado + Logística cadastrada); .env; cookie HMAC
+├── .env.example      # template das credenciais de acesso (viram GitHub Secrets no deploy)
 ├── hub.py            # pub/sub em memória (chave = filial:nf); não sabe nada de SAP/B4You
 ├── feed.py           # orquestrador + Motor 2 (log mestre); chama os outros feeds a cada 20s
 ├── sap_feed.py       # Motor 1 — barradas/transferências (SAP HANA + B4You)
 ├── marketing_feed.py # etiquetas marketing (CSV Status=ERRO)
 ├── canc_feed.py      # cancelamentos que precisam de ação manual
+├── static/login.html # tela de login (Usuário/Senha + seletor Logística/TI)
 ├── static/index.html # front (EventSource) — Travadas / Subiram
 ├── requirements.txt
 ├── README.md

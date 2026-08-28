@@ -1,5 +1,6 @@
 fastapi==0.115.*
 uvicorn[standard]==0.30.*
+python-multipart>=0.0.9
 requests>=2.31
 python-dotenv>=1.0
 hdbcli>=2.19
