@@ -89,6 +89,26 @@ async def listar_nfs():
     return hub.snapshot()
 
 
+@app.get("/api/subiram/historico")
+async def subiram_historico(de: str = "", ate: str = "", filial: str = "todas",
+                            pagina: int = 1, tudo: str = "",
+                            nf: str = "", transp: str = "", ignoradas: str = "todas",
+                            ignorados: str = ""):
+    """Histórico completo de notas subidas (faturadas) no SAP — sob demanda.
+    `tudo=1` ignora o intervalo e puxa desde o começo da empresa.
+    Filtros extras: `nf` (substring), `transp` (transportadora exata), `ignoradas`
+    ("todas"|"so"|"sem") + `ignorados` (conjunto "Filial:NF,…" que o portal conhece)."""
+    if tudo:
+        de, ate = "2000-01-01", "2999-12-31"
+    else:
+        de = de or "2000-01-01"
+        ate = ate or "2999-12-31"
+    import historico_feed
+    return await asyncio.to_thread(
+        historico_feed.consultar_historico, de, ate, filial, max(1, pagina), 100,
+        nf, transp, ignoradas, ignorados)
+
+
 @app.post("/acoes/ocultar")
 async def ocultar_nf(payload: dict):
     """
@@ -123,18 +143,23 @@ async def listar_ocultas():
 
 
 @app.get("/stream")
-async def stream(request: Request):
+async def stream(request: Request, snapshot: int = 1):
     """
     Server-Sent Events. O navegador conecta com `new EventSource('/stream')`.
     Ao conectar, mandamos o snapshot atual; depois, cada mudança vira um evento.
+
+    `?snapshot=0`: pula o replay da foto inicial e manda SÓ os deltas ao vivo.
+    O front usa isso quando já carregou a foto por `/api/nfs` (1 fetch, 1 parse) —
+    evita cuspir os ~12 mil eventos da foto de novo pelo SSE.
     """
     fila = hub.assinar()
 
     async def gerador():
-        # 1) manda a foto atual para a tela já nascer preenchida
-        for evento in hub.snapshot():
-            import json
-            yield f"data: {json.dumps(evento, ensure_ascii=False)}\n\n"
+        # 1) manda a foto atual para a tela já nascer preenchida (a menos que o front peça só deltas)
+        if snapshot:
+            for evento in hub.snapshot():
+                import json
+                yield f"data: {json.dumps(evento, ensure_ascii=False)}\n\n"
         # 2) daqui pra frente, empurra cada novo evento
         try:
             while True:

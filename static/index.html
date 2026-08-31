@@ -8,32 +8,43 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* Paleta Pharmaesthetics — tema claro (Azul Pharma #0A3AAE / navy #134E7A / acento #008CFF) */
+  /* ============================================================= */
+  /*  🎨 PALETA — EDITE APENAS ESTAS 5 CORES (tudo no portal deriva daqui) */
+  /*  Troque os hex abaixo e o site inteiro (fundo, cards, filtros, tags,   */
+  /*  textos, botões, modal) muda junto. Regra: --p5 é sempre a mais clara  */
+  /*  = cor dos textos.                                                     */
   :root{
-    --bg:#eef3fb; --card:#ffffff; --ink:#12213f; --ink2:#5D5D5D; --line:#d6e0f0;
-    --brand:#0A3AAE; --brand2:#134E7A; --accent:#008CFF;
-    --ok:#127b3a; --ok-bg:#e3f4ea; --crit:#d1382c; --crit-bg:#fbe4e2; --warn:#b45309;
-    --panel:#ffffff; --panel2:#f3f7fd;
+    --p1:#0e0d0d;   /* mais escura  → fundo da página            */
+    --p2:#242424;   /* escura       → cards/painéis/modal          */
+    --p3:#005b6b;   /* média        → linhas, bordas, preenchimento de filtros */
+    --p4:#31cceb;   /* destaque     → realces, ativos, "subiu"/live, tags */
+    --p5:#ffffff;   /* mais clara   → TODAS as letras              */
   }
-  /* Modo automático: se o sistema estiver em ESCURO, volta ao tema escuro antigo */
-  @media (prefers-color-scheme:dark){
-    :root{
-      --bg:#0c1016; --card:#141a22; --ink:#e8edf3; --ink2:#a9b4c1; --line:#263041;
-      --brand:#5b9bff; --brand2:#3f6fd6; --accent:#41c47e;
-      --ok:#41c47e; --ok-bg:#12321f; --crit:#ec5b50; --crit-bg:#361713; --warn:#e0a53a;
-      --panel:#161d27; --panel2:#1c2531;
-    }
+  /* ---- papéis (derivados da paleta; normalmente não precisa mexer) ---- */
+  :root{
+    --bg:var(--p1); --card:var(--p2); --panel:var(--p2); --panel2:var(--p3);
+    --ink:var(--p5); --ink2:var(--p5); --line:var(--p3);
+    --brand:var(--p4); --brand2:var(--p5); --accent:var(--p4);
+    --ok:var(--p4); --ok-bg:var(--p3); --crit:var(--p5); --crit-bg:var(--p3); --warn:var(--p4);
   }
+  /* ============================================================= */
   *{box-sizing:border-box}
   body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
   header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--card);
     border-bottom:2px solid var(--brand)}
   header b{font-size:16px;color:var(--brand)}
-  .dot{width:9px;height:9px;border-radius:50%;background:#bbb;display:inline-block}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--p3);display:inline-block}
   .dot.on{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
   .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
-  main{max-width:1000px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  main{max-width:1440px;margin:0 auto;padding:22px 28px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (min-width:1100px){.col{min-width:0}}
   @media (max-width:720px){main{grid-template-columns:1fr}}
+  @media (max-width:440px){main{padding:14px 12px;gap:14px}header{padding:12px 14px}
+    header b{font-size:15px}.col h2{font-size:13px}}
+  html,body{overflow-x:hidden}
+  /* barras de rolagem ocultas (a rolagem continua funcionando) — visual mais limpo/profissional */
+  html,body,.hist-body,.dw-body,#up,#stuck{scrollbar-width:none;-ms-overflow-style:none}
+  ::-webkit-scrollbar{width:0;height:0;background:transparent}
   .col h2{font-size:14px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
   .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
   /* ---- filtros (Travadas por tipo de erro / Subiram por semana) ---- */
@@ -46,17 +57,26 @@
   .chip.limpar{background:transparent;border-color:var(--line);color:var(--ink2)}
   .chip.limpar:hover{background:var(--line);color:var(--ink)}
   .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
-    border-radius:9px;padding:11px 13px;margin-bottom:9px;animation:in .3s ease}
+    border-radius:11px;padding:10px 13px;margin-bottom:8px;
+    transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
   .nf.travada,.nf.subiu{cursor:pointer}
-  .nf.travada:hover,.nf.subiu:hover{box-shadow:0 1px 8px rgba(10,58,174,.12)}
-  .nf.subiu{border-left-color:var(--accent)}
+  .nf.travada:hover,.nf.subiu:hover{box-shadow:0 4px 16px rgba(0,0,0,.4);transform:translateY(-2px);
+    border-color:var(--brand)}
+  .nf.subiu{border-left-color:var(--accent);
+    background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 7%,var(--card)),var(--card) 42%)}
   @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
   .nf .top{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
   .num{font-family:ui-monospace,monospace}
-  .fil{font-size:10.5px;font-weight:700;color:var(--ink2);text-transform:uppercase}
+  .fil{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+    padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--ink2)}
+  .fil-varejo{color:var(--p1);background:var(--brand);border-color:var(--brand)}
+  .fil-atacado{color:var(--brand);background:transparent;
+    border-color:color-mix(in srgb,var(--brand) 65%,transparent)}
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
   .nf.subiu .tag{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  .subdata{margin-left:auto;font-size:11px;color:var(--ink2);font-family:ui-monospace,monospace}
+  .subdata + .carrier{margin-left:10px}
   .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
   .desc{font-size:12.5px;color:var(--ink2);margin-top:4px}
   .meta{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap}
@@ -68,11 +88,11 @@
   .maisbtn:hover{background:var(--panel2)}
 
   /* ---- painel lateral (drawer) ---- */
-  #scrim{position:fixed;inset:0;background:rgba(18,33,63,.32);opacity:0;pointer-events:none;
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;
     transition:opacity .2s ease;z-index:40}
   #scrim.open{opacity:1;pointer-events:auto}
   #drawer{position:fixed;top:0;right:0;height:100%;width:410px;max-width:90vw;background:var(--panel);
-    border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(10,58,174,.16);
+    border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.5);
     transform:translateX(100%);transition:transform .22s ease;z-index:50;display:flex;flex-direction:column}
   #drawer.open{transform:translateX(0)}
   .dw-head{padding:18px 20px 14px;border-bottom:1px solid var(--line)}
@@ -109,9 +129,118 @@
   .btn.ign{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 55%,var(--line));cursor:not-allowed}
   .btn.ign:hover{background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .soon{font-size:11px;color:var(--ink2);text-align:center;padding:0 20px 12px}
+  /* ---- footer ---- */
+  footer{margin-top:28px;border-top:1px solid var(--line);background:var(--card)}
+  .ft-inner{max-width:1440px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:14px;
+    flex-wrap:wrap;font-size:12px;color:var(--ink2)}
+  .ft-brand{font-weight:700;color:var(--brand)}
+  .ft-sep{color:var(--ink2);font-weight:400}
+  .ft-mid{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .ft-pill{font-weight:700;color:var(--ok)}
+  .ft-pill.off{color:var(--crit)}
+  .ft-ro{color:var(--ink2)}
+  .ft-ver{color:var(--ink2);font-family:ui-monospace,monospace;font-size:11.5px}
+  @media (max-width:560px){.ft-mid{margin-left:0;width:100%}}
+  /* marcador monocromático no título das colunas (cor do texto/paleta) */
+  .hdot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block;opacity:.85}
+  /* ---- filtros da coluna Subiram (2 linhas: segmento+ignoradas / busca+data) ---- */
+  #filtros-up{display:flex;flex-direction:column;align-items:stretch;gap:9px}
+  .fu-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #chip-ign{background:transparent;color:var(--ink2);border:1px solid var(--line);margin-left:auto}
+  #chip-ign[aria-pressed=true]{color:var(--brand);border-color:var(--brand);
+    background:color-mix(in srgb,var(--brand) 12%,transparent)}
+  #busca-nf{flex:1;min-width:140px}
+  /* segmented control da filial: grupo coeso, ativo preenchido */
+  .seg{display:inline-flex;gap:0;padding:3px;background:color-mix(in srgb,var(--p3) 22%,transparent);
+    border:1px solid var(--line);border-radius:22px}
+  .seg .chip{border:1px solid transparent;border-radius:20px;background:transparent;color:var(--ink);
+    padding:4px 12px;opacity:.6;filter:none}
+  .seg .chip .n{background:color-mix(in srgb,var(--p1) 45%,transparent);border-radius:20px;
+    padding:0 6px;font-size:10.5px}
+  .seg .chip[aria-pressed=true]{opacity:1;background:var(--brand);color:var(--p1);
+    box-shadow:0 1px 6px color-mix(in srgb,var(--brand) 40%,transparent)}
+  .seg .chip[aria-pressed=true] .n{background:color-mix(in srgb,var(--p1) 22%,transparent);color:var(--p1)}
+  .seg .chip:hover{opacity:1}
+  .grp.ignorada{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+  .dtfiltro{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+  .dtfiltro label{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+  .dtfiltro input[type=date]{font:inherit;font-size:11.5px;padding:3px 6px;border:1px solid var(--line);
+    border-radius:8px;background:var(--card);color:var(--ink)}
+  .buscanf{font:inherit;font-size:12.5px;padding:6px 12px;border:1px solid var(--line);border-radius:20px;
+    background:var(--card);color:var(--ink);outline:none;transition:border-color .12s,box-shadow .12s}
+  .buscanf:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
+  .buscanf::placeholder{color:var(--ink2)}
+  /* ---- responsividade da barra de filtros da coluna Subiram ---- */
+  @media (max-width:560px){
+    .seg{flex:1;justify-content:space-between}
+    .seg .chip{flex:1;justify-content:center;padding:6px 8px}
+    #chip-ign{margin-left:0}
+    .dtfiltro{width:100%;justify-content:flex-start}
+  }
+  .vertodas{width:100%;margin:8px 0 2px;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand);
+    background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px;cursor:pointer}
+  .vertodas:hover{background:var(--line)}
+  /* ---- modal histórico ---- */
+  #hist-scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;
+    transition:opacity .2s;z-index:60}
+  #hist-scrim.open{opacity:1;pointer-events:auto}
+  #hist{position:fixed;top:50%;left:50%;transform:translate(-50%,-46%) scale(.98);opacity:0;pointer-events:none;
+    width:840px;max-width:94vw;max-height:88vh;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);z-index:70;display:flex;flex-direction:column;
+    transition:opacity .2s,transform .2s}
+  #hist.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .hist-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .hist-head b{font-size:15px;color:var(--brand)}
+  .hist-src{font-size:12px;color:var(--ink2);font-weight:400}
+  .hist-head .dw-close{margin-left:auto}
+  .hist-filtros{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);
+    font-size:11.5px;color:var(--ink2)}
+  .hist-filtros label{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+  .hist-filtros input[type=date]{font:inherit;font-size:11.5px;padding:3px 6px;border:1px solid var(--line);
+    border-radius:8px;background:var(--card);color:var(--ink)}
+  .hist-filtros input[type=date]:disabled{opacity:.4}
+  .hist-filtros .buscanf{padding:5px 11px;font-size:11.5px;width:130px;flex:0 0 auto}
+  .hist-select{font:inherit;font-size:11.5px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;
+    background:var(--card);color:var(--ink);max-width:200px;cursor:pointer}
+  #hist-ign{background:transparent;color:var(--ink2);border:1px solid var(--line)}
+  #hist-ign[aria-pressed=true]{color:var(--brand);border-color:var(--brand);
+    background:color-mix(in srgb,var(--brand) 12%,transparent)}
+  .hist-desde{cursor:pointer}
+  .hist-buscar{flex:0 0 auto;padding:7px 16px}
+  .hist-body{padding:6px 20px;overflow:auto;flex:1}
+  .hist-tab{width:100%;border-collapse:collapse;font-size:12.5px}
+  .hist-tab th{text-align:left;color:var(--ink2);font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    padding:8px 6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+  .hist-tab td{padding:7px 6px;border-bottom:1px solid var(--line)}
+  .hist-tab td.num{font-family:ui-monospace,monospace}
+  .hist-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;
+    border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2)}
+  .hist-foot b{color:var(--ink);font-weight:800}
+  .hist-status{font-size:11.5px;color:var(--ink2)}
+  .hist-status.fim{color:var(--brand);font-weight:700}
+  .hist-tab tbody tr:hover{background:color-mix(in srgb,var(--brand) 7%,transparent)}
+  /* ---- tela de carregamento (foto inicial de ~12k NFs em 1 fetch) ---- */
+  .loader{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);transition:opacity .35s ease}
+  .loader.hide{opacity:0;pointer-events:none}
+  .loader-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px;text-align:center}
+  .loader-logo{font-size:17px;font-weight:800;color:var(--brand);letter-spacing:.01em}
+  .spinner{width:44px;height:44px;border-radius:50%;border:4px solid color-mix(in srgb,var(--brand) 22%,transparent);
+    border-top-color:var(--brand);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loader-txt{font-size:13.5px;color:var(--ink);font-weight:600}
+  .loader-count{font-size:12px;color:var(--ink2);font-family:ui-monospace,monospace;min-height:16px}
 </style>
 </head>
 <body>
+<div id="loader" class="loader">
+  <div class="loader-box">
+    <div class="loader-logo">Portal da Logística</div>
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="loader-txt">Carregando notas fiscais…</div>
+    <div class="loader-count" id="loader-count">preparando</div>
+  </div>
+</div>
 <header>
   <span class="dot" id="dot"></span>
   <b>Portal da Logística</b>
@@ -125,16 +254,44 @@
 
 <main>
   <div class="col">
-    <h2>🔴 Travadas <span class="count" id="c-stuck">0</span></h2>
+    <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span></h2>
     <div class="filtros" id="filtros"></div>
     <div id="stuck"><div class="empty">nada travado 🎉</div></div>
   </div>
   <div class="col">
-    <h2>🟢 Subiram <span class="count" id="c-up">0</span></h2>
-    <div class="filtros" id="filtros-up"></div>
+    <h2><span class="hdot"></span>Subiram <span class="count" id="c-up">0</span></h2>
+    <div class="filtros" id="filtros-up">
+      <div class="fu-row">
+        <span id="seg-filial" class="seg">
+          <span class="chip todas" role="button" tabindex="0" data-fil="todas" aria-pressed="true">Todas <span class="n">0</span></span>
+          <span class="chip varejo" role="button" tabindex="0" data-fil="Varejo" aria-pressed="false">Varejo <span class="n">0</span></span>
+          <span class="chip atacado" role="button" tabindex="0" data-fil="Atacado" aria-pressed="false">Atacado <span class="n">0</span></span>
+        </span>
+        <span class="chip" id="chip-ign" role="button" tabindex="0" aria-pressed="true" title="mostrar/ocultar notas ignoradas">⊘ ignoradas</span>
+      </div>
+      <div class="fu-row">
+        <input type="search" id="busca-nf" class="buscanf" placeholder="buscar nº da NF" inputmode="numeric" autocomplete="off">
+        <span class="dtfiltro">
+          <label>De <input type="date" id="dt-de"></label>
+          <label>Até <input type="date" id="dt-ate"></label>
+          <span class="chip limpar" id="dt-limpar" role="button" tabindex="0">limpar</span>
+        </span>
+      </div>
+    </div>
     <div id="up"><div class="empty">aguardando…</div></div>
   </div>
 </main>
+
+<footer>
+  <div class="ft-inner">
+    <span class="ft-brand">Portal da Logística <span class="ft-sep">·</span> Pharmaesthetics</span>
+    <span class="ft-mid">
+      <span id="ft-live" class="ft-pill">● conectando…</span>
+      <span class="ft-ro">somente leitura — não altera SAP/B4You</span>
+    </span>
+    <span class="ft-ver">v0.1 · B4You</span>
+  </div>
+</footer>
 
 <!-- painel lateral de detalhe da NF (travada OU que subiu) -->
 <div id="scrim"></div>
@@ -149,44 +306,89 @@
   </div>
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
-    <button class="btn ign" id="dw-ign" type="button" title="em breve">🚫 Ignorar nota</button>
     <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
-  <div class="soon" id="dw-soon">ignorar e soluções ainda não ativos — em breve</div>
 </aside>
+
+<!-- modal: histórico completo de notas subidas (SAP) -->
+<div id="hist-scrim"></div>
+<div id="hist" aria-hidden="true">
+  <div class="hist-head">
+    <b>Histórico de notas subidas <span class="hist-src">· SAP</span></b>
+    <button class="dw-close" id="hist-close" title="fechar">×</button>
+  </div>
+  <div class="hist-filtros">
+    <span id="hist-seg" class="seg">
+      <span class="chip todas" role="button" tabindex="0" data-fil="todas" aria-pressed="true">Todas</span>
+      <span class="chip varejo" role="button" tabindex="0" data-fil="Varejo" aria-pressed="false">Varejo</span>
+      <span class="chip atacado" role="button" tabindex="0" data-fil="Atacado" aria-pressed="false">Atacado</span>
+      <span class="chip matriz" role="button" tabindex="0" data-fil="Matriz" aria-pressed="false">Matriz</span>
+    </span>
+    <span class="chip" id="hist-ign" role="button" tabindex="0" aria-pressed="true" title="mostrar/ocultar notas ignoradas">⊘ ignoradas</span>
+    <input type="search" id="hist-nf" class="buscanf" placeholder="buscar nº da NF" inputmode="numeric" autocomplete="off">
+    <select id="hist-transp" class="hist-select" title="filtrar por transportadora">
+      <option value="todas">Todas as transportadoras</option>
+    </select>
+    <label>De <input type="date" id="hist-de"></label>
+    <label>Até <input type="date" id="hist-ate"></label>
+    <label class="hist-desde"><input type="checkbox" id="hist-tudo"> desde o começo</label>
+    <button class="btn hist-buscar" id="hist-buscar" type="button">Buscar</button>
+  </div>
+  <div class="hist-body" id="hist-body"><div class="empty">defina um intervalo e clique em Buscar.</div></div>
+  <div class="hist-foot" id="hist-foot"></div>
+</div>
 
 <script>
   const stuck = new Map();          // travadas: id -> evento
   const risen = new Map();          // subiram:  id -> evento
-  const MAX_RISEN = 400;
+  const MAX_RISEN = 100000;         // teto alto: guarda TODAS as notas do ano (front pagina em blocos)
   const $ = s => document.querySelector(s);
   const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
   // ===== estado dos filtros (um por coluna) =====
   const filtroTravadas = new Set();  // categorias DESLIGADAS (o resto aparece)
-  let   filtroSubiram  = null;       // semana selecionada: "YYYY-Www" | "todas" (null = default)
-  const PASSO_SUBIRAM  = 50;         // quantas notas exibir por vez (evita despejar centenas)
+  let   filtroFilial   = "todas";    // "todas" | "Varejo" | "Atacado"
+  let   filtroDe       = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte inicial)
+  let   filtroAte      = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte final)
+  let   filtroIgnoradas = "todas";   // "todas" | "so" (só ignoradas) | "sem" (oculta ignoradas)
+  let   buscaNF        = "";         // filtro por número de NF (substring); vazio = sem busca
+  const PASSO_SUBIRAM  = 15;         // quantas notas exibir por vez (bloco de "mostrar mais")
   let   limiteSubiram  = PASSO_SUBIRAM;
+  // por padrão a lista começa restrita à SEMANA ATUAL + SEMANA PASSADA; "mostrar mais"/busca/data soltam isso
+  let   janelaSemanal  = true;
+  const PASSO_TRAVADAS = 15;         // idem para as travadas (para não gerar scroll infinito)
+  let   limiteTravadas = PASSO_TRAVADAS;
 
-  // ---- cor por TIPO de erro (tag colorida) ----
-  const CORES = {
-    FATURAMENTO:"#2563eb", ARQUIVOS:"#3b82f6",
-    FINANCEIRO:"#d97706", CORREIOS:"#9333ea", B4YOU:"#0d9488",
-    TRANSPORTADORA:"#ea580c", BARRADAS_SAP:"#dc2626", MARKETING:"#db2777",
-    CANCELAMENTO:"#64748b", RASTREIO:"#4f46e5",
+  // ---- PALETA ÚNICA lida das CSS vars (:root --p1..--p5) — 1 lugar só p/ editar ----
+  const CSSV = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const PAL = { p1:CSSV("--p1"), p2:CSSV("--p2"), p3:CSSV("--p3"), p4:CSSV("--p4"), p5:CSSV("--p5") };
+  // ---- CORES DAS CATEGORIAS DE TRAVADAS: variações do destaque #31cceb (--p4) ----
+  // Notas que SUBIRAM ficam na cor base da paleta (--p4, sólida). Notas TRAVADAS (não
+  // subiram) recebem uma variação da MESMA família ciano por categoria — mesmo espírito
+  // da paleta, mas cada tipo de problema com um tom distinto p/ bater o olho e separar.
+  const CAT_COR = {
+    FATURAMENTO:"#31cceb",  ARQUIVOS:"#59dcf1",   CORREIOS:"#16aecf",
+    FINANCEIRO:"#2ee8d6",   B4YOU:"#4ba6e8",      TRANSPORTADORA:"#86e7f2",
+    TRANSFERENCIA:"#1a97b0",AUDITORIA:"#34bce2",  BARRADAS_SAP:"#40d8e0",
+    MARKETING:"#6bc4ee",    CANCELAMENTO:"#20c2d1",RASTREIO:"#8fd6f0",
+    OUTROS:"#7fa9b5",
   };
-  const corDe = n => CORES[n.grupo] || CORES[n.problema_categoria] || "#64748b";
-  const estiloTag = n => { const c = corDe(n); return `background:${c}22;color:${c}`; };
+  const catCor = k => CAT_COR[k] || PAL.p4;
+  // cor de uma nota travada = a variação da sua categoria; subiu = destaque base
+  const corDe = n => catCor(catKey(n));
+  const estiloTag = n => { const c = catCor(catKey(n)); return `background:${c}22;color:${c}`; };
 
-  const RESP = {
-    FATURAMENTO:"Faturamento", ARQUIVOS:"Faturamento", FINANCEIRO:"Financeiro",
-    CORREIOS:"Cadastro", TRANSPORTADORA:"Cadastro", B4YOU:"Logística", RASTREIO:"Cadastro",
-  };
+  // Responsável por tipo de erro — espelha o roteamento REAL do robô (email_sender.enviar_alerta_internos
+  // + log_handler.gerar_excel_validacao): o robô só tem 3 destinos — base=Logística, boleto→Financeiro
+  // (Contas a Receber), [FATURAMENTO] XML/PDF ausente + falta chave/SEFAZ→Faturamento. Tudo mais
+  // (marketing/etiqueta [CORREIOS], transportadora, B4You, cancelamento, auditoria) cai na Logística.
+  // Override do gestor: transferência atrasada e depósito bloqueado também vão p/ Financeiro.
+  const FIN_CODES = new Set(["BOLETO_AUSENTE", "TRANSFERENCIA_ATRASADA", "DEPOSITO_BLOQUEADO"]);
+  const FAT_CATS  = new Set(["FATURAMENTO", "ARQUIVOS"]);   // XML/PDF ausente, falta chave/SEFAZ
   function respDe(n){
-    if(n.grupo==="BARRADAS_SAP") return "Fiscal";
-    if(n.grupo==="MARKETING") return "Cadastro";
-    if(n.grupo==="CANCELAMENTO") return "Logística";
-    return RESP[n.problema_categoria] || "Logística";
+    if(FIN_CODES.has(n.problema_codigo)) return "Financeiro";
+    if(FAT_CATS.has(n.problema_categoria)) return "Faturamento";
+    return "Logística";
   }
   function catLabel(n){
     if(n.problema_categoria) return n.problema_categoria;
@@ -203,23 +405,6 @@
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
     RASTREIO:"Rastreio", OUTROS:"Outros",
   };
-  const CAT_COR_EXTRA = { TRANSFERENCIA:"#dc2626", AUDITORIA:"#dc2626" };
-  const catCor = k => CORES[k] || CAT_COR_EXTRA[k] || "#64748b";
-
-  // soluções rápidas (contextuais, ainda INATIVAS). Boleto NÃO entra aqui — é só aviso.
-  function solucoesDe(n){
-    const c = n.problema_codigo||"", g = n.grupo||"";
-    if(c.startsWith("ETIQUETA")||c==="MARKETING_ETIQUETA")
-      return [{i:"🏷️",t:"Corrigir cadastro no SAP",s:"CEP / endereço"},{i:"🔁",t:"Regerar etiqueta",s:"após o cadastro"}];
-    if(c.startsWith("TRANSP")||c==="EMAIL_TRANSP_FALHA")
-      return [{i:"🚚",t:"Corrigir transportadora no SAP",s:"código da transp. na NF"}];
-    if(c.startsWith("B4YOU")||c.startsWith("XML")||c.startsWith("PDF")||c==="ARQUIVO_IO")
-      return [{i:"📤",t:"Reenviar à B4You",s:"reprocessa o envio"}];
-    if(c==="FALTA_CHAVE"||c==="SEFAZ_BARRADA"||g==="BARRADAS_SAP")
-      return [{i:"🧾",t:"Verificar na SEFAZ",s:"status / chave de acesso"}];
-    if(g==="CANCELAMENTO") return [{i:"↩️",t:"Conferir cancelamento",s:"SAP × B4You"}];
-    return [{i:"🔎",t:"Investigar",s:"ver no pipeline"}];
-  }
 
   function tempoDesde(iso){
     if(!iso) return null;
@@ -237,44 +422,29 @@
     return {texto:`${d}d ${h%24}h`, velho};
   }
 
-  // ===== semana ISO (para o filtro de Subiram) =====
-  function isoSemana(d){
-    const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = (dt.getUTCDay()+6)%7;              // segunda=0
-    dt.setUTCDate(dt.getUTCDate() - dayNum + 3);      // quinta da semana
-    const firstThu = new Date(Date.UTC(dt.getUTCFullYear(),0,4));
-    const semana = 1 + Math.round(((dt - firstThu)/86400000 - 3 + ((firstThu.getUTCDay()+6)%7))/7);
-    return `${dt.getUTCFullYear()}-W${String(semana).padStart(2,'0')}`;
+  // ===== dia da nota (para o filtro por data de Subiram) =====
+  const diaDaNota = iso => { const t = Date.parse(iso); return isNaN(t) ? "" : new Date(t).toISOString().slice(0,10); };
+  const dataBR = iso => { const d = diaDaNota(iso); return d ? d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4) : ""; };
+  // início (segunda-feira, ISO) da SEMANA PASSADA — corte da janela "semana atual + semana passada"
+  function inicioJanelaSemana(){
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const dow = (hoje.getDay() + 6) % 7;              // 0 = segunda … 6 = domingo
+    const seg = new Date(hoje); seg.setDate(hoje.getDate() - dow - 7);  // segunda da semana passada
+    return seg.toISOString().slice(0,10);
   }
-  const semanaChave = iso => { const t=Date.parse(iso); return isNaN(t)?null:isoSemana(new Date(t)); };
-  const CHAVE_ATUAL   = isoSemana(new Date());
-  const CHAVE_PASSADA = isoSemana(new Date(Date.now()-7*86400000));
-  const MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-  function segundaDaSemana(chave){
-    const [ano,w] = chave.split('-W').map(Number);
-    const jan4 = new Date(Date.UTC(ano,0,4));
-    const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay()+6)%7));
-    const mon = new Date(week1Mon); mon.setUTCDate(week1Mon.getUTCDate() + (w-1)*7);
-    return mon;
-  }
-  function rotuloSemana(chave){
-    if(chave===CHAVE_ATUAL)   return "Esta semana";
-    if(chave===CHAVE_PASSADA) return "Semana passada";
-    const mon = segundaDaSemana(chave); const dom = new Date(mon); dom.setUTCDate(mon.getUTCDate()+6);
-    return `${mon.getUTCDate()}–${dom.getUTCDate()}/${MES[dom.getUTCMonth()]}`;
-  }
+  const dentroJanela = n => { const d = diaDaNota(n.atualizado_em); return d && d >= inicioJanelaSemana(); };
   function grpBadge(n){
     const g = n.grupo, c = corDe(n), st = `background:${c}22;color:${c}`;
-    if(g==="BARRADAS_SAP") return `<span class="grp" style="${st}">🚨 barrada no SAP</span>`;
-    if(g==="MARKETING")    return `<span class="grp" style="${st}">🏷️ marketing</span>`;
-    if(g==="CANCELAMENTO") return `<span class="grp" style="${st}">↩️ cancelamento</span>`;
+    if(g==="BARRADAS_SAP") return `<span class="grp" style="${st}">barrada no SAP</span>`;
+    if(g==="MARKETING")    return `<span class="grp" style="${st}">marketing</span>`;
+    if(g==="CANCELAMENTO") return `<span class="grp" style="${st}">cancelamento</span>`;
     return "";
   }
 
   // ===== cards =====
   function cardTravada(n){
     const t = tempoDesde(n.travada_desde);
-    const tempo = t ? `<span class="tempo ${t.velho?"velho":""}" data-iso="${esc(n.travada_desde)}">⏱ ${t.texto}</span>` : "";
+    const tempo = t ? `<span class="tempo ${t.velho?"velho":""}" data-iso="${esc(n.travada_desde)}">◷ ${t.texto}</span>` : "";
     const cor = corDe(n);
     return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrirTravada('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
@@ -287,18 +457,27 @@
       + `</div>`;
   }
   function cardSubiu(n){
+    const selo = n.ignorada ? `<span class="grp ignorada">⊘ ignorada</span>` : "";
+    const dt = dataBR(n.atualizado_em);
+    const fil = n.filial || "";
+    const filCls = fil==="Varejo" ? "fil fil-varejo" : fil==="Atacado" ? "fil fil-atacado" : "fil";
     return `<div class="nf subiu" onclick="abrirSubiu('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
-      + `<span class="fil">${esc(n.filial||"")}</span>`
+      + (fil ? `<span class="${filCls}">${esc(fil)}</span>` : "")
       + `<span class="tag">✓ subiu</span>`
+      + selo
+      + (dt ? `<span class="subdata">${dt}</span>` : "")
       + `<span class="carrier">${esc(n.transportadora)}</span></div></div>`;
   }
 
   // ===== filtro: renderer de chip compartilhado =====
   function chipHTML(label, cor, ativo, dataF, count){
     const n = count!=null ? ` <span class="n">${count}</span>` : "";
+    // chip da categoria na COR da categoria (variação do #31cceb): fundo tênue + borda/texto na cor
+    const c = cor || PAL.p4;
+    const st = `background:${c}1f;color:${c};border-color:${c}`;
     return `<span class="chip" role="button" tabindex="0" data-f="${dataF}" aria-pressed="${ativo}"`
-      + ` style="background:${cor}22;color:${cor};border-color:${cor}55">${label}${n}</span>`;
+      + ` style="${st}">${label}${n}</span>`;
   }
 
   function renderTravadas(){
@@ -316,38 +495,78 @@
     const vis = [...stuck.values()].filter(n => !filtroTravadas.has(catKey(n)));
     if(!stuck.size)        es.innerHTML = '<div class="empty">nada travado 🎉</div>';
     else if(!vis.length)   es.innerHTML = '<div class="empty">nada nas categorias selecionadas</div>';
-    else                   es.innerHTML = vis.map(cardTravada).join("");
+    else{
+      const mostra = vis.slice(0, limiteTravadas);
+      let html = mostra.map(cardTravada).join("");
+      if(vis.length > mostra.length)
+        html += `<button class="maisbtn" type="button" data-mais-tr="1">▾ mostrar mais (${vis.length - mostra.length})</button>`;
+      if(html !== _stuckHTML){ es.innerHTML = html; _stuckHTML = html; }
+    }
     $("#c-stuck").textContent = filtroTravadas.size ? `${vis.length}/${stuck.size}` : stuck.size;
   }
 
-  function renderSubiram(){
-    const cont = new Map();
-    for(const n of risen.values()){ const k = n._wk; if(k) cont.set(k,(cont.get(k)||0)+1); }
-    const semanas = [...cont.keys()].sort().reverse();  // mais recente primeiro
-    // default (só quando há dados) e fallback: se a semana escolhida sumiu, volta p/ a atual/mais recente
-    if(semanas.length && (filtroSubiram === null || (filtroSubiram !== "todas" && !cont.has(filtroSubiram))))
-      filtroSubiram = cont.has(CHAVE_ATUAL) ? CHAVE_ATUAL : semanas[0];
-    const bar = $("#filtros-up");
-    if(!semanas.length){ bar.innerHTML = ""; }
-    else{
-      const chips = semanas.map(k => chipHTML(rotuloSemana(k), "#0A3AAE", filtroSubiram===k, `sem:${k}`, cont.get(k)));
-      chips.push(chipHTML("Todas", "#5D5D5D", filtroSubiram==="todas", "sem:todas", risen.size));
-      bar.innerHTML = chips.join("");
+  function passaFiltrosSubiram(n){
+    if(filtroFilial !== "todas" && (n.filial||"") !== filtroFilial) return false;
+    if(filtroIgnoradas === "so"  && !n.ignorada) return false;
+    if(filtroIgnoradas === "sem" &&  n.ignorada) return false;
+    if(buscaNF && !String(n.nf||"").includes(buscaNF)) return false;
+    if(filtroDe || filtroAte){
+      const d = diaDaNota(n.atualizado_em);
+      if(!d) return false;
+      if(filtroDe  && d < filtroDe)  return false;
+      if(filtroAte && d > filtroAte) return false;
     }
-    let vis = [...risen.values()];
-    if(filtroSubiram !== "todas") vis = vis.filter(n => n._wk === filtroSubiram);
-    vis.sort((a,b)=> b._ord - a._ord);                 // mais recentes primeiro (timestamp)
+    return true;
+  }
+  function sincronizarChipsFilial(){
+    const nCont = { todas: risen.size, Varejo: 0, Atacado: 0 };
+    for(const n of risen.values()){ if(n.filial==="Varejo") nCont.Varejo++; else if(n.filial==="Atacado") nCont.Atacado++; }
+    for(const chip of document.querySelectorAll("#seg-filial .chip")){
+      const k = chip.dataset.fil;
+      chip.setAttribute("aria-pressed", String(filtroFilial===k));
+      const nEl = chip.querySelector(".n"); if(nEl) nEl.textContent = nCont[k] ?? 0;
+    }
+    const ci = $("#chip-ign");
+    if(ci){
+      let nIgn = 0; for(const n of risen.values()) if(n.ignorada) nIgn++;
+      const rot = { todas:`⊘ ignoradas (${nIgn})`, so:`⊘ só ignoradas (${nIgn})`, sem:"⊘ ocultar ignoradas" };
+      ci.textContent = rot[filtroIgnoradas];
+      ci.setAttribute("aria-pressed", String(filtroIgnoradas !== "sem"));
+    }
+  }
+  function renderSubiram(){
+    sincronizarChipsFilial();
+    let vis = [...risen.values()].filter(passaFiltrosSubiram);
+    vis.sort((a,b)=> b._ord - a._ord);                 // mais recentes primeiro (data de emissão desc)
     const total = vis.length;
-    const mostra = vis.slice(0, limiteSubiram);         // exibe em blocos (não despeja tudo)
+    // Janela inicial: só semana atual + passada. Some quando HÁ QUALQUER filtro ativo (filial,
+    // ignoradas, busca por NF, data) ou já se pediu "mostrar mais" (janelaSemanal=false) — filtrar
+    // = procurar no histórico inteiro. Ex.: "só ignoradas" (2 notas antigas) aparece na hora, sem
+    // precisar clicar "mostrar mais". Sem filtro nenhum, a janela mantém a tela inicial enxuta.
+    const usaJanela = janelaSemanal && filtroFilial==="todas" && filtroIgnoradas==="todas"
+                      && !buscaNF && !filtroDe && !filtroAte;
+    const pool = usaJanela ? vis.filter(dentroJanela) : vis;
+    const mostra = pool.slice(0, limiteSubiram);        // exibe em blocos (ordem desc preservada)
     let html = mostra.length ? mostra.map(cardSubiu).join("")
-      : `<div class="empty">${risen.size ? "nenhuma nota nesta semana" : "aguardando…"}</div>`;
-    if(total > mostra.length)
-      html += `<button class="maisbtn" type="button" data-mais="1">▾ mostrar mais (${total - mostra.length})</button>`;
-    $("#up").innerHTML = html;
-    $("#c-up").textContent = total;
+      : `<div class="empty">${risen.size ? "nenhuma nota nestes filtros" : "aguardando…"}</div>`;
+    // "mostrar mais" considera TODO o filtrado (vis), não só a janela — por isso revela o histórico antigo
+    const restante = total - mostra.length;
+    if(restante > 0)
+      html += `<button class="maisbtn" type="button" data-mais="1">▾ mostrar mais (${restante})</button>`;
+    html += `<button class="vertodas" type="button" id="btn-historico">ver todas as notas subidas (histórico completo)</button>`;
+    if(html !== _upHTML){ $("#up").innerHTML = html; _upHTML = html; }   // só reescreve o DOM se mudou (evita piscar)
+    const semFiltro = filtroFilial==="todas" && !filtroDe && !filtroAte && filtroIgnoradas==="todas" && !buscaNF;
+    $("#c-up").textContent = semFiltro ? total : `${total}/${risen.size}`;
   }
 
   function render(){ renderTravadas(); renderSubiram(); }
+  // coalesce renders: no snapshot inicial chegam milhares de eventos SSE; 1 render por frame evita travar
+  let _renderPend = false, _upHTML = "", _stuckHTML = "";
+  function agendarRender(){
+    if(_renderPend) return;
+    _renderPend = true;
+    requestAnimationFrame(() => { _renderPend = false; render(); });
+  }
 
   // cliques nas barras de filtro (data-f = "cat:<k>" | "sem:<chave>")
   $("#filtros").addEventListener("click", e => {
@@ -355,17 +574,38 @@
     const k = chip.dataset.f.slice(4);
     if(k === "__all__") filtroTravadas.clear();
     else if(filtroTravadas.has(k)) filtroTravadas.delete(k); else filtroTravadas.add(k);
+    limiteTravadas = PASSO_TRAVADAS;   // trocar de filtro recomeça a exibição
     render();
   });
+  // "mostrar mais" da lista de Travadas
+  $("#stuck").addEventListener("click", e => {
+    if(e.target.closest(".maisbtn")){ e.stopPropagation(); limiteTravadas += PASSO_TRAVADAS; renderTravadas(); }
+  });
+  // filtro por filial (Varejo/Atacado/Todas) + toggle "ocultar ignoradas"
   $("#filtros-up").addEventListener("click", e => {
     const chip = e.target.closest(".chip"); if(!chip) return;
-    filtroSubiram = chip.dataset.f.slice(4);
-    limiteSubiram = PASSO_SUBIRAM;   // troca de semana recomeça a exibição
-    render();
+    if(chip.id === "chip-ign"){ filtroIgnoradas = { todas:"so", so:"sem", sem:"todas" }[filtroIgnoradas]; }
+    else if(chip.dataset.fil){ filtroFilial = chip.dataset.fil; }
+    else return;
+    limiteSubiram = PASSO_SUBIRAM;   // trocar de filtro recomeça a exibição
+    renderSubiram();
   });
-  // "mostrar mais" da lista de Subiram (exibe mais um bloco)
+  // filtro por data da nota (De / Até)
+  $("#dt-de").addEventListener("change", e => { filtroDe = e.target.value; limiteSubiram = PASSO_SUBIRAM; renderSubiram(); });
+  $("#dt-ate").addEventListener("change", e => { filtroAte = e.target.value; limiteSubiram = PASSO_SUBIRAM; renderSubiram(); });
+  // busca por número de NF — varre TODO o histórico carregado (não só a janela da semana)
+  $("#busca-nf").addEventListener("input", e => {
+    buscaNF = e.target.value.replace(/\D/g,"").trim();
+    limiteSubiram = PASSO_SUBIRAM; renderSubiram();
+  });
+  $("#dt-limpar").addEventListener("click", () => {
+    filtroDe = ""; filtroAte = ""; $("#dt-de").value = ""; $("#dt-ate").value = "";
+    janelaSemanal = true; limiteSubiram = PASSO_SUBIRAM; renderSubiram();
+  });
+  // "mostrar mais" da lista + "ver todas" (histórico do SAP)
   $("#up").addEventListener("click", e => {
-    if(e.target.closest(".maisbtn")){ limiteSubiram += PASSO_SUBIRAM; renderSubiram(); }
+    if(e.target.closest(".maisbtn")){ janelaSemanal = false; limiteSubiram += PASSO_SUBIRAM; renderSubiram(); }
+    else if(e.target.closest("#btn-historico")){ abrirHistorico(); }
   });
   for(const id of ["#filtros","#filtros-up"])
     $(id).addEventListener("keydown", e => {
@@ -396,7 +636,7 @@
       ["Transportadora", esc(n.transportadora||"—"), false, null],
       ["Pedido", esc(n.pedido||"—"), false, null],
       ["Cliente", esc(n.cliente||"—"), false, null],
-      ["Travada há", t?("⏱ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
+      ["Travada há", t?("◷ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
     ];
     const partes = (n.problema_descricao||"").split(" + ");
     const alertTitulo = esc(partes[0] || n.problema_codigo || "Problema");
@@ -411,22 +651,14 @@
         + `<div class="ax">${alertTexto}</div></div>`;
 
     if(ehBoleto){
-      // Boleto: SÓ AVISO — resolve sozinho quando o boleto for salvo. Sem botão de solução.
+      // Boleto: SÓ AVISO — resolve sozinho quando o boleto for salvo.
       corpo += `<div class="alert info"><div class="at" style="color:var(--accent)">ℹ️ Resolve sozinha</div>`
         + `<div class="ax">Assim que o boleto for emitido e salvo na pasta de rede, a nota sai daqui `
         + `automaticamente no próximo ciclo. É só um aviso — nenhuma ação no portal é necessária `
         + `(a emissão fica com o Contas a Receber).</div></div>`;
-    } else {
-      const sols = solucoesDe(n);
-      corpo += `<div class="sec-lbl">Soluções rápidas</div><div class="sol-grid">`
-        + sols.map(s => `<div class="sol-card" title="em breve"><div class="si">${s.i}</div>`
-            + `<div class="st">${esc(s.t)}</div><div class="ss">${esc(s.s)}</div></div>`).join("")
-        + `</div>`;
     }
+    // Sem botões de ação/solução por enquanto (decisão do gestor) — só informação.
     $("#dw-body").innerHTML = corpo;
-    // rodapé: boleto (auto-resolve) não mostra "Ignorar" nem o aviso "em breve"
-    $("#dw-ign").style.display  = ehBoleto ? "none" : "";
-    $("#dw-soon").style.display = ehBoleto ? "none" : "";
     abrirDrawer();
   }
 
@@ -441,13 +673,13 @@
     const rows = [
       ["Transportadora", esc(n.transportadora||"—")],
       ["Filial", esc(n.filial||"—")],
+      ["Subiu em", esc(dataBR(n.atualizado_em) || "—")],
     ];
+    if(n.ignorada) rows.push(["Situação", "⊘ Ignorada (Chave IGNORADO)"]);
     $("#dw-body").innerHTML =
       rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
       + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ Processada com sucesso</div>`
       + `<div class="ax">Nota enviada e confirmada.</div></div>`;
-    $("#dw-ign").style.display = "none";
-    $("#dw-soon").style.display = "none";
     abrirDrawer();
   }
 
@@ -474,12 +706,11 @@
     else if(ev.estado === "resolvida"){ stuck.delete(id); if(abertaId===id) fechar(); }
     else if(ev.estado === "subiu"){
       stuck.delete(id);
-      ev._wk = semanaChave(ev.atualizado_em);            // semana calculada 1x (não a cada render)
-      ev._ord = Date.parse(ev.atualizado_em) || 0;
+      ev._ord = Date.parse(ev.atualizado_em) || 0;       // timestamp p/ ordenação
       risen.set(id, ev); trimRisen();
       if(abertaId===id && tipoAberto==="subiu") abrirSubiu(id);
     }
-    render();
+    agendarRender();
   }
 
   // atualiza os cronômetros das travadas no lugar a cada segundo
@@ -487,7 +718,7 @@
     document.querySelectorAll(".tempo[data-iso], #dw-tempo[data-iso]").forEach(el => {
       const t = tempoDesde(el.dataset.iso);
       if(!t) return;
-      el.textContent = "⏱ " + t.texto;
+      el.textContent = "◷ " + t.texto;
       el.classList.toggle("velho", t.velho);
     });
   }, 1000);
@@ -500,11 +731,176 @@
     }
   }).catch(()=>{});
 
-  // ---- A LIVE CONNECTION ----
-  const src = new EventSource("/stream");
-  src.onopen  = () => { $("#livetxt").textContent = "conexão ao vivo"; $("#dot").classList.add("on"); };
-  src.onerror = () => { $("#livetxt").textContent = "reconectando…"; $("#dot").classList.remove("on"); };
-  src.onmessage = e => { try{ aplicar(JSON.parse(e.data)); }catch(_){} };
+  // ===== HISTÓRICO (SAP) =====
+  let histFilial = "todas", histPagina = 1, histIgnoradas = "todas", histTransp = "todas";
+  let histPaginas = 1, histTotal = 0, histCarregados = 0, histCarregando = false;   // rolagem infinita
+  // conjunto "Filial:NF" das ignoradas que o portal conhece (o SAP não sabe quais são) — mandado ao servidor
+  const idsIgnorados = () => [...risen.values()].filter(n => n.ignorada).map(n => `${n.filial}:${n.nf}`).join(",");
+  function abrirHistorico(){
+    $("#hist").classList.add("open"); $("#hist").setAttribute("aria-hidden","false");
+    $("#hist-scrim").classList.add("open");
+  }
+  function fecharHistorico(){
+    $("#hist").classList.remove("open"); $("#hist").setAttribute("aria-hidden","true");
+    $("#hist-scrim").classList.remove("open");
+  }
+  $("#hist-close").onclick = fecharHistorico;
+  $("#hist-scrim").onclick = fecharHistorico;
+  $("#hist-seg").addEventListener("click", e => {
+    const chip = e.target.closest(".chip"); if(!chip) return;
+    histFilial = chip.dataset.fil;
+    for(const c of document.querySelectorAll("#hist-seg .chip")) c.setAttribute("aria-pressed", String(c.dataset.fil===histFilial));
+  });
+  $("#hist-tudo").addEventListener("change", e => {
+    const on = e.target.checked;
+    $("#hist-de").disabled = on; $("#hist-ate").disabled = on;
+  });
+  // toggle 3 estados de ignoradas no modal (todas → só → ocultar)
+  $("#hist-ign").addEventListener("click", () => {
+    histIgnoradas = { todas:"so", so:"sem", sem:"todas" }[histIgnoradas];
+    const rot = { todas:"⊘ ignoradas", so:"⊘ só ignoradas", sem:"⊘ ocultar ignoradas" };
+    const ci = $("#hist-ign");
+    ci.textContent = rot[histIgnoradas];
+    ci.setAttribute("aria-pressed", String(histIgnoradas !== "sem"));
+    histPagina = 1; buscarHistorico();
+  });
+  $("#hist-transp").addEventListener("change", e => { histTransp = e.target.value; histPagina = 1; buscarHistorico(); });
+  $("#hist-nf").addEventListener("keydown", e => { if(e.key==="Enter"){ histPagina = 1; buscarHistorico(); } });
+  // preenche o dropdown de transportadoras a partir do resultado (preserva a seleção atual)
+  function preencherTransp(lista){
+    const sel = $("#hist-transp"); if(!sel) return;
+    const atual = histTransp;
+    const opts = ['<option value="todas">Todas as transportadoras</option>']
+      .concat((lista||[]).map(t => `<option value="${esc(t)}">${esc(t)}</option>`));
+    sel.innerHTML = opts.join("");
+    // se a transportadora selecionada ainda existe, mantém; senão volta p/ "todas"
+    if(atual !== "todas" && !(lista||[]).includes(atual)){ histTransp = "todas"; }
+    sel.value = histTransp;
+  }
+  $("#hist-buscar").onclick = () => buscarHistorico(true);
+  const linhaHist = n => `<tr>`
+    + `<td class="num">${esc(n.nf)}${n.ignorada?' <span class="grp ignorada">⊘</span>':''}</td>`
+    + `<td>${esc(n.filial||"—")}</td><td>${esc((n.data_nota||"").slice(0,10))}</td>`
+    + `<td>${esc(n.tipo||"—")}</td><td>${esc(n.transportadora||"—")}</td></tr>`;
+  function rodapeHist(){
+    const foot = $("#hist-foot"); if(!foot) return;
+    const fim = histCarregados >= histTotal;
+    const esq = `<span>mostrando <b>${histCarregados.toLocaleString("pt-BR")}</b> de <b>${histTotal.toLocaleString("pt-BR")}</b> notas</span>`;
+    const dir = histCarregando ? `<span class="hist-status">carregando…</span>`
+      : fim ? `<span class="hist-status fim">✓ tudo carregado</span>`
+      : `<span class="hist-status">role para carregar mais</span>`;
+    foot.innerHTML = esq + dir;
+  }
+  // rolagem infinita: busca a próxima página e ANEXA as linhas (não recarrega a tabela).
+  // reset=true → nova busca/filtro (limpa a tabela e volta à página 1).
+  async function buscarHistorico(reset=true){
+    if(histCarregando) return;
+    if(reset){ histPagina = 1; histCarregados = 0; }
+    else { if(histPagina >= histPaginas) return; histPagina++; }
+    histCarregando = true;
+    const body = $("#hist-body");
+    const p = new URLSearchParams({ filial: histFilial, pagina: String(histPagina),
+      ignoradas: histIgnoradas, transp: histTransp });
+    const nfBusca = ($("#hist-nf").value || "").replace(/\D/g,"").trim();
+    if(nfBusca) p.set("nf", nfBusca);
+    const ign = idsIgnorados(); if(ign) p.set("ignorados", ign);
+    if($("#hist-tudo").checked) p.set("tudo","1");
+    else { if($("#hist-de").value) p.set("de",$("#hist-de").value); if($("#hist-ate").value) p.set("ate",$("#hist-ate").value); }
+    if(reset){ body.innerHTML = '<div class="empty">consultando o SAP…</div>'; $("#hist-foot").innerHTML = ""; }
+    else { rodapeHist(); }
+    try{
+      const r = await fetch("/api/subiram/historico?" + p.toString());
+      const d = await r.json();
+      if(d.erro){ if(reset){ body.innerHTML = `<div class="empty">${esc(d.erro)}</div>`; } histCarregando = false; rodapeHist(); return; }
+      if(reset) preencherTransp(d.transportadoras);
+      histTotal = d.total || 0; histPaginas = d.paginas || 1;
+      const itens = d.itens || [];
+      if(reset){
+        if(!itens.length){ body.innerHTML = '<div class="empty">nenhuma nota no período (ou SAP indisponível — precisa de VPN).</div>'; histCarregando = false; $("#hist-foot").innerHTML = ""; return; }
+        body.scrollTop = 0;
+        body.innerHTML = `<table class="hist-tab"><thead><tr><th>NF</th><th>Filial</th><th>Data</th><th>Tipo</th><th>Transportadora</th></tr></thead><tbody id="hist-tbody"></tbody></table>`;
+      }
+      const tbody = $("#hist-tbody");
+      if(tbody) tbody.insertAdjacentHTML("beforeend", itens.map(linhaHist).join(""));
+      histCarregados += itens.length;
+      histCarregando = false;
+      rodapeHist();
+      // se a 1ª página não encheu a área visível, já puxa a próxima (evita ficar "preso")
+      if(!reset || itens.length){ requestAnimationFrame(talvezCarregarMais); }
+    }catch(err){
+      histCarregando = false;
+      if(reset){ body.innerHTML = `<div class="empty">falha ao consultar: ${esc(String(err))}</div>`; }
+      rodapeHist();
+    }
+  }
+  // dispara o append quando o usuário chega perto do fim da lista
+  function talvezCarregarMais(){
+    const el = $("#hist-body"); if(!el) return;
+    const perto = el.scrollTop + el.clientHeight >= el.scrollHeight - 140;
+    const naoPreencheu = el.scrollHeight <= el.clientHeight + 4;   // conteúdo menor que a janela
+    if((perto || naoPreencheu) && !histCarregando && histPagina < histPaginas) buscarHistorico(false);
+  }
+  $("#hist-body").addEventListener("scroll", talvezCarregarMais, { passive:true });
+  document.addEventListener("keydown", e => { if(e.key==="Escape") fecharHistorico(); });
+
+  // ---- BOOT: foto inicial em 1 fetch + tela de carregamento; SSE só p/ deltas ----
+  // Antes: o /stream cuspia os ~12 mil eventos da foto um a um (12k onmessage/JSON.parse,
+  // sem feedback → tela travava). Agora: 1 fetch /api/nfs (1 parse, 1 render) atrás de um
+  // overlay, e o SSE conecta com ?snapshot=0 (só mudanças). Deltas que chegam durante o
+  // fetch ficam num buffer e são aplicados por cima (idempotente por id) — sem corrida.
+  let bootPronto = false;
+  const bufferDeltas = [];
+  function esconderLoader(){
+    const el = $("#loader"); if(!el) return;
+    el.classList.add("hide");
+    setTimeout(() => el.remove(), 400);
+  }
+  function inserirSnapshot(lista){
+    // 1 varredura: separa travadas/subiram e calcula _ord uma vez
+    for(const ev of lista){
+      const id = ev.id || ev.nf;
+      if(ev.estado === "subiu"){
+        ev._ord = Date.parse(ev.atualizado_em) || 0;
+        risen.set(id, ev);
+      } else if(ev.estado === "travada"){
+        stuck.set(id, ev);
+      }
+    }
+    trimRisen();
+  }
+  async function boot(){
+    const cnt = $("#loader-count");
+    try{
+      const r = await fetch("/api/nfs", { headers:{ "Accept":"application/json" } });
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      const lista = await r.json();
+      if(cnt) cnt.textContent = `${lista.length.toLocaleString("pt-BR")} notas`;
+      inserirSnapshot(lista);
+      render();                       // 1 render só (não 12 mil)
+    }catch(err){
+      if(cnt) cnt.textContent = "falha ao carregar — reconectando…";
+    }finally{
+      bootPronto = true;
+      // aplica o que chegou pelo SSE enquanto carregávamos a foto
+      for(const ev of bufferDeltas) aplicar(ev);
+      bufferDeltas.length = 0;
+      esconderLoader();
+    }
+  }
+
+  // ---- A LIVE CONNECTION (só deltas; a foto veio pelo fetch acima) ----
+  const src = new EventSource("/stream?snapshot=0");
+  src.onopen  = () => { $("#livetxt").textContent = "conexão ao vivo"; $("#dot").classList.add("on");
+    $("#ft-live").textContent = "● ao vivo"; $("#ft-live").classList.remove("off"); };
+  src.onerror = () => { $("#livetxt").textContent = "reconectando…"; $("#dot").classList.remove("on");
+    $("#ft-live").textContent = "● reconectando…"; $("#ft-live").classList.add("off"); };
+  src.onmessage = e => {
+    let ev; try{ ev = JSON.parse(e.data); }catch(_){ return; }
+    if(!bootPronto){ bufferDeltas.push(ev); return; }   // segura até a foto entrar
+    aplicar(ev);
+  };
+
+  boot();   // dispara a carga inicial
 </script>
 </body>
 </html>

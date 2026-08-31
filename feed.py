@@ -27,7 +27,8 @@ LOGS_MESTRE = {
     "Atacado": os.getenv("PORTAL_LOG_ATACADO", r"O:\Logística\0 - B4YOU\Atacado\controle_pedidos_mestre.csv"),
 }
 POLL_SEGUNDOS = int(os.getenv("PORTAL_POLL_SEGUNDOS", "20"))
-MAX_SUBIRAM = int(os.getenv("PORTAL_MAX_SUBIRAM", "400"))  # NFs "OK" recentes (cobre várias semanas p/ o filtro por semana; evita despejar o histórico inteiro)
+MAX_SUBIRAM = int(os.getenv("PORTAL_MAX_SUBIRAM", "50000"))  # teto alto: mostra TODAS as NFs "OK" do ano (front pagina em blocos)
+ANO_SUBIRAM = int(os.getenv("PORTAL_ANO_SUBIRAM", "0"))      # 0 = ano corrente; ex.: 2026 fixa o ano. Só entram "subiram" desse ano.
 
 # Constantes espelhadas do config.py do robô (config.py:40,144,216-225).
 CORREIOS_CARRIER = "F0002251"
@@ -163,10 +164,15 @@ def _coletar_estado():
             res = classificar(r)
             if res == "CANCELADO":
                 continue
+            # "ignorada" de verdade = SÓ quando a Chave é IGNORADO (marca única do ignorar_notas.py
+            # ao criar a linha do zero). "Dispensado Manualmente" no Msg_Erro NÃO conta — pega carga
+            # histórica e dispensas de boleto/etc. que não são ignore operacional. (decisão do gestor)
+            ignorada = str(r.get("Chave", "")).strip().upper() == "IGNORADO"
             base = {
                 "nf": nf, "filial": filial,
                 "transportadora": _nome_transp(carrier),
                 "atualizado_em": _iso(str(r.get("Data_Processamento", ""))),
+                "ignorada": ignorada,
             }
             if res is None:
                 ok_rows.append({**base, "estado": "subiu",
@@ -177,7 +183,9 @@ def _coletar_estado():
                                  "problema_codigo": cod, "problema_categoria": cat,
                                  "problema_descricao": desc,
                                  "travada_desde": _iso(str(r.get("Data_Processamento", "")))})
-    # subiram: as mais recentes primeiro, limitadas
+    # subiram: TODAS as NFs "OK" do ano (mais recentes primeiro), teto alto só como guarda
+    ano_alvo = str(ANO_SUBIRAM or datetime.now().year)
+    ok_rows = [x for x in ok_rows if str(x["_ord"])[:4] == ano_alvo]
     ok_rows.sort(key=lambda x: x["_ord"], reverse=True)
     subiram = [{k: v for k, v in x.items() if k != "_ord"} for x in ok_rows[:MAX_SUBIRAM]]
     return travadas, subiram, nfs_no_log, log_index

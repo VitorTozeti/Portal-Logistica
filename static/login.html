@@ -8,42 +8,33 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* Paleta Pharmaesthetics — tema claro (Azul Pharma #0A3AAE) */
+  /* 🎨 PALETA — as MESMAS 5 cores do portal (mesma regra: --p5 = letras). Espelha o index.html. */
   :root{
-    --bg1:#eef3fb; --bg2:#dce7f7; --card:#ffffff; --line:#d6e0f0;
-    --ink:#12213f; --ink2:#5D5D5D; --teal:#0A3AAE; --teal2:#134E7A;
-    --field:#f3f7fd; --purple:#7c3aed; --err:#d1382c;
-  }
-  /* Modo automático: sistema em ESCURO → tema escuro antigo (teal) */
-  @media (prefers-color-scheme:dark){
-    :root{
-      --bg1:#0b1017; --bg2:#0e1a20; --card:#161d27; --line:#26303d;
-      --ink:#e8edf3; --ink2:#8b97a6; --teal:#22c3d6; --teal2:#18a7ba;
-      --field:#1b2430; --purple:#a855f7; --err:#ec5b50;
-    }
-    body{background:radial-gradient(1100px 600px at 78% 12%,#123038 0%,transparent 55%),
-      linear-gradient(160deg,var(--bg1),var(--bg2))}
-    .card{box-shadow:0 24px 60px rgba(0,0,0,.45)}
+    --p1:#020202; --p2:#19191a; --p3:#373739; --p4:#60d4ea; --p5:#9ae5f3;
+    --bg1:var(--p1); --bg2:var(--p2); --card:var(--p2); --line:var(--p3);
+    --ink:var(--p5); --ink2:var(--p5); --teal:var(--p4); --teal2:var(--p4);
+    --field:var(--p2); --purple:var(--p4); --err:var(--p5);
   }
   *{box-sizing:border-box}
+  html,body{scrollbar-width:none;-ms-overflow-style:none}   /* barra de rolagem oculta — visual limpo */
+  ::-webkit-scrollbar{width:0;height:0;background:transparent}
   body{margin:0;min-height:100vh;font:15px 'Montserrat',system-ui,-apple-system,Segoe UI,sans-serif;
     color:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;
-    background:radial-gradient(1100px 600px at 78% 12%,#cfe0f7 0%,transparent 55%),
-      linear-gradient(160deg,var(--bg1),var(--bg2))}
+    background:var(--bg1)}
   .card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);
-    border-radius:16px;padding:28px 28px 22px;box-shadow:0 24px 60px rgba(10,58,174,.14)}
+    border-radius:16px;padding:28px 28px 22px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
   .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
   .logo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;
-    background:linear-gradient(150deg,var(--teal),var(--teal2));box-shadow:0 6px 16px rgba(10,58,174,.28)}
+    background:linear-gradient(150deg,var(--teal),var(--teal2));box-shadow:0 6px 16px rgba(0,0,0,.5)}
   .logo svg{width:24px;height:24px}
   .brand b{font-size:17px;display:block;line-height:1.2}
   .brand small{font-size:12.5px;color:var(--ink2)}
   label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
   input[type=text],input[type=password]{width:100%;background:var(--field);color:var(--ink);
     border:1px solid var(--line);border-radius:9px;padding:12px 13px;font:inherit;outline:none}
-  input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(10,58,174,.16)}
+  input:focus{border-color:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--p4) 30%,transparent)}
   .entrar{width:100%;margin-top:20px;border:0;border-radius:9px;padding:13px;cursor:pointer;
-    font:inherit;font-weight:700;font-size:15px;color:#ffffff;
+    font:inherit;font-weight:700;font-size:15px;color:var(--p1);
     background:linear-gradient(150deg,var(--teal),var(--teal2))}
   .entrar:hover{filter:brightness(1.06)}
   .perfil{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
@@ -52,7 +43,7 @@
     font:inherit;font-size:13.5px;font-weight:600;color:var(--ink2)}
   .perfil button .ico{font-size:15px}
   .perfil button[aria-pressed=true]{color:var(--ink);border-color:var(--teal);
-    box-shadow:0 0 0 2px rgba(10,58,174,.18) inset}
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--p4) 30%,transparent) inset}
   .perfil button[data-perfil=logistica] .ico{color:var(--purple)}
   .perfil button[data-perfil=ti] .ico{color:var(--teal)}
   .erro{margin-top:14px;font-size:13px;color:var(--err);text-align:center;display:none}
@@ -65,7 +56,7 @@
   <form class="card" method="post" action="/login" autocomplete="on">
     <div class="brand">
       <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--p1)" stroke-width="2.2"
              stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l8-4 8 4-8 4-8-4z"/>
           <path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
       </span>
