@@ -878,7 +878,18 @@
       inserirSnapshot(lista);
       render();                       // 1 render só (não 12 mil)
     }catch(err){
-      if(cnt) cnt.textContent = "falha ao carregar — reconectando…";
+      // Sem backend (ex.: preview estático no GitHub Pages): tenta um demo local.
+      // No servidor real /api/nfs responde, então este ramo nunca roda.
+      try{
+        const rd = await fetch("./demo.json", { headers:{ "Accept":"application/json" } });
+        if(rd.ok){
+          const lista = await rd.json();
+          if(cnt) cnt.textContent = `demonstração — ${lista.length.toLocaleString("pt-BR")} notas (sem dados ao vivo)`;
+          inserirSnapshot(lista);
+          render();
+          const lt = $("#livetxt"); if(lt) lt.textContent = "modo demonstração (sem backend)";
+        } else if(cnt){ cnt.textContent = "falha ao carregar — reconectando…"; }
+      }catch(_){ if(cnt) cnt.textContent = "falha ao carregar — reconectando…"; }
     }finally{
       bootPronto = true;
       // aplica o que chegou pelo SSE enquanto carregávamos a foto
