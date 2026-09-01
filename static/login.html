@@ -51,6 +51,7 @@
   .foot{margin-top:20px;font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
   .foot b{color:var(--teal2)}
 </style>
+<script src="./portal-auth.js"></script>
 </head>
 <body>
   <form class="card" method="post" action="/login" autocomplete="on">
@@ -67,11 +68,11 @@
     </div>
 
     <label for="usuario">Usuário</label>
-    <input id="usuario" name="usuario" type="text" value="user" autocapitalize="none"
+    <input id="usuario" name="usuario" type="text" autocapitalize="none"
            autocomplete="username" spellcheck="false" required>
 
     <label for="senha">Senha</label>
-    <input id="senha" name="senha" type="password" value="senha"
+    <input id="senha" name="senha" type="password"
            autocomplete="current-password" required>
 
     <input type="hidden" id="perfil" name="perfil" value="logistica">
@@ -93,6 +94,24 @@
   </form>
 
   <script>
+    // ---- GATE ESTÁTICO (GitHub Pages): valida no navegador, sem POST /login ----
+    // No Pages não há servidor: a credencial (1 usuário + 1 senha) vem do gate
+    // injetado no build (portal-auth.js). Fora do Pages (servidor real), este bloco
+    // não interfere e o POST /login normal do FastAPI segue.
+    if (window.PortalGate && PortalGate.ativo()) {
+      // 1 usuário/1 senha só: o seletor de perfil (Logística/TI) não se aplica aqui
+      document.querySelector(".perfil")?.remove();
+      document.querySelector(".brand small").textContent = "Acesso restrito";
+      if (PortalGate.autenticado()) location.replace("./");  // já logado → entra direto
+      document.querySelector("form.card").addEventListener("submit", async (e) => {
+        e.preventDefault();  // no Pages não existe rota /login
+        const u = document.getElementById("usuario").value;
+        const s = document.getElementById("senha").value;
+        if (await PortalGate.validar(u, s)) location.replace("./");
+        else document.getElementById("erro").classList.add("show");
+      });
+    }
+
     // seletor de perfil (Logística / TI) — atualiza o campo escondido enviado no POST
     const campo = document.getElementById("perfil");
     document.querySelectorAll(".perfil button").forEach(b => {

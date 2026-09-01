@@ -10,6 +10,14 @@
      (em paralelo com a fonte) tira o handshake do caminho crítico do 1º fetch. -->
 <link rel="preconnect" href="https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- gate leve do front estático (GitHub Pages); no servidor real fica inerte -->
+<script src="./portal-auth.js"></script>
+<script>
+  // Barra o acesso ANTES de carregar dados: sem login válido no Pages → tela de entrada.
+  if (window.PortalGate && PortalGate.ativo() && !PortalGate.autenticado()) {
+    location.replace("./login.html");
+  }
+</script>
 <style>
   /* ============================================================= */
   /*  🎨 PALETA — EDITE APENAS ESTAS 5 CORES (tudo no portal deriva daqui) */
@@ -255,7 +263,7 @@
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
     <span id="quem"></span>
-    <a href="/logout" style="color:var(--brand)">sair</a>
+    <a href="/logout" id="sair" style="color:var(--brand)">sair</a>
   </span>
 </header>
 
@@ -731,12 +739,17 @@
   }, 1000);
 
   // quem está logado (usuario · perfil) ao lado do "sair"
-  fetch("/api/sessao").then(r => r.json()).then(s => {
-    if(s && s.usuario){
-      const perfil = s.perfil === "ti" ? "TI" : "Logística";
-      $("#quem").textContent = `${s.usuario} · ${perfil}`;
-    }
-  }).catch(()=>{});
+  if(window.PortalGate && PortalGate.ativo()){
+    // gate estático (Pages): não há /api/sessao nem /logout no servidor
+    $("#sair").addEventListener("click", e => { e.preventDefault(); PortalGate.sair(); location.replace("./login.html"); });
+  } else {
+    fetch("/api/sessao").then(r => r.json()).then(s => {
+      if(s && s.usuario){
+        const perfil = s.perfil === "ti" ? "TI" : "Logística";
+        $("#quem").textContent = `${s.usuario} · ${perfil}`;
+      }
+    }).catch(()=>{});
+  }
 
   // ===== HISTÓRICO (SAP) =====
   let histFilial = "todas", histPagina = 1, histIgnoradas = "todas", histTransp = "todas";
