@@ -6,6 +6,9 @@
 <title>Portal da Logística — B4You</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- No GitHub Pages, a foto vem do container Azure: abrir DNS+TLS já no parse
+     (em paralelo com a fonte) tira o handshake do caminho crítico do 1º fetch. -->
+<link rel="preconnect" href="https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   /* ============================================================= */
@@ -29,14 +32,18 @@
   }
   /* ============================================================= */
   *{box-sizing:border-box}
-  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  /* layout de coluna: header no topo, main cresce, footer SEMPRE colado no rodapé
+     (mesmo com pouco conteúdo). 100dvh = respeita a barra do navegador no mobile. */
+  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
   header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--card);
-    border-bottom:2px solid var(--brand)}
+    border-bottom:2px solid var(--brand);flex:0 0 auto}
   header b{font-size:16px;color:var(--brand)}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--p3);display:inline-block}
   .dot.on{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
   .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
-  main{max-width:1440px;margin:0 auto;padding:22px 28px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  main{max-width:1440px;width:100%;margin:0 auto;padding:22px 28px;display:grid;grid-template-columns:1fr 1fr;gap:22px;
+    flex:1 0 auto}   /* cresce e empurra o footer para o rodapé */
   @media (min-width:1100px){.col{min-width:0}}
   @media (max-width:720px){main{grid-template-columns:1fr}}
   @media (max-width:440px){main{padding:14px 12px;gap:14px}header{padding:12px 14px}
@@ -130,7 +137,7 @@
   .btn.ign:hover{background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .soon{font-size:11px;color:var(--ink2);text-align:center;padding:0 20px 12px}
   /* ---- footer ---- */
-  footer{margin-top:28px;border-top:1px solid var(--line);background:var(--card)}
+  footer{margin-top:28px;border-top:1px solid var(--line);background:var(--card);flex:0 0 auto}
   .ft-inner{max-width:1440px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:14px;
     flex-wrap:wrap;font-size:12px;color:var(--ink2)}
   .ft-brand{font-weight:700;color:var(--brand)}
@@ -739,6 +746,13 @@
   function abrirHistorico(){
     $("#hist").classList.add("open"); $("#hist").setAttribute("aria-hidden","false");
     $("#hist-scrim").classList.add("open");
+    // modo estático (GitHub Pages): sem backend/SAP → já mostra a mensagem e desabilita
+    // os controles de busca, em vez de deixar o usuário clicar e tomar o erro de JSON.
+    if(typeof ESTATICO !== "undefined" && ESTATICO){
+      const btn = $("#hist-buscar"); if(btn){ btn.disabled = true; btn.title = "indisponível no modo estático"; }
+      const tudo = $("#hist-tudo"); if(tudo) tudo.disabled = true;
+      buscarHistorico(true);
+    }
   }
   function fecharHistorico(){
     $("#hist").classList.remove("open"); $("#hist").setAttribute("aria-hidden","true");
@@ -794,6 +808,18 @@
   // rolagem infinita: busca a próxima página e ANEXA as linhas (não recarrega a tabela).
   // reset=true → nova busca/filtro (limpa a tabela e volta à página 1).
   async function buscarHistorico(reset=true){
+    // No modo ESTÁTICO (GitHub Pages) não há backend/VPN: a rota /api/subiram/historico
+    // não existe → o Pages devolve o HTML 404 e o r.json() estoura
+    // ("Unexpected token '<', "<!DOCTYPE"..."). O histórico é servido pelo SAP HANA
+    // (on-prem, via VPN) e não está no snapshot público do Azure, então aqui degradamos
+    // com elegância: nada de fetch, só uma mensagem clara. (definido em ESTATICO, ~l.850)
+    if(typeof ESTATICO !== "undefined" && ESTATICO){
+      histCarregando = false;
+      const body = $("#hist-body");
+      if(body) body.innerHTML = '<div class="empty">Histórico indisponível no modo estático (GitHub Pages).<br>Requer o backend com acesso ao SAP (VPN) — rode o portal localmente para consultar o histórico completo.</div>';
+      const foot = $("#hist-foot"); if(foot) foot.innerHTML = "";
+      return;
+    }
     if(histCarregando) return;
     if(reset){ histPagina = 1; histCarregados = 0; }
     else { if(histPagina >= histPaginas) return; histPagina++; }
