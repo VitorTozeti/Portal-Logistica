@@ -908,7 +908,14 @@
   let bootPronto = false;
   const bufferDeltas = [];
   const CACHE_KEY = "portal_snapshot_v1";     // foto anterior (por origem) p/ pintura instantânea
-  const BOOT_TIMEOUT_MS = 10000;              // teto da tela de carregamento (ms)
+  // ⚠️ Dois tempos DIFERENTES (não confundir — foi o que quebrou a Azure em 01/09):
+  //  - LOADER_CAP_MS: só o teto VISUAL da tela de carregamento QUANDO já pintamos o cache.
+  //  - FETCH_TIMEOUT_MS: teto da REDE. A rota pública do Azure lê a tabela inteira (~3 MB) e,
+  //    com o container em min-replicas=0 (cold start), responde em ~20-30 s. Se abortarmos o
+  //    fetch antes disso, o dado REAL nunca chega e o site cai eternamente no demo.json.
+  //    Por isso a rede tem folga generosa; o loader é que some rápido (via cache), não a rede.
+  const LOADER_CAP_MS  = 10000;               // teto do loader só quando há cache pintado
+  const FETCH_TIMEOUT_MS = 45000;             // teto da rede (cold start do Azure chega a ~27 s)
   function esconderLoader(){
     const el = $("#loader"); if(!el) return;
     el.classList.add("hide");
@@ -956,12 +963,17 @@
       if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache) · atualizando…`;
       const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "cache · atualizando…";
       esconderLoader();
+    } else if(cnt && ESTATICO){
+      // 1º acesso SEM cache: o container Azure pode estar frio (~20-30 s). Avisa e MANTÉM o
+      // loader até a foto real chegar — melhor um spinner honesto que uma tela vazia.
+      cnt.textContent = "acordando o servidor da Azure… (1º acesso pode levar até ~30 s)";
     }
-    // (2) teto rígido: o loader nunca passa de BOOT_TIMEOUT_MS, aconteça o que acontecer
-    const capLoader = setTimeout(esconderLoader, BOOT_TIMEOUT_MS);
+    // (2) teto do LOADER (não da rede): se já há cache pintado, some rápido; sem cache, o loader
+    // acompanha a rede (FETCH_TIMEOUT_MS) p/ não deixar tela vazia enquanto o Azure acorda.
+    const capLoader = setTimeout(esconderLoader, cache ? LOADER_CAP_MS : FETCH_TIMEOUT_MS);
     const url = ESTATICO ? AZURE_PUBLICO : "/api/nfs";
     try{
-      const lista = normalizar(await fetchJSON(url, BOOT_TIMEOUT_MS));
+      const lista = normalizar(await fetchJSON(url, FETCH_TIMEOUT_MS));
       aplicarSnapshot(lista);           // troca a foto do cache pela fresca (1 render)
       salvarCache(lista);               // guarda p/ a próxima abertura ser instantânea
       if(cnt) cnt.textContent = `${lista.length.toLocaleString("pt-BR")} notas`;
@@ -1009,7 +1021,7 @@
     const ftl = $("#ft-live"); if(ftl){ ftl.textContent = "● ao vivo (Azure)"; ftl.classList.remove("off"); }
     setInterval(async () => {
       try{
-        const lista = normalizar(await fetchJSON(AZURE_PUBLICO, 15000));
+        const lista = normalizar(await fetchJSON(AZURE_PUBLICO, FETCH_TIMEOUT_MS));
         aplicarSnapshot(lista);           // refoto completa (a rota devolve o espelho inteiro)
         salvarCache(lista);               // mantém o cache fresco p/ a próxima abertura ser instantânea
       }catch(_){ /* mantém a última foto boa até o próximo ciclo */ }
