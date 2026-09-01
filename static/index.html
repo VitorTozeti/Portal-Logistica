@@ -195,10 +195,6 @@
   .vertodas{width:100%;margin:8px 0 2px;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand);
     background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px;cursor:pointer}
   .vertodas:hover{background:var(--line)}
-  /* rodapé de progresso da revelação do histórico completo (client-side) */
-  .hist-progress{width:100%;margin:6px 0 4px;font-size:12px;font-weight:600;color:var(--ink2);
-    text-align:center;padding:8px;border-top:1px dashed var(--line)}
-  .hist-progress.done{color:var(--brand)}
   /* ---- modal histórico ---- */
   #hist-scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;
     transition:opacity .2s;z-index:60}
@@ -371,17 +367,10 @@
   let   filtroAte      = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte final)
   let   filtroIgnoradas = "todas";   // "todas" | "so" (só ignoradas) | "sem" (oculta ignoradas)
   let   buscaNF        = "";         // filtro por número de NF (substring); vazio = sem busca
-  // por padrão a coluna Subiram mostra só a SEMANA ATUAL + SEMANA PASSADA (todas as notas
-  // dessas 2 semanas, sem cortar). "ver todas as notas subidas" solta essa janela e carrega
-  // o RESTO do ano aos poucos (client-side, funciona no GitHub Pages — a foto pública do
-  // Azure já traz o ano inteiro). Busca/data/filtro também soltam a janela.
+  const PASSO_SUBIRAM  = 15;         // quantas notas exibir por vez (bloco de "mostrar mais")
+  let   limiteSubiram  = PASSO_SUBIRAM;
+  // por padrão a lista começa restrita à SEMANA ATUAL + SEMANA PASSADA; "mostrar mais"/busca/data soltam isso
   let   janelaSemanal  = true;
-  // ---- modo "histórico completo" (revelação progressiva das notas subidas do ano) ----
-  let   modoHistorico  = false;      // true depois de clicar "ver todas as notas subidas"
-  let   histLista      = [];         // foto ordenada (desc) das notas a revelar em blocos
-  let   histIdx        = 0;          // quantas já foram anexadas ao DOM
-  let   histTimer      = null;       // timer do próximo bloco
-  const HIST_BLOCO     = 200;        // notas anexadas por passo (append, sem re-render → não trava)
   const PASSO_TRAVADAS = 15;         // idem para as travadas (para não gerar scroll infinito)
   let   limiteTravadas = PASSO_TRAVADAS;
 
@@ -560,70 +549,29 @@
       ci.setAttribute("aria-pressed", String(filtroIgnoradas !== "sem"));
     }
   }
-  // notas subidas filtradas e ordenadas (mais recentes primeiro) — base das 2 visões
-  function subiramFiltradas(){
-    return [...risen.values()].filter(passaFiltrosSubiram).sort((a,b)=> b._ord - a._ord);
-  }
   function renderSubiram(){
     sincronizarChipsFilial();
-    const total = risen.size ? subiramFiltradas().length : 0;
+    let vis = [...risen.values()].filter(passaFiltrosSubiram);
+    vis.sort((a,b)=> b._ord - a._ord);                 // mais recentes primeiro (data de emissão desc)
+    const total = vis.length;
+    // Janela inicial: só semana atual + passada. Some quando HÁ QUALQUER filtro ativo (filial,
+    // ignoradas, busca por NF, data) ou já se pediu "mostrar mais" (janelaSemanal=false) — filtrar
+    // = procurar no histórico inteiro. Ex.: "só ignoradas" (2 notas antigas) aparece na hora, sem
+    // precisar clicar "mostrar mais". Sem filtro nenhum, a janela mantém a tela inicial enxuta.
+    const usaJanela = janelaSemanal && filtroFilial==="todas" && filtroIgnoradas==="todas"
+                      && !buscaNF && !filtroDe && !filtroAte;
+    const pool = usaJanela ? vis.filter(dentroJanela) : vis;
+    const mostra = pool.slice(0, limiteSubiram);        // exibe em blocos (ordem desc preservada)
+    let html = mostra.length ? mostra.map(cardSubiu).join("")
+      : `<div class="empty">${risen.size ? "nenhuma nota nestes filtros" : "aguardando…"}</div>`;
+    // "mostrar mais" considera TODO o filtrado (vis), não só a janela — por isso revela o histórico antigo
+    const restante = total - mostra.length;
+    if(restante > 0)
+      html += `<button class="maisbtn" type="button" data-mais="1">▾ mostrar mais (${restante})</button>`;
+    html += `<button class="vertodas" type="button" id="btn-historico">ver todas as notas subidas (histórico completo)</button>`;
+    if(html !== _upHTML){ $("#up").innerHTML = html; _upHTML = html; }   // só reescreve o DOM se mudou (evita piscar)
     const semFiltro = filtroFilial==="todas" && !filtroDe && !filtroAte && filtroIgnoradas==="todas" && !buscaNF;
     $("#c-up").textContent = semFiltro ? total : `${total}/${risen.size}`;
-    // No modo "histórico completo" a revelação progressiva é dona do #up (anexa blocos);
-    // não reescrevemos aqui p/ não apagar o que já foi carregado. Só o contador acima muda.
-    if(modoHistorico) return;
-
-    const vis = subiramFiltradas();
-    // Janela inicial: só semana atual + passada (TODAS as notas dessas 2 semanas, sem cortar).
-    // Some quando há QUALQUER filtro ativo (filial, ignoradas, busca, data) — filtrar = procurar
-    // no ano inteiro. Sem filtro, a tela inicial fica enxuta (2 semanas).
-    const usaJanela = janelaSemanal && semFiltro;
-    const pool = usaJanela ? vis.filter(dentroJanela) : vis;
-    let html = pool.length ? pool.map(cardSubiu).join("")
-      : `<div class="empty">${risen.size ? "nenhuma nota nestes filtros" : "aguardando…"}</div>`;
-    // botão único de expansão: solta a janela e carrega o resto do ano aos poucos (client-side)
-    const restante = total - pool.length;
-    const rot = restante > 0
-      ? `ver todas as notas subidas — histórico completo (+${restante.toLocaleString("pt-BR")})`
-      : "ver todas as notas subidas (histórico completo)";
-    html += `<button class="vertodas" type="button" id="btn-historico">${rot}</button>`;
-    if(html !== _upHTML){ $("#up").innerHTML = html; _upHTML = html; }   // só reescreve o DOM se mudou (evita piscar)
-  }
-
-  // ===== histórico completo: revelação progressiva (client-side, funciona no Pages) =====
-  // Ao clicar "ver todas as notas subidas" saímos da janela de 2 semanas e anexamos o RESTO
-  // do ano em blocos de HIST_BLOCO, um bloco por tick (setTimeout) — assim a UI não trava
-  // mesmo com ~12 mil notas, e o usuário vê "carregando aos poucos" indo semana a semana p/ trás.
-  function pararHistorico(){ if(histTimer){ clearTimeout(histTimer); histTimer = null; } }
-  function sairModoHistorico(){ pararHistorico(); modoHistorico = false; histLista = []; histIdx = 0; _upHTML = ""; }
-  function iniciarHistoricoCompleto(){
-    pararHistorico();
-    modoHistorico = true;
-    janelaSemanal = false;
-    histLista = subiramFiltradas();       // foto do momento; blocos saem daqui em ordem desc
-    histIdx = 0;
-    const up = $("#up"); if(!up) return;
-    up.innerHTML = "";                    // recomeça a coluna; vamos anexar bloco a bloco
-    _upHTML = null;
-    revelarProximoBloco();
-  }
-  function rodapeHistorico(){
-    const done = histIdx >= histLista.length;
-    const t = histLista.length.toLocaleString("pt-BR"), x = histIdx.toLocaleString("pt-BR");
-    return done
-      ? `<div class="hist-progress done">✓ todas as ${t} notas subidas carregadas</div>`
-      : `<div class="hist-progress">carregando aos poucos… ${x} de ${t}</div>`;
-  }
-  function revelarProximoBloco(){
-    const up = $("#up"); if(!up || !modoHistorico) return;
-    up.querySelector(".hist-progress")?.remove();     // tira o rodapé antigo antes de anexar
-    const fim = Math.min(histIdx + HIST_BLOCO, histLista.length);
-    const parte = histLista.slice(histIdx, fim);
-    if(parte.length) up.insertAdjacentHTML("beforeend", parte.map(cardSubiu).join(""));
-    histIdx = fim;
-    up.insertAdjacentHTML("beforeend", rodapeHistorico());
-    if(histIdx < histLista.length) histTimer = setTimeout(revelarProximoBloco, 16);  // próximo tick
-    else pararHistorico();
   }
 
   function render(){ renderTravadas(); renderSubiram(); }
@@ -654,24 +602,25 @@
     if(chip.id === "chip-ign"){ filtroIgnoradas = { todas:"so", so:"sem", sem:"todas" }[filtroIgnoradas]; }
     else if(chip.dataset.fil){ filtroFilial = chip.dataset.fil; }
     else return;
-    sairModoHistorico();   // trocar de filtro = nova consulta: sai do histórico progressivo
+    limiteSubiram = PASSO_SUBIRAM;   // trocar de filtro recomeça a exibição
     renderSubiram();
   });
   // filtro por data da nota (De / Até)
-  $("#dt-de").addEventListener("change", e => { filtroDe = e.target.value; sairModoHistorico(); renderSubiram(); });
-  $("#dt-ate").addEventListener("change", e => { filtroAte = e.target.value; sairModoHistorico(); renderSubiram(); });
-  // busca por número de NF — varre TODO o ano carregado (não só a janela da semana)
+  $("#dt-de").addEventListener("change", e => { filtroDe = e.target.value; limiteSubiram = PASSO_SUBIRAM; renderSubiram(); });
+  $("#dt-ate").addEventListener("change", e => { filtroAte = e.target.value; limiteSubiram = PASSO_SUBIRAM; renderSubiram(); });
+  // busca por número de NF — varre TODO o histórico carregado (não só a janela da semana)
   $("#busca-nf").addEventListener("input", e => {
     buscaNF = e.target.value.replace(/\D/g,"").trim();
-    sairModoHistorico(); renderSubiram();
+    limiteSubiram = PASSO_SUBIRAM; renderSubiram();
   });
   $("#dt-limpar").addEventListener("click", () => {
     filtroDe = ""; filtroAte = ""; $("#dt-de").value = ""; $("#dt-ate").value = "";
-    janelaSemanal = true; sairModoHistorico(); renderSubiram();
+    janelaSemanal = true; limiteSubiram = PASSO_SUBIRAM; renderSubiram();
   });
-  // "ver todas as notas subidas" → revela o resto do ano aos poucos (client-side, roda no Pages)
+  // "mostrar mais" da lista + "ver todas" (histórico do SAP)
   $("#up").addEventListener("click", e => {
-    if(e.target.closest("#btn-historico")){ iniciarHistoricoCompleto(); }
+    if(e.target.closest(".maisbtn")){ janelaSemanal = false; limiteSubiram += PASSO_SUBIRAM; renderSubiram(); }
+    else if(e.target.closest("#btn-historico")){ abrirHistorico(); }
   });
   for(const id of ["#filtros","#filtros-up"])
     $(id).addEventListener("keydown", e => {
@@ -947,17 +896,32 @@
     return lista;
   }
 
-  // ---- BOOT: foto inicial em 1 fetch + tela de carregamento; SSE só p/ deltas ----
-  // Antes: o /stream cuspia os ~12 mil eventos da foto um a um (12k onmessage/JSON.parse,
-  // sem feedback → tela travava). Agora: 1 fetch /api/nfs (1 parse, 1 render) atrás de um
-  // overlay, e o SSE conecta com ?snapshot=0 (só mudanças). Deltas que chegam durante o
-  // fetch ficam num buffer e são aplicados por cima (idempotente por id) — sem corrida.
+  // ---- BOOT: pinta instantâneo do cache (localStorage) + revalida em rede; TETO de 10 s ----
+  // A foto pública (~12 mil NFs, ~2 MB) vem por rede do container Azure — o gargalo é a
+  // REDE/cold-start, não o parse/render (que já são 1x e por janela). Então, seguindo o
+  // megaBrain (caching_strategies = stale-while-revalidate; io_optimization = "o trabalho
+  // mais rápido é o que não se faz / transferir menos"):
+  //   (1) se houver uma foto no cache do navegador, pinta ELA na hora → o loader some em ~0 s;
+  //       em paralelo revalida em rede e troca pela foto fresca quando chega.
+  //   (2) a tela de carregamento tem TETO RÍGIDO de 10 s: um AbortController corta o fetch aos
+  //       10 s e um timer esconde o loader de qualquer jeito — nunca fica "carregando" além disso.
   let bootPronto = false;
   const bufferDeltas = [];
+  const CACHE_KEY = "portal_snapshot_v1";     // foto anterior (por origem) p/ pintura instantânea
+  const BOOT_TIMEOUT_MS = 10000;              // teto da tela de carregamento (ms)
   function esconderLoader(){
     const el = $("#loader"); if(!el) return;
     el.classList.add("hide");
     setTimeout(() => el.remove(), 400);
+  }
+  function lerCache(){
+    try{
+      const o = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+      return (o && Array.isArray(o.nfs) && o.nfs.length) ? o : null;
+    }catch(_){ return null; }               // privado/quota/sem storage → sem cache
+  }
+  function salvarCache(lista){
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), nfs: lista })); }catch(_){ /* ignora */ }
   }
   function inserirSnapshot(lista){
     // 1 varredura: separa travadas/subiram e calcula _ord uma vez
@@ -972,30 +936,52 @@
     }
     trimRisen();
   }
+  function aplicarSnapshot(lista){ stuck.clear(); risen.clear(); inserirSnapshot(lista); render(); }
+  // fetch com TETO rígido (AbortController): não deixa o boot pendurado além de `ms`
+  async function fetchJSON(url, ms){
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    try{
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }, signal: ac.signal });
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
   async function boot(){
     const cnt = $("#loader-count");
+    // (1) pintura instantânea do cache, se houver → loader sai já, sem esperar a rede
+    const cache = lerCache();
+    if(cache){
+      aplicarSnapshot(cache.nfs);
+      if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache) · atualizando…`;
+      const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "cache · atualizando…";
+      esconderLoader();
+    }
+    // (2) teto rígido: o loader nunca passa de BOOT_TIMEOUT_MS, aconteça o que acontecer
+    const capLoader = setTimeout(esconderLoader, BOOT_TIMEOUT_MS);
     const url = ESTATICO ? AZURE_PUBLICO : "/api/nfs";
     try{
-      const r = await fetch(url, { headers:{ "Accept":"application/json" } });
-      if(!r.ok) throw new Error("HTTP " + r.status);
-      const lista = normalizar(await r.json());
+      const lista = normalizar(await fetchJSON(url, BOOT_TIMEOUT_MS));
+      aplicarSnapshot(lista);           // troca a foto do cache pela fresca (1 render)
+      salvarCache(lista);               // guarda p/ a próxima abertura ser instantânea
       if(cnt) cnt.textContent = `${lista.length.toLocaleString("pt-BR")} notas`;
-      inserirSnapshot(lista);
-      render();                       // 1 render só (não 12 mil)
-      if(ESTATICO){ const lt = $("#livetxt"); if(lt) lt.textContent = "dados ao vivo (Azure)"; }
+      const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "dados ao vivo (Azure)";
     }catch(err){
-      // Último recurso: sem backend E sem Azure (ex.: preview offline) → demo local.
-      try{
-        const rd = await fetch("./demo.json", { headers:{ "Accept":"application/json" } });
-        if(rd.ok){
-          const lista = normalizar(await rd.json());
+      if(!cache){
+        // sem cache e a rede falhou/estourou 10 s → demo local (último recurso)
+        try{
+          const lista = normalizar(await fetchJSON("./demo.json", 5000));
+          aplicarSnapshot(lista);
           if(cnt) cnt.textContent = `demonstração — ${lista.length.toLocaleString("pt-BR")} notas (sem dados ao vivo)`;
-          inserirSnapshot(lista);
-          render();
           const lt = $("#livetxt"); if(lt) lt.textContent = "modo demonstração (sem backend)";
-        } else if(cnt){ cnt.textContent = "falha ao carregar — reconectando…"; }
-      }catch(_){ if(cnt) cnt.textContent = "falha ao carregar — reconectando…"; }
+        }catch(_){ if(cnt) cnt.textContent = "falha ao carregar — reconectando…"; }
+      }else{
+        // já há a foto do cache na tela; só sinaliza que a atualização não chegou ainda
+        if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache)`;
+        const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "cache (offline) · reconectando…";
+      }
     }finally{
+      clearTimeout(capLoader);
       bootPronto = true;
       // aplica o que chegou pelo SSE enquanto carregávamos a foto
       for(const ev of bufferDeltas) aplicar(ev);
@@ -1022,14 +1008,10 @@
     $("#dot").classList.add("on");
     const ftl = $("#ft-live"); if(ftl){ ftl.textContent = "● ao vivo (Azure)"; ftl.classList.remove("off"); }
     setInterval(async () => {
-      if(modoHistorico) return;   // não recarrega/re-renderiza enquanto o histórico completo está sendo lido
       try{
-        const r = await fetch(AZURE_PUBLICO, { headers:{ "Accept":"application/json" } });
-        if(!r.ok) return;
-        const lista = normalizar(await r.json());
-        stuck.clear(); risen.clear();     // refoto completa (a rota devolve o espelho inteiro)
-        inserirSnapshot(lista);
-        render();
+        const lista = normalizar(await fetchJSON(AZURE_PUBLICO, 15000));
+        aplicarSnapshot(lista);           // refoto completa (a rota devolve o espelho inteiro)
+        salvarCache(lista);               // mantém o cache fresco p/ a próxima abertura ser instantânea
       }catch(_){ /* mantém a última foto boa até o próximo ciclo */ }
     }, 60000);
   }
