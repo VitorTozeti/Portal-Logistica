@@ -751,19 +751,21 @@
     }).catch(()=>{});
   }
 
-  // ===== HISTÓRICO (SAP) =====
+  // ===== HISTÓRICO (SAP no servidor / Azure client-side no Pages) =====
   let histFilial = "todas", histPagina = 1, histIgnoradas = "todas", histTransp = "todas";
   let histPaginas = 1, histTotal = 0, histCarregados = 0, histCarregando = false;   // rolagem infinita
+  // modo estático (Pages): pagina as notas já carregadas do Azure (risen) client-side
+  let histCliLista = [], histCliIdx = 0;
+  const HIST_BLOCO = 100;            // linhas anexadas por vez (rolagem infinita client-side)
   // conjunto "Filial:NF" das ignoradas que o portal conhece (o SAP não sabe quais são) — mandado ao servidor
   const idsIgnorados = () => [...risen.values()].filter(n => n.ignorada).map(n => `${n.filial}:${n.nf}`).join(",");
   function abrirHistorico(){
     $("#hist").classList.add("open"); $("#hist").setAttribute("aria-hidden","false");
     $("#hist-scrim").classList.add("open");
-    // modo estático (GitHub Pages): sem backend/SAP → já mostra a mensagem e desabilita
-    // os controles de busca, em vez de deixar o usuário clicar e tomar o erro de JSON.
+    // No GitHub Pages (estático) NÃO há backend/SAP, MAS a foto pública do Azure já trouxe
+    // TODAS as notas subidas do ano (~12,5 mil) para a memória (risen). Então o modal filtra
+    // e pagina ESSAS notas client-side — mesma UX de filtros, com os dados reais do Azure.
     if(typeof ESTATICO !== "undefined" && ESTATICO){
-      const btn = $("#hist-buscar"); if(btn){ btn.disabled = true; btn.title = "indisponível no modo estático"; }
-      const tudo = $("#hist-tudo"); if(tudo) tudo.disabled = true;
       buscarHistorico(true);
     }
   }
@@ -777,10 +779,13 @@
     const chip = e.target.closest(".chip"); if(!chip) return;
     histFilial = chip.dataset.fil;
     for(const c of document.querySelectorAll("#hist-seg .chip")) c.setAttribute("aria-pressed", String(c.dataset.fil===histFilial));
+    // Pages (client-side): aplica o filtro na hora; no servidor, aguarda o "Buscar" (evita re-query SAP)
+    if(typeof ESTATICO !== "undefined" && ESTATICO){ histPagina = 1; buscarHistorico(); }
   });
   $("#hist-tudo").addEventListener("change", e => {
     const on = e.target.checked;
     $("#hist-de").disabled = on; $("#hist-ate").disabled = on;
+    if(typeof ESTATICO !== "undefined" && ESTATICO){ histPagina = 1; buscarHistorico(); }
   });
   // toggle 3 estados de ignoradas no modal (todas → só → ocultar)
   $("#hist-ign").addEventListener("click", () => {
@@ -818,9 +823,62 @@
       : `<span class="hist-status">role para carregar mais</span>`;
     foot.innerHTML = esq + dir;
   }
+  // ===== HISTÓRICO CLIENT-SIDE (GitHub Pages): filtra/pagina as notas do Azure em memória =====
+  // filtra o `risen` (foto pública do Azure) pelos MESMOS controles do modal
+  function histClienteFiltrar(){
+    const nfBusca = ($("#hist-nf").value || "").replace(/\D/g,"").trim();
+    const tudo = $("#hist-tudo").checked;
+    const de  = tudo ? "" : ($("#hist-de").value  || "");
+    const ate = tudo ? "" : ($("#hist-ate").value || "");
+    const arr = [...risen.values()].filter(n => {
+      if(histFilial !== "todas" && (n.filial||"") !== histFilial) return false;
+      if(histIgnoradas === "so"  && !n.ignorada) return false;
+      if(histIgnoradas === "sem" &&  n.ignorada) return false;
+      if(histTransp !== "todas" && (n.transportadora||"") !== histTransp) return false;
+      if(nfBusca && !String(n.nf||"").includes(nfBusca)) return false;
+      if(de || ate){ const d = diaDaNota(n.atualizado_em); if(!d) return false;
+        if(de && d < de) return false; if(ate && d > ate) return false; }
+      return true;
+    });
+    arr.sort((a,b) => (b._ord||0) - (a._ord||0));   // mais recentes primeiro
+    return arr;
+  }
+  // linha da tabela (dados disponíveis no Azure: NF, filial, data, transportadora)
+  const linhaHistCli = n => `<tr>`
+    + `<td class="num">${esc(n.nf)}${n.ignorada?' <span class="grp ignorada">⊘</span>':''}</td>`
+    + `<td>${esc(n.filial||"—")}</td><td>${esc(dataBR(n.atualizado_em)||"—")}</td>`
+    + `<td>${esc(n.transportadora||"—")}</td></tr>`;
+  function histCliRenderBloco(){
+    const tbody = $("#hist-tbody"); if(!tbody) return;
+    const fim = Math.min(histCliIdx + HIST_BLOCO, histCliLista.length);
+    const parte = histCliLista.slice(histCliIdx, fim);
+    if(parte.length) tbody.insertAdjacentHTML("beforeend", parte.map(linhaHistCli).join(""));
+    histCliIdx = fim; histCarregados = fim;
+    rodapeHist();
+    // se ainda não encheu a área visível, já puxa o próximo bloco (não fica "preso")
+    requestAnimationFrame(() => { const el = $("#hist-body");
+      if(el && el.scrollHeight <= el.clientHeight + 4 && histCliIdx < histCliLista.length) histCliRenderBloco(); });
+  }
+
   // rolagem infinita: busca a próxima página e ANEXA as linhas (não recarrega a tabela).
   // reset=true → nova busca/filtro (limpa a tabela e volta à página 1).
   async function buscarHistorico(reset=true){
+    // MODO ESTÁTICO (GitHub Pages): sem backend/SAP → filtra e pagina o que o Azure já
+    // trouxe (risen), client-side. Mesma tabela/rolagem infinita, dados reais do Azure.
+    if(typeof ESTATICO !== "undefined" && ESTATICO){
+      const body = $("#hist-body");
+      if(!reset){ histCliRenderBloco(); return; }   // scroll → próximo bloco
+      histCarregando = false;
+      histCliLista = histClienteFiltrar();
+      histCliIdx = 0; histCarregados = 0; histTotal = histCliLista.length;
+      // dropdown de transportadoras a partir de TODAS as notas do Azure (distintas, ordenadas)
+      preencherTransp([...new Set([...risen.values()].map(n => n.transportadora).filter(Boolean))].sort((a,b)=>String(a).localeCompare(b)));
+      if(!histTotal){ body.innerHTML = '<div class="empty">nenhuma nota subida nestes filtros.</div>'; $("#hist-foot").innerHTML = ""; return; }
+      body.scrollTop = 0;
+      body.innerHTML = `<table class="hist-tab"><thead><tr><th>NF</th><th>Filial</th><th>Data</th><th>Transportadora</th></tr></thead><tbody id="hist-tbody"></tbody></table>`;
+      histCliRenderBloco();
+      return;
+    }
     // No modo ESTÁTICO (GitHub Pages) não há backend/VPN: a rota /api/subiram/historico
     // não existe → o Pages devolve o HTML 404 e o r.json() estoura
     // ("Unexpected token '<', "<!DOCTYPE"..."). O histórico é servido pelo SAP HANA
@@ -876,6 +934,10 @@
   function talvezCarregarMais(){
     const el = $("#hist-body"); if(!el) return;
     const perto = el.scrollTop + el.clientHeight >= el.scrollHeight - 140;
+    if(typeof ESTATICO !== "undefined" && ESTATICO){   // Pages: próximo bloco client-side
+      if(perto && histCliIdx < histCliLista.length) histCliRenderBloco();
+      return;
+    }
     const naoPreencheu = el.scrollHeight <= el.clientHeight + 4;   // conteúdo menor que a janela
     if((perto || naoPreencheu) && !histCarregando && histPagina < histPaginas) buscarHistorico(false);
   }
