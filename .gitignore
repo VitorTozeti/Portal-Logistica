@@ -14,6 +14,12 @@ env/
 # Estado local do portal (Fase 0 — ignorar/ações)
 estado_portal.json
 
+# Estado do delta do coletor on-prem (cache entre execuções agendadas)
+estado_coletor.json
+
+# Logs do coletor agendado (.bat)
+coletor_log/
+
 # Sistema
 .DS_Store
 Thumbs.db
