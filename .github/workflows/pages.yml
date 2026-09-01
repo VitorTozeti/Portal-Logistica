@@ -29,6 +29,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Gate leve do front: injeta "usuario:sha256(senha)" a partir do secret
+      # PORTAL_PAGES_AUTH (formato "usuario:senha"). Sem o secret, o placeholder
+      # permanece e o gate fica DESLIGADO (fail-open) — ninguém se tranca fora.
+      # ⚠️ Não é segurança forte: o hash fica visível no JS publicado.
+      - name: Injeta credencial do gate no front
+        env:
+          CRED: ${{ secrets.PORTAL_PAGES_AUTH }}
+        run: |
+          if [ -z "$CRED" ]; then
+            echo "PORTAL_PAGES_AUTH não definido — gate DESLIGADO (site público)."
+          else
+            U="${CRED%%:*}"; P="${CRED#*:}"
+            H=$(printf '%s' "$P" | sha256sum | cut -d' ' -f1)
+            sed -i "s|__PORTAL_PAGES_AUTH__|${U}:${H}|" static/portal-auth.js
+            echo "Gate LIGADO para o usuário '${U}'."
+          fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: static
