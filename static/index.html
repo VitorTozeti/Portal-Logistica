@@ -970,6 +970,12 @@
   let bootPronto = false;
   const bufferDeltas = [];
   const CACHE_KEY = "portal_snapshot_v1";     // foto anterior (por origem) p/ pintura instantânea
+  // ETag da última foto pública do Azure. Reenviado em If-None-Match a cada poll: se
+  // o espelho não mudou (o coletor só grava a cada ~15 min), o Azure responde 304
+  // (sem corpo) e NÃO repintamos — economiza ~3 MB + o re-render, e deixa atualizar
+  // mais vezes sem custo (megaBrain: performance-caching = HTTP ETag/304 + só
+  // transferir/trabalhar quando o dado read-heavy realmente muda).
+  let azureEtag = null;
   // ⚠️ Dois tempos DIFERENTES (não confundir — foi o que quebrou a Azure em 01/09):
   //  - LOADER_CAP_MS: só o teto VISUAL da tela de carregamento QUANDO já pintamos o cache.
   //  - FETCH_TIMEOUT_MS: teto da REDE. A rota pública do Azure lê a tabela inteira (~3 MB) e,
@@ -990,7 +996,9 @@
     }catch(_){ return null; }               // privado/quota/sem storage → sem cache
   }
   function salvarCache(lista){
-    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), nfs: lista })); }catch(_){ /* ignora */ }
+    // guarda a foto + o ETag dela: na próxima abertura, mandamos esse ETag e, se nada
+    // mudou, o Azure devolve 304 e a foto do cache já é a versão atual (sem baixar 3 MB).
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), nfs: lista, etag: azureEtag })); }catch(_){ /* ignora */ }
   }
   function inserirSnapshot(lista){
     // 1 varredura: separa travadas/subiram e calcula _ord uma vez
@@ -1016,10 +1024,29 @@
       return await r.json();
     } finally { clearTimeout(t); }
   }
+  // Fetch da rota pública do Azure com REVALIDAÇÃO por ETag (If-None-Match).
+  // Devolve {status:304} quando nada mudou (mantém a foto atual, sem repintar) ou
+  // {status:200, lista} quando há foto nova. `cache:"no-store"` garante que o
+  // navegador não sirva/guarde por conta própria — nós é que controlamos o ETag,
+  // e assim o 304 chega de verdade ao JS (em vez de um 200 sintetizado do cache).
+  async function fetchPublicoCond(url, ms){
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    try{
+      const h = { "Accept":"application/json" };
+      if(azureEtag) h["If-None-Match"] = azureEtag;
+      const r = await fetch(url, { headers:h, cache:"no-store", signal: ac.signal });
+      if(r.status === 304) return { status:304 };
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      const et = r.headers.get("ETag"); if(et) azureEtag = et;
+      return { status:200, lista: normalizar(await r.json()) };
+    } finally { clearTimeout(t); }
+  }
   async function boot(){
     const cnt = $("#loader-count");
     // (1) pintura instantânea do cache, se houver → loader sai já, sem esperar a rede
     const cache = lerCache();
+    if(cache && cache.etag) azureEtag = cache.etag;   // p/ a 1ª revalidação já poder dar 304
     if(cache){
       aplicarSnapshot(cache.nfs);
       if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache) · atualizando…`;
@@ -1033,13 +1060,25 @@
     // (2) teto do LOADER (não da rede): se já há cache pintado, some rápido; sem cache, o loader
     // acompanha a rede (FETCH_TIMEOUT_MS) p/ não deixar tela vazia enquanto o Azure acorda.
     const capLoader = setTimeout(esconderLoader, cache ? LOADER_CAP_MS : FETCH_TIMEOUT_MS);
-    const url = ESTATICO ? AZURE_PUBLICO : "/api/nfs";
     try{
-      const lista = normalizar(await fetchJSON(url, FETCH_TIMEOUT_MS));
-      aplicarSnapshot(lista);           // troca a foto do cache pela fresca (1 render)
-      salvarCache(lista);               // guarda p/ a próxima abertura ser instantânea
-      if(cnt) cnt.textContent = `${lista.length.toLocaleString("pt-BR")} notas`;
-      const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "dados ao vivo (Azure)";
+      if(ESTATICO){
+        // rota pública do Azure COM revalidação por ETag: 304 = cache já é a foto atual.
+        const res = await fetchPublicoCond(AZURE_PUBLICO, FETCH_TIMEOUT_MS);
+        if(res.status === 200){
+          aplicarSnapshot(res.lista);     // foto nova (1 render)
+          salvarCache(res.lista);         // guarda foto + ETag p/ a próxima abertura ser instantânea
+          if(cnt) cnt.textContent = `${res.lista.length.toLocaleString("pt-BR")} notas`;
+        } else if(cnt && cache){          // 304: nada mudou, mantém a foto do cache (sem repintar)
+          cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas`;
+        }
+        const lt = $("#livetxt"); if(lt) lt.textContent = "dados ao vivo (Azure)";
+      } else {
+        // backend local (dev): sem ETag, foto por /api/nfs (o ao vivo é via SSE, abaixo)
+        const lista = normalizar(await fetchJSON("/api/nfs", FETCH_TIMEOUT_MS));
+        aplicarSnapshot(lista);           // troca a foto do cache pela fresca (1 render)
+        salvarCache(lista);               // guarda p/ a próxima abertura ser instantânea
+        if(cnt) cnt.textContent = `${lista.length.toLocaleString("pt-BR")} notas`;
+      }
     }catch(err){
       if(!cache){
         // sem cache e a rede falhou/estourou 10 s → demo local (último recurso)
@@ -1066,7 +1105,10 @@
 
   // ---- LIVE CONNECTION ----
   // Dev (backend local): SSE manda só os deltas. Estático (GitHub Pages): não há
-  // SSE, então recarrega a foto pública do Azure a cada 60 s (live "por polling").
+  // SSE, então revalida a foto pública do Azure a cada POLL_MS (live "por polling").
+  // Com ETag/If-None-Match, a maioria dos ciclos volta 304 (barato, sem corpo), então
+  // dá p/ atualizar mais vezes (20 s em vez de 60 s) sem custo de banda nem re-render.
+  const POLL_MS = 20000;
   if(!ESTATICO){
     const src = new EventSource("/stream?snapshot=0");
     src.onopen  = () => { $("#livetxt").textContent = "conexão ao vivo"; $("#dot").classList.add("on");
@@ -1083,11 +1125,14 @@
     const ftl = $("#ft-live"); if(ftl){ ftl.textContent = "● ao vivo (Azure)"; ftl.classList.remove("off"); }
     setInterval(async () => {
       try{
-        const lista = normalizar(await fetchJSON(AZURE_PUBLICO, FETCH_TIMEOUT_MS));
-        aplicarSnapshot(lista);           // refoto completa (a rota devolve o espelho inteiro)
-        salvarCache(lista);               // mantém o cache fresco p/ a próxima abertura ser instantânea
+        const res = await fetchPublicoCond(AZURE_PUBLICO, FETCH_TIMEOUT_MS);
+        if(res.status === 200){
+          aplicarSnapshot(res.lista);     // só repinta quando o espelho realmente mudou
+          salvarCache(res.lista);         // mantém o cache + ETag frescos p/ a próxima abertura
+        }
+        // 304 → nada mudou: mantém a foto atual, sem repintar
       }catch(_){ /* mantém a última foto boa até o próximo ciclo */ }
-    }, 60000);
+    }, POLL_MS);
   }
 
   boot();   // dispara a carga inicial
