@@ -20,6 +20,8 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
+import carrier
+
 # credenciais: .env do portal (se existir) + fallback no .env do robô
 _ROBOT_ENV = os.getenv(
     "PORTAL_ROBOT_ENV",
@@ -125,6 +127,24 @@ def _nfs_b4you(filial: str) -> set:
     return achadas
 
 
+_cache_inbound_unilog: dict[str, set] = {}
+
+
+def _nfs_inbound_unilog(filial: str) -> set:
+    """NFs já enviadas como INBOUND na Unilog (análogo do /pedido/listar da B4You,
+    lido dos CSVs do pacote unilog/). Cache por ciclo (limpo junto com _cache_b4you)."""
+    if filial in _cache_inbound_unilog:
+        return _cache_inbound_unilog[filial]
+    achadas: set = set()
+    try:
+        import unilog_feed
+        achadas = unilog_feed.nfs_inbound(filial)
+    except Exception as e:
+        print(f"  [SAP_FEED] inbound Unilog {filial}: {e}")
+    _cache_inbound_unilog[filial] = achadas
+    return achadas
+
+
 def coletar_barradas(nfs_no_log: set) -> list[dict]:
     """Roda a auditoria (read-only) e devolve as barradas já no formato do hub.
     `nfs_no_log` = NFs que já constam no log mestre (excluídas, iguais à auditoria)."""
@@ -152,6 +172,7 @@ def coletar_barradas(nfs_no_log: set) -> list[dict]:
         conn.close()
 
     _cache_b4you.clear()  # revalida a cada ciclo
+    _cache_inbound_unilog.clear()
     out = []
     for r in linhas:
         nf = _limpar(str(r[0]))
@@ -166,13 +187,22 @@ def coletar_barradas(nfs_no_log: set) -> list[dict]:
             continue
 
         if uso in (106, 107, 108):  # transferências internas
-            if nf in _nfs_b4you(filial):
-                continue  # já apareceu na B4You → ok, silencia
+            # Silenciamento: no modo B4YOU olha o /pedido/listar; no modo UNILOG olha o
+            # estado do INBOUND Unilog (a transferência VIRA um inbound). Fonte da verdade
+            # da migração — ver nota unilog-status-testes (inbound = NF de transferência).
+            if carrier.IS_UNILOG:
+                ja_subiu = nf in _nfs_inbound_unilog(filial)
+                op = "Unilog"
+            else:
+                ja_subiu = nf in _nfs_b4you(filial)
+                op = "B4You"
+            if ja_subiu:
+                continue  # já apareceu no operador → ok, silencia
             out.append({
                 "nf": nf, "filial": filial, "estado": "travada",
                 "transportadora": filial.upper(),
                 "problema_codigo": "TRANSFERENCIA_ATRASADA", "problema_categoria": "TRANSFERENCIA",
-                "problema_descricao": f"Transferência Atrasada - B4You ({tipo}) · Utilização {uso} ({desc_uso})",
+                "problema_descricao": f"Transferência Atrasada - {op} ({tipo}) · Utilização {uso} ({desc_uso})",
                 "travada_desde": _iso(docdate), "grupo": "BARRADAS_SAP",
             })
             continue

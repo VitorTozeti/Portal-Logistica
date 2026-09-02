@@ -19,6 +19,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+import carrier
 from hub import hub
 
 # --- Fonte real (PROD). Override por env se precisar apontar para outra pasta. ---
@@ -72,7 +73,10 @@ def classificar(r: dict):
     if r.get("Requer_Boleto") == "TRUE" and r.get("Status_Arq_Boleto") != "OK":
         problemas.append(("BOLETO_AUSENTE", "FINANCEIRO", "Boleto exigido não encontrado na pasta de rede"))
 
-    if status_nf == "OK":
+    # Família de ENVIO da transportadora. No modo UNILOG o log mestre ainda NÃO tem
+    # colunas Envio_Unilog_* (o robô não gravou) → o envio vem do unilog_feed, e aqui
+    # só valem os problemas de arquivo/SAP acima. No modo B4YOU, mantém-se igual.
+    if status_nf == "OK" and carrier.IS_B4YOU:
         env_nf = r.get("Envio_B4You_NF")
         if env_nf != "OK":
             if env_nf in ("BLOQUEADO_SALDO", "Bloqueado Saldo"):
@@ -89,15 +93,15 @@ def classificar(r: dict):
             if r.get("Requer_Etiqueta") == "TRUE" and r.get("Status_Arq_Etiqueta") == "OK" and r.get("Envio_B4You_Etiqueta") != "OK":
                 problemas.append(("B4YOU_ANEXO_ETIQUETA", "B4YOU", f"Falha ao enviar a Etiqueta para a B4You (status: {r.get('Envio_B4You_Etiqueta')})"))
 
-    carrier = str(r.get("Carrier", "")).strip()
-    if carrier and carrier != CORREIOS_CARRIER and carrier != CODIGO_TGT and status_nf == "OK":
+    cod_carrier = str(r.get("Carrier", "")).strip()
+    if cod_carrier and cod_carrier != CORREIOS_CARRIER and cod_carrier != CODIGO_TGT and status_nf == "OK":
         if r.get("Envio_Email_Transp") != "OK":
-            if not carrier or carrier.lower() == "nan":
+            if not cod_carrier or cod_carrier.lower() == "nan":
                 problemas.append(("TRANSP_NAO_INFORMADA", "TRANSPORTADORA", "Código da transportadora não informado na NF (verificar SAP)"))
-            elif carrier not in CARRIER_NOMES:
-                problemas.append(("TRANSP_INVALIDA", "TRANSPORTADORA", f"Código '{carrier}' não reconhecido — provável erro de digitação no SAP"))
+            elif cod_carrier not in CARRIER_NOMES:
+                problemas.append(("TRANSP_INVALIDA", "TRANSPORTADORA", f"Código '{cod_carrier}' não reconhecido — provável erro de digitação no SAP"))
             else:
-                problemas.append(("EMAIL_TRANSP_FALHA", "TRANSPORTADORA", f"Falha no envio do e-mail para {_nome_transp(carrier)}"))
+                problemas.append(("EMAIL_TRANSP_FALHA", "TRANSPORTADORA", f"Falha no envio do e-mail para {_nome_transp(cod_carrier)}"))
 
     if not problemas:
         return None
@@ -217,8 +221,17 @@ async def rodar_feed_simulado() -> None:
             except Exception as e:
                 print(f"  [FEED] Cancelamento indisponível: {e}", flush=True)
 
+            # Família de ENVIO Unilog (só no modo UNILOG) — lê os CSVs do pacote unilog/.
+            unilog_env = []
+            if carrier.IS_UNILOG:
+                try:
+                    import unilog_feed
+                    unilog_env = await asyncio.to_thread(unilog_feed.coletar_unilog)
+                except Exception as e:
+                    print(f"  [FEED] Unilog indisponível: {e}", flush=True)
+
             # Identidade composta filial:nf — NFs iguais de filiais diferentes NÃO colidem.
-            todas_travadas = travadas + barradas + marketing + cancelamentos
+            todas_travadas = travadas + barradas + marketing + cancelamentos + unilog_env
             for ev in todas_travadas + subiram:
                 ev["id"] = f"{ev.get('filial','?')}:{ev['nf']}"
 
@@ -251,7 +264,7 @@ async def rodar_feed_simulado() -> None:
 
             publicado = atual
             travadas_anteriores = travadas_atuais
-            print(f"  [FEED] {len(barradas)} barradas · {len(marketing)} mkt · {len(cancelamentos)} canc · {len(travadas)} log · {len(subiram)} subiram (real)", flush=True)
+            print(f"  [FEED] {len(barradas)} barradas · {len(marketing)} mkt · {len(cancelamentos)} canc · {len(unilog_env)} unilog · {len(travadas)} log · {len(subiram)} subiram (real, {carrier.NOME})", flush=True)
         except Exception as e:
             print(f"  [FEED] falha no ciclo: {e}", flush=True)
         await asyncio.sleep(POLL_SEGUNDOS)

@@ -149,7 +149,10 @@ Expor o portal para o time via a arquitetura da seção 2.
 - [ ] ⚠️ Validar o deploy com cuidado (a API é compartilhada com a calculadora, que é crítica)
 
 ### ⬜ Fase 2 — Unilog + extras
-- [ ] Versão **Unilog** (troca a família de códigos B4You; SAP/log/encanamento não mudam)
+- [x] Versão **Unilog** — flag `PORTAL_CARRIER` (B4YOU|UNILOG) em `carrier.py`; no modo UNILOG
+  o envio vem de `unilog_feed.py` (lê os CSVs do pacote `unilog/`), os motores SAP não chamam a
+  API B4You e o front vira "Unilog". **Vive só na branch `Unilog`** (não vai p/ main até a virada).
+  ⏳ Sem pedidos p/ testar ainda → feed honesto no vazio; estados ao vivo (`?id=`) são gancho futuro.
 - [x] **Login interino** (senha compartilhada via `.env`→GitHub Secrets, 2 perfis TI/Logística) — feito 28/08, ver `auth.py`
 - [ ] Login **Entra ID** (restrito a Logística/TI) — substitui o login interino acima
 - [ ] Página de **OTIF** (reaproveita as medidas DAX do robô OTIF)

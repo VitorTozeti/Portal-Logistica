@@ -35,6 +35,12 @@ def _consultar_b4you(filial: str, nfs_alvo: set) -> dict:
     """GET /v1/pedido/listar (read-only) → {num_limpo: {"status":...}} (cancelamento.py:67)."""
     import base64
     import requests
+    import carrier
+    # No modo UNILOG não há API /pedido/listar — o cancelamento Unilog é POR DOCUMENTO
+    # (montar_cancelamento, Cenário 1/2). Sem esse diagnóstico fino por ora: retorna vazio
+    # (as notas canceladas no SAP seguem visíveis pela auditoria, sem falso "cancelar manual").
+    if carrier.IS_UNILOG:
+        return {}
     if not nfs_alvo or not sap_feed.B4YOU["url"]:
         return {}
     user, pw = sap_feed.B4YOU[filial]

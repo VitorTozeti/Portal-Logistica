@@ -51,5 +51,7 @@ uvicorn app:app --reload
 2. Ação por nota (ignorar + soluções rápidas) — POSTs que voltam pelo SSE.
 3. Login restrito a Logística/TI (Entra ID).
 4. Página de OTIF.
-5. Versão **Unilog**: troca a família de códigos `B4YOU_*` pelos equivalentes da Unilog;
-   o encanamento (hub/SSE) não muda.
+5. Versão **Unilog** (feito, branch `Unilog`): flag `PORTAL_CARRIER=UNILOG` (`carrier.py`) troca a
+   família `B4YOU_*` pelos estados `UNILOG_*` (`unilog_feed.py`, lê os CSVs do pacote `unilog/`);
+   os motores SAP deixam de chamar a API B4You. O encanamento (hub/SSE) não muda. Não vai p/ `main`
+   até a virada. Sem pedidos p/ testar ainda → feed vazio honesto; estados ao vivo (`?id=`) são futuros.

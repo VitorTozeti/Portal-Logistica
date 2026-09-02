@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portal da Logística — B4You</title>
+<title>Portal da Logística — Unilog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- No GitHub Pages, a foto vem do container Azure: abrir DNS+TLS já no parse
@@ -259,7 +259,7 @@
 <header>
   <span class="dot" id="dot"></span>
   <b>Portal da Logística</b>
-  <span style="font-size:12px;color:var(--ink2)">· B4You</span>
+  <span style="font-size:12px;color:var(--ink2)">· Unilog</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
     <span id="quem"></span>
@@ -302,9 +302,9 @@
     <span class="ft-brand">Portal da Logística <span class="ft-sep">·</span> Pharmaesthetics</span>
     <span class="ft-mid">
       <span id="ft-live" class="ft-pill">● conectando…</span>
-      <span class="ft-ro">somente leitura — não altera SAP/B4You</span>
+      <span class="ft-ro">somente leitura — não altera SAP/Unilog</span>
     </span>
-    <span class="ft-ver">v0.1 · B4You</span>
+    <span class="ft-ver">v0.1 · Unilog</span>
   </div>
 </footer>
 
@@ -383,7 +383,8 @@
   // da paleta, mas cada tipo de problema com um tom distinto p/ bater o olho e separar.
   const CAT_COR = {
     FATURAMENTO:"#31cceb",  ARQUIVOS:"#59dcf1",   CORREIOS:"#16aecf",
-    FINANCEIRO:"#2ee8d6",   B4YOU:"#4ba6e8",      TRANSPORTADORA:"#86e7f2",
+    FINANCEIRO:"#2ee8d6",   B4YOU:"#4ba6e8",      UNILOG:"#2bb8c9",
+    TRANSPORTADORA:"#86e7f2",
     TRANSFERENCIA:"#1a97b0",AUDITORIA:"#34bce2",  BARRADAS_SAP:"#40d8e0",
     MARKETING:"#6bc4ee",    CANCELAMENTO:"#20c2d1",RASTREIO:"#8fd6f0",
     OUTROS:"#7fa9b5",
@@ -415,7 +416,7 @@
   const catKey = n => n.problema_categoria || n.grupo || "OUTROS";
   const CAT_LABEL = {
     FATURAMENTO:"Faturamento", ARQUIVOS:"Arquivos", CORREIOS:"Correios",
-    FINANCEIRO:"Financeiro", B4YOU:"B4You", TRANSPORTADORA:"Transportadora",
+    FINANCEIRO:"Financeiro", B4YOU:"B4You", UNILOG:"Unilog", TRANSPORTADORA:"Transportadora",
     TRANSFERENCIA:"Transferência", AUDITORIA:"Auditoria SAP",
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
     RASTREIO:"Rastreio", OUTROS:"Outros",
