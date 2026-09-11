@@ -37,6 +37,9 @@
     --ink:var(--p5); --ink2:var(--p5); --line:var(--p3);
     --brand:var(--p4); --brand2:var(--p5); --accent:var(--p4);
     --ok:var(--p4); --ok-bg:var(--p3); --crit:var(--p5); --crit-bg:var(--p3); --warn:var(--p4);
+    /* âmbar exclusivo do alerta "dados desatualizados" — 1 exceção à paleta mono
+       de propósito: uma falha de atualização PRECISA saltar aos olhos (ver _DECISOES) */
+    --alerta:#f4a72c;
   }
   /* ============================================================= */
   *{box-sizing:border-box}
@@ -50,6 +53,13 @@
   .dot{width:9px;height:9px;border-radius:50%;background:var(--p3);display:inline-block}
   .dot.on{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
   .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+  /* banner "não consegui atualizar as NFs" — some quando a fonte volta */
+  .alerta{margin:10px 16px 0;padding:11px 15px;border-radius:10px;
+    background:color-mix(in srgb,var(--alerta) 16%,var(--card));
+    border:1px solid color-mix(in srgb,var(--alerta) 60%,transparent);
+    color:var(--ink);font-size:13.5px;line-height:1.5}
+  .alerta b{color:var(--alerta)}
+  .ft-pill.stale{color:var(--alerta)}
   main{max-width:1440px;width:100%;margin:0 auto;padding:22px 28px;display:grid;grid-template-columns:1fr 1fr;gap:22px;
     flex:1 0 auto}   /* cresce e empurra o footer para o rodapé */
   @media (min-width:1100px){.col{min-width:0}}
@@ -266,6 +276,8 @@
     <a href="/logout" id="sair" style="color:var(--brand)">sair</a>
   </span>
 </header>
+
+<div id="alerta-fonte" class="alerta" role="alert" hidden></div>
 
 <main>
   <div class="col">
@@ -715,8 +727,34 @@
     const ord = [...risen.entries()].sort((a,b)=> a[1]._ord - b[1]._ord);  // mais antigos primeiro
     for(let i=0; i < ord.length - MAX_RISEN; i++) risen.delete(ord[i][0]);
   }
+  // ===== saúde da fonte: banner "não consegui atualizar as NFs" =====
+  let fonteOk = true;   // false = coletor não conseguiu ler a fonte (senha do servidor, VPN…)
+  function aplicarSaude(ev){
+    const box = $("#alerta-fonte");
+    fonteOk = ev.fonte_ok !== false;
+    if(!fonteOk){
+      const q = ev.ultima_ok ? tempoDesde(ev.ultima_ok) : null;
+      const quando = q ? `última atualização OK há ${q.texto}` : "sem atualização confirmada nesta sessão";
+      if(box){
+        box.innerHTML = "⚠️ <b>Não foi possível atualizar os dados das NFs.</b> "
+          + "A fonte está inacessível — provável senha da conta do servidor expirada, VPN caída "
+          + "ou pasta de rede fora do ar. Os cards abaixo podem estar <b>desatualizados</b> ("
+          + esc(quando) + "). Avise a TI.";
+        box.hidden = false;
+      }
+      const ftl = $("#ft-live"); if(ftl){ ftl.textContent = "● dados desatualizados"; ftl.classList.add("stale"); ftl.classList.remove("off"); }
+      const lt = $("#livetxt"); if(lt) lt.textContent = "fonte inacessível";
+      const dot = $("#dot"); if(dot) dot.classList.remove("on");
+    } else {
+      if(box) box.hidden = true;
+      const ftl = $("#ft-live"); if(ftl){ ftl.textContent = "● ao vivo"; ftl.classList.remove("stale","off"); }
+      const lt = $("#livetxt"); if(lt) lt.textContent = "conexão ao vivo";
+      const dot = $("#dot"); if(dot) dot.classList.add("on");
+    }
+  }
   function aplicar(ev){
     const id = ev.id || ev.nf;
+    if(ev.estado === "saude" || id === "__saude__"){ aplicarSaude(ev); return; }
     if(ev.estado === "travada"){ risen.delete(id); stuck.set(id, ev); if(abertaId===id && tipoAberto==="travada") abrirTravada(id); }
     else if(ev.estado === "resolvida"){ stuck.delete(id); if(abertaId===id) fechar(); }
     else if(ev.estado === "subiu"){
@@ -1009,11 +1047,16 @@
         risen.set(id, ev);
       } else if(ev.estado === "travada"){
         stuck.set(id, ev);
+      } else if(ev.estado === "saude" || id === "__saude__"){
+        aplicarSaude(ev);
       }
     }
     trimRisen();
   }
-  function aplicarSnapshot(lista){ stuck.clear(); risen.clear(); inserirSnapshot(lista); render(); }
+  // No servidor (SSE), a foto de /api/nfs carrega a saúde atual. Zeramos o banner
+  // por padrão e deixamos um "__saude__" de falha presente na foto reacendê-lo —
+  // assim um cache antigo de falha não fica preso na tela. (ESTATICO/Azure fora de escopo.)
+  function aplicarSnapshot(lista){ stuck.clear(); risen.clear(); if(!ESTATICO) aplicarSaude({fonte_ok:true}); inserirSnapshot(lista); render(); }
   // fetch com TETO rígido (AbortController): não deixa o boot pendurado além de `ms`
   async function fetchJSON(url, ms){
     const ac = new AbortController();
@@ -1111,8 +1154,9 @@
   const POLL_MS = 20000;
   if(!ESTATICO){
     const src = new EventSource("/stream?snapshot=0");
-    src.onopen  = () => { $("#livetxt").textContent = "conexão ao vivo"; $("#dot").classList.add("on");
-      $("#ft-live").textContent = "● ao vivo"; $("#ft-live").classList.remove("off"); };
+    src.onopen  = () => { if(!fonteOk) return;   // fonte caída: mantém o aviso, não finge "ao vivo"
+      $("#livetxt").textContent = "conexão ao vivo"; $("#dot").classList.add("on");
+      $("#ft-live").textContent = "● ao vivo"; $("#ft-live").classList.remove("off","stale"); };
     src.onerror = () => { $("#livetxt").textContent = "reconectando…"; $("#dot").classList.remove("on");
       $("#ft-live").textContent = "● reconectando…"; $("#ft-live").classList.add("off"); };
     src.onmessage = e => {

@@ -15,11 +15,40 @@ Detalhe dos motores: nota portal-logistica-nfs-problema no vault.
 """
 import asyncio
 import csv
+import errno
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 from hub import hub
+
+
+class FonteIndisponivel(Exception):
+    """A fonte (log mestre) NÃO pôde ser LIDA por erro de ACESSO/rede — não é o
+    mesmo que 'arquivo ausente'. Casos: senha da conta do servidor expirada
+    (WinError 1330), credencial inválida (1326), share/servidor fora do ar
+    (53/64/67), permissão negada (5/EACCES). Quando isto acontece o portal NÃO
+    pode tratar como 'sem dados' (isso zeraria o quadro e mostraria tudo como
+    resolvido) — tem que CONGELAR o último estado e sinalizar 'não atualizei'."""
+
+    def __init__(self, caminho: str, erro: Exception):
+        self.caminho = caminho
+        self.erro = erro
+        super().__init__(f"{caminho}: {erro}")
+
+
+# WinError que significam "não consegui ACESSAR" (≠ "não existe"): senha expirada
+# (1330), logon inválido (1326/1331), acesso negado (5), share/servidor fora
+# (53 caminho de rede, 64 nome de rede indisponível, 67 nome de rede não achado),
+# credencial já em uso/conflito (1219). ENOENT/arquivo-ausente NÃO entra aqui.
+_WINERR_ACESSO = {5, 53, 64, 67, 1219, 1326, 1330, 1331}
+
+
+def _e_erro_de_acesso(e: OSError) -> bool:
+    we = getattr(e, "winerror", None)
+    if we in _WINERR_ACESSO:
+        return True
+    return e.errno in (errno.EACCES, errno.EPERM)
 
 # --- Fonte real (PROD). Override por env se precisar apontar para outra pasta. ---
 LOGS_MESTRE = {
@@ -115,8 +144,21 @@ def _iso(data_proc: str) -> str:
 
 
 def _ler_csv(caminho: str):
+    """Lê um log mestre. Distingue os dois mundos que ANTES caíam no mesmo `[]`:
+      - arquivo genuinamente AUSENTE  -> [] (normal: robô ainda não gerou a linha)
+      - erro de ACESSO/rede           -> levanta FonteIndisponivel (senha do
+        servidor expirada, VPN caída, share fora) — o chamador CONGELA o estado.
+    Em Python 3.8+ o `Path.exists()` sobre um UNC com credencial expirada LEVANTA
+    OSError(1330) (não devolve False), então o try abaixo captura o caso real."""
     p = Path(caminho)
-    if not p.exists():
+    try:
+        existe = p.exists()
+    except OSError as e:
+        if _e_erro_de_acesso(e):
+            raise FonteIndisponivel(caminho, e) from e
+        print(f"  [FEED] erro ao checar {caminho}: {e}")
+        return []
+    if not existe:
         print(f"  [FEED] log mestre não encontrado: {caminho}")
         return []
     for enc in ("utf-8-sig", "latin-1"):
@@ -125,6 +167,11 @@ def _ler_csv(caminho: str):
                 return list(csv.DictReader(f))
         except (UnicodeDecodeError, UnicodeError):
             continue
+        except OSError as e:
+            if _e_erro_de_acesso(e):
+                raise FonteIndisponivel(caminho, e) from e
+            print(f"  [FEED] erro lendo {caminho}: {e}")
+            return []
         except Exception as e:
             print(f"  [FEED] erro lendo {caminho}: {e}")
             return []
@@ -191,6 +238,33 @@ def _coletar_estado():
     return travadas, subiram, nfs_no_log, log_index
 
 
+# --- Saúde da fonte (para o front mostrar "não consegui atualizar as NFs") ---
+# Estado de saúde publicado no hub sob o id fixo "__saude__". O front trata esse
+# evento como banner (não como card). Publicamos SÓ na virada (ok<->falha) para não
+# gerar delta a cada ciclo, + um evento inicial para o snapshot nunca ficar sem saúde.
+_saude = {"fonte_ok": None, "ultima_ok": None}  # fonte_ok None = ainda não avaliado
+
+
+def _iso_agora() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _marcar_saude(ok: bool, fi: "FonteIndisponivel | None" = None) -> None:
+    mudou = ok != _saude["fonte_ok"]
+    if ok:
+        _saude["ultima_ok"] = _iso_agora()
+    _saude["fonte_ok"] = ok
+    if not mudou:
+        return  # sem virada → não repete o evento
+    if ok:
+        hub.publicar({"id": "__saude__", "estado": "saude", "fonte_ok": True,
+                      "ultima_ok": _saude["ultima_ok"]})
+    else:
+        hub.publicar({"id": "__saude__", "estado": "saude", "fonte_ok": False,
+                      "erro": str(fi), "caminho": getattr(fi, "caminho", ""),
+                      "ultima_ok": _saude["ultima_ok"]})
+
+
 async def rodar_feed_simulado() -> None:
     """Nome mantido por compatibilidade com app.py; agora lê dados REAIS."""
     publicado: dict[str, str] = {}  # nf -> assinatura, para publicar só mudanças
@@ -198,7 +272,17 @@ async def rodar_feed_simulado() -> None:
     travadas_anteriores: set = set()  # ids (filial:nf) travados no ciclo anterior
     while True:
         try:
-            travadas, subiram, nfs_no_log, log_index = await asyncio.to_thread(_coletar_estado)
+            # A COLETA vem primeiro e num try próprio: se a fonte estiver inacessível
+            # (senha do servidor expirada etc.), CONGELAMOS o quadro — nada de zerar/
+            # marcar tudo como resolvido — e sinalizamos "não atualizei" ao front.
+            try:
+                travadas, subiram, nfs_no_log, log_index = await asyncio.to_thread(_coletar_estado)
+            except FonteIndisponivel as fi:
+                _marcar_saude(False, fi)
+                print(f"  [FEED] FONTE INDISPONÍVEL — mantendo o último estado (sem zerar): {fi}", flush=True)
+                await asyncio.sleep(POLL_SEGUNDOS)
+                continue
+            _marcar_saude(True)
 
             barradas, marketing, cancelamentos = [], [], []
             try:
