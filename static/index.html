@@ -18,18 +18,40 @@
     location.replace("./login.html");
   }
 </script>
+<script>
+  // TEMA (claro/escuro): aplica a escolha salva ANTES da 1ª pintura (sem flash).
+  // Guardado no localStorage (por-navegador). Sem escolha salva → segue o padrão
+  // do sistema (prefers-color-scheme); default do portal é o escuro.
+  (function(){
+    try{
+      var t = localStorage.getItem("portal_tema");
+      if(!t){ t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(_){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
 <style>
   /* ============================================================= */
   /*  🎨 PALETA — EDITE APENAS ESTAS 5 CORES (tudo no portal deriva daqui) */
   /*  Troque os hex abaixo e o site inteiro (fundo, cards, filtros, tags,   */
   /*  textos, botões, modal) muda junto. Regra: --p5 é sempre a mais clara  */
   /*  = cor dos textos.                                                     */
-  :root{
-    --p1:#0e0d0d;   /* mais escura  → fundo da página            */
-    --p2:#242424;   /* escura       → cards/painéis/modal          */
-    --p3:#005b6b;   /* média        → linhas, bordas, preenchimento de filtros */
-    --p4:#31cceb;   /* destaque     → realces, ativos, "subiu"/live, tags */
-    --p5:#ffffff;   /* mais clara   → TODAS as letras              */
+  /*  Dois temas: ESCURO (padrão) e CLARO. O papel de cada var é o mesmo nos dois  */
+  /*  (--p1 = fundo, --p5 = cor das letras); só os hex mudam. O botão ☀/🌙 no      */
+  /*  header troca o atributo data-theme e a escolha fica salva no navegador.      */
+  :root, :root[data-theme="dark"]{
+    --p1:#0e0d0d;   /* fundo da página            */
+    --p2:#242424;   /* cards/painéis/modal        */
+    --p3:#005b6b;   /* linhas, bordas, preenchimento de filtros */
+    --p4:#31cceb;   /* destaque → realces, ativos, "subiu"/live, tags */
+    --p5:#ffffff;   /* TODAS as letras            */
+  }
+  :root[data-theme="light"]{
+    --p1:#f3f6f8;   /* fundo da página (claro)    */
+    --p2:#ffffff;   /* cards/painéis/modal        */
+    --p3:#c4d2d8;   /* linhas, bordas, preenchimento de filtros */
+    --p4:#0a8aa6;   /* destaque (ciano escuro, contrasta no claro) */
+    --p5:#122a32;   /* TODAS as letras (escuro)   */
   }
   /* ---- papéis (derivados da paleta; normalmente não precisa mexer) ---- */
   :root{
@@ -50,6 +72,13 @@
   header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--card);
     border-bottom:2px solid var(--brand);flex:0 0 auto}
   header b{font-size:16px;color:var(--brand)}
+  /* botão de troca de tema (claro/escuro) — herda a paleta, sem cor própria */
+  .tema-btn{margin-left:14px;flex:0 0 auto;width:34px;height:34px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+    font-size:16px;line-height:1;background:transparent;color:var(--ink);
+    border:1px solid color-mix(in srgb,var(--brand) 45%,transparent);transition:background .15s,border-color .15s}
+  .tema-btn:hover{background:color-mix(in srgb,var(--brand) 14%,transparent);border-color:var(--brand)}
+  .tema-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--p3);display:inline-block}
   .dot.on{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
   .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
@@ -271,6 +300,7 @@
   <b>Portal da Logística</b>
   <span style="font-size:12px;color:var(--ink2)">· B4You</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
+  <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
   <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
     <span id="quem"></span>
     <a href="/logout" id="sair" style="color:var(--brand)">sair</a>
@@ -388,7 +418,26 @@
 
   // ---- PALETA ÚNICA lida das CSS vars (:root --p1..--p5) — 1 lugar só p/ editar ----
   const CSSV = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const PAL = { p1:CSSV("--p1"), p2:CSSV("--p2"), p3:CSSV("--p3"), p4:CSSV("--p4"), p5:CSSV("--p5") };
+  let PAL = { p1:CSSV("--p1"), p2:CSSV("--p2"), p3:CSSV("--p3"), p4:CSSV("--p4"), p5:CSSV("--p5") };
+  const recomputarPAL = () => { PAL = { p1:CSSV("--p1"), p2:CSSV("--p2"), p3:CSSV("--p3"), p4:CSSV("--p4"), p5:CSSV("--p5") }; };
+
+  // ---- TROCA DE TEMA (claro/escuro), salva no navegador (localStorage) ----
+  // O tema já foi aplicado no <head> antes da 1ª pintura; aqui só ligamos o botão,
+  // sincronizamos o ícone e, ao trocar, repintamos (a paleta é lida por CSS var).
+  const btnTema = document.getElementById("tema");
+  const iconeTema = t => { if(btnTema) btnTema.textContent = (t === "light" ? "☀️" : "🌙"); };
+  iconeTema(document.documentElement.getAttribute("data-theme") || "dark");
+  function alternarTema(){
+    const atual = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    const novo  = atual === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", novo);
+    try{ localStorage.setItem("portal_tema", novo); }catch(_){ /* janela privada/quota: segue sem salvar */ }
+    iconeTema(novo);
+    recomputarPAL();
+    _upHTML = ""; _stuckHTML = "";                 // limpa os guards anti-piscar → força o re-render
+    if(typeof render === "function") render();
+  }
+  if(btnTema) btnTema.addEventListener("click", alternarTema);
   // ---- CORES DAS CATEGORIAS DE TRAVADAS: variações do destaque #31cceb (--p4) ----
   // Notas que SUBIRAM ficam na cor base da paleta (--p4, sólida). Notas TRAVADAS (não
   // subiram) recebem uma variação da MESMA família ciano por categoria — mesmo espírito
