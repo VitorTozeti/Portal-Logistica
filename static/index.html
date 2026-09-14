@@ -47,11 +47,12 @@
     --p5:#ffffff;   /* TODAS as letras            */
   }
   :root[data-theme="light"]{
-    --p1:#f3f6f8;   /* fundo da página (claro)    */
-    --p2:#ffffff;   /* cards/painéis/modal        */
-    --p3:#c4d2d8;   /* linhas, bordas, preenchimento de filtros */
-    --p4:#0a8aa6;   /* destaque (ciano escuro, contrasta no claro) */
-    --p5:#122a32;   /* TODAS as letras (escuro)   */
+    /* claro no padrão do app de Orçamentos: neutros SLATE + acento AZUL escuro */
+    --p1:#eff3f9;   /* fundo da página (slate-100)         */
+    --p2:#ffffff;   /* cards/painéis/modal                 */
+    --p3:#cbd5e1;   /* linhas, bordas, preenchimento de filtros (slate-300) */
+    --p4:#1d4ed8;   /* destaque → azul-700 (escuro, alto contraste no branco) */
+    --p5:#0f172a;   /* TODAS as letras (slate-900)         */
   }
   /* ---- papéis (derivados da paleta; normalmente não precisa mexer) ---- */
   :root{
@@ -449,7 +450,18 @@
     MARKETING:"#6bc4ee",    CANCELAMENTO:"#20c2d1",RASTREIO:"#8fd6f0",
     OUTROS:"#7fa9b5",
   };
-  const catCor = k => CAT_COR[k] || PAL.p4;
+  // No tema CLARO o ciano some no branco: as categorias usam tons AZUIS mais escuros
+  // (família fria azul/indigo/teal, todos legíveis sobre branco, no espírito do acento
+  // azul do app de Orçamentos). Continuam distintos por categoria p/ bater o olho.
+  const CAT_COR_LIGHT = {
+    FATURAMENTO:"#1d4ed8",  ARQUIVOS:"#2563eb",   CORREIOS:"#1e40af",
+    FINANCEIRO:"#0e7490",   B4YOU:"#4338ca",      TRANSPORTADORA:"#0369a1",
+    TRANSFERENCIA:"#155e75",AUDITORIA:"#1e3a8a",  BARRADAS_SAP:"#0891b2",
+    MARKETING:"#6d28d9",    CANCELAMENTO:"#0f766e",RASTREIO:"#0284c7",
+    OUTROS:"#475569",
+  };
+  const ehTemaClaro = () => document.documentElement.getAttribute("data-theme") === "light";
+  const catCor = k => (ehTemaClaro() ? (CAT_COR_LIGHT[k] || PAL.p4) : (CAT_COR[k] || PAL.p4));
   // cor de uma nota travada = a variação da sua categoria; subiu = destaque base
   const corDe = n => catCor(catKey(n));
   const estiloTag = n => { const c = catCor(catKey(n)); return `background:${c}22;color:${c}`; };
