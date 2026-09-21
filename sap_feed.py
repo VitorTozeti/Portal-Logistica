@@ -127,7 +127,13 @@ def _nfs_b4you(filial: str) -> set:
 
 def coletar_barradas(nfs_no_log: set) -> list[dict]:
     """Roda a auditoria (read-only) e devolve as barradas já no formato do hub.
-    `nfs_no_log` = NFs que já constam no log mestre (excluídas, iguais à auditoria)."""
+
+    ⚠️ Ao contrário da `auditoria.buscar_notas_barradas_sap()` do robô, o portal NÃO
+    silencia nenhum caso — toda NF que bateria em algum dos silenciadores do robô
+    (uso 71, transferência já confirmada na B4You/Unilog, NF já no log mestre) ainda
+    assim é retornada aqui, só que marcada (`problema_codigo`/`ja_no_log`) para o
+    usuário decidir se é ruído ou uma divergência real entre robô e SAP/B4You/Unilog.
+    `nfs_no_log` só é usado para anotar `ja_no_log` no registro, não para excluir NF."""
     try:
         from hdbcli import dbapi
     except ImportError:
@@ -155,24 +161,34 @@ def coletar_barradas(nfs_no_log: set) -> list[dict]:
     out = []
     for r in linhas:
         nf = _limpar(str(r[0]))
-        if not nf or nf in nfs_no_log:
+        if not nf:
             continue
+        ja_no_log = nf in nfs_no_log
         bplid, tipo, uso = r[1], r[2], r[3]
         desc_uso = str(r[4]) if r[4] else "Não preenchido"
         in_status, cd_erro, whs, chave, docdate = r[5], r[6], r[7], r[8], r[9]
         filial = "Varejo" if bplid == 3 else "Atacado"
 
-        if uso == 71:  # silenciador absoluto
+        if uso == 71:  # o robô silencia por completo; o portal mostra mesmo assim
+            out.append({
+                "nf": nf, "filial": filial, "estado": "travada",
+                "transportadora": filial.upper(), "ja_no_log": ja_no_log,
+                "problema_codigo": "USO_71_SILENCIADO", "problema_categoria": "AUDITORIA",
+                "problema_descricao": f"Uso 71 ({tipo}) · silenciado pelo robô, mas ainda assim divergente no SAP",
+                "travada_desde": _iso(docdate), "grupo": "BARRADAS_SAP",
+            })
             continue
 
         if uso in (106, 107, 108):  # transferências internas
-            if nf in _nfs_b4you(filial):
-                continue  # já apareceu na B4You → ok, silencia
+            achou_b4you = nf in _nfs_b4you(filial)
+            desc = f"Transferência Atrasada - B4You ({tipo}) · Utilização {uso} ({desc_uso})"
+            if achou_b4you:
+                desc += " [já confirmada na B4You/Unilog — o robô teria silenciado este caso]"
             out.append({
                 "nf": nf, "filial": filial, "estado": "travada",
-                "transportadora": filial.upper(),
+                "transportadora": filial.upper(), "ja_no_log": ja_no_log,
                 "problema_codigo": "TRANSFERENCIA_ATRASADA", "problema_categoria": "TRANSFERENCIA",
-                "problema_descricao": f"Transferência Atrasada - B4You ({tipo}) · Utilização {uso} ({desc_uso})",
+                "problema_descricao": desc, "confirmada_b4you": achou_b4you,
                 "travada_desde": _iso(docdate), "grupo": "BARRADAS_SAP",
             })
             continue
@@ -189,11 +205,14 @@ def coletar_barradas(nfs_no_log: set) -> list[dict]:
         if not motivos:
             continue
 
+        desc = f"Barrada nos filtros do SAP ({tipo}): " + " + ".join(motivos)
+        if ja_no_log:
+            desc += " [NF já consta no log mestre — divergência entre pipeline e auditoria SAP]"
         out.append({
             "nf": nf, "filial": filial, "estado": "travada",
-            "transportadora": filial.upper(),
+            "transportadora": filial.upper(), "ja_no_log": ja_no_log,
             "problema_codigo": cod, "problema_categoria": "FATURAMENTO" if cod in ("FALTA_CHAVE", "SEFAZ_BARRADA") else "AUDITORIA",
-            "problema_descricao": f"Barrada nos filtros do SAP ({tipo}): " + " + ".join(motivos),
+            "problema_descricao": desc,
             "travada_desde": _iso(docdate), "grupo": "BARRADAS_SAP",
         })
     return out
