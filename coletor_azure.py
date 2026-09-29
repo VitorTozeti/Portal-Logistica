@@ -220,7 +220,8 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
         filial, _, nf = id_antigo.partition(":")
         pendentes.append({"nf": nf, "filial": filial, "estado": "resolvida"})
 
-    # 3) subiram novas/alteradas
+    # 3) subiram novas/alteradas — NF travada tem prioridade sobre "subiu" (mesmo id)
+    subiram = [ev for ev in subiram if ev["id"] not in travadas_atuais]
     for ev in subiram:
         atual[ev["id"]] = "subiu"
         if publicado.get(ev["id"]) != "subiu":
