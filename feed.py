@@ -256,7 +256,10 @@ async def rodar_feed_simulado() -> None:
                 filial, _, nf = id_antigo.partition(":")
                 hub.publicar({"id": id_antigo, "nf": nf, "filial": filial, "estado": "resolvida"})
 
-            # 3) subiram recentes
+            # 3) subiram recentes — NF travada tem prioridade: se o mesmo id já está
+            # travado (ex.: transferência atrasada que consta no log mestre), o "subiu"
+            # não pode sobrescrever a travada.
+            subiram = [ev for ev in subiram if ev["id"] not in travadas_atuais]
             for ev in subiram:
                 atual[ev["id"]] = "subiu"
                 if publicado.get(ev["id"]) != "subiu":
