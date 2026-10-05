@@ -52,7 +52,7 @@ window.AuthUI = (function () {
     el.textContent = texto || "";
   }
   function dica(input, texto) {            // erro inline logo abaixo do campo
-    let d = input.closest(".campo, div, form").querySelector(".dica[data-for='" + input.id + "']");
+    let d = document.querySelector(".dica[data-for='" + input.id + "']");   // 1 só por campo (não empilha)
     if (!d) { d = document.createElement("div"); d.className = "dica"; d.dataset.for = input.id; d.setAttribute("aria-live", "polite");
       (input.closest(".campo") || input).insertAdjacentElement("afterend", d); }
     d.textContent = texto || "";
