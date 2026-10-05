@@ -42,7 +42,11 @@ window.PortalGate = (function () {
   async function carregarPerfil(user) {
     const email = (user.email || "").toLowerCase();
     try {
-      const d = await db.collection("usuarios").doc(email).get();
+      // teto de 8 s: com o Firestore ainda não criado/sem rede o get() ficaria pendurado e o login "travaria"
+      const d = await Promise.race([
+        db.collection("usuarios").doc(email).get(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
+      ]);
       if (d.exists && PERFIS.includes(d.data().perfil)) return { email, perfil: d.data().perfil };
     } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
     return BOOTSTRAP.includes(email) ? { email, perfil: "ti" } : null;
@@ -88,6 +92,7 @@ window.PortalGate = (function () {
         const cred = await auth.createUserWithEmailAndPassword((email || "").trim().toLowerCase(), senha || "");
         const p = await carregarPerfil(cred.user);
         if (!p) { await cred.user.delete(); throw new Error("sem-acesso"); }
+        await cred.user.getIdToken();      // garante a sessão gravada antes de redirecionar
         usuarioAtual = p;
         return p;
       } finally { criando = false; }

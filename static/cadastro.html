@@ -67,11 +67,11 @@
       <span><b>Portal da Logística</b><small>Crie sua conta · só e-mails autorizados</small></span>
     </div>
     <label for="email">E-mail</label>
-    <input id="email" type="text" autocapitalize="none" autocomplete="email" spellcheck="false" required>
+    <input id="email" name="username" type="text" autocapitalize="none" autocomplete="username" spellcheck="false" required>
     <label for="senha">Senha (mínimo 6 caracteres)</label>
-    <input id="senha" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="senha" name="new-password" type="password" autocomplete="new-password" minlength="6" required>
     <label for="senha2">Repita a senha</label>
-    <input id="senha2" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="senha2" name="new-password-confirm" type="password" autocomplete="new-password" minlength="6" required>
     <button class="entrar" type="submit">Criar conta →</button>
     <div class="erro" id="erro"></div>
     <div class="foot" style="margin-top:14px"><a href="./login.html" style="color:var(--teal2)">← Voltar para o login</a></div>
@@ -85,10 +85,12 @@
       const senha = document.getElementById("senha").value;
       if (senha.length < 6) return msg("A senha precisa ter pelo menos 6 caracteres.");
       if (senha !== document.getElementById("senha2").value) return msg("As senhas não são iguais.");
+      const btn = document.querySelector(".entrar"); btn.disabled = true; btn.textContent = "Criando conta…";
       try {
         await PortalGate.cadastrar(document.getElementById("email").value, senha);
         location.replace("./");
       } catch (x) {
+        btn.disabled = false; btn.textContent = "Criar conta →";
         const c = x.code || "";
         msg(x.message === "sem-acesso" ? "Este e-mail não está autorizado. Peça acesso ao TI."
           : c === "auth/email-already-in-use" ? "Já existe uma conta com este e-mail. Entre ou use “Esqueci a senha”."
