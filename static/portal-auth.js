@@ -47,8 +47,7 @@ window.PortalGate = (function () {
     } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
     return BOOTSTRAP.includes(email) ? { email, perfil: "ti" } : null;
   }
-  const senhaAleatoria = () =>
-    [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("");
+
 
   // resolve {email, perfil} (logado) ou null (deslogado) — 1ª resposta do Firebase Auth
   const pronto = new Promise((resolve) => {
@@ -80,24 +79,23 @@ window.PortalGate = (function () {
         return usuarioAtual;
       } finally { criando = false; }
     },
-    // 1º acesso / esqueci a senha: a pessoa recebe um e-mail do Firebase para CRIAR a própria senha.
-    // Se ainda não tem conta, a conta nasce aqui (com senha aleatória descartada) — mas só se o
-    // e-mail estiver autorizado (documento em `usuarios/`); senão a conta recém-criada é apagada.
-    async primeiroAcesso(email) {
+    // CADASTRO (cadastro.html): a pessoa escolhe a própria senha. Só vale se o e-mail estiver
+    // autorizado (documento em `usuarios/`); senão a conta recém-criada é apagada.
+    async cadastrar(email, senha) {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
-      email = (email || "").trim().toLowerCase();
       criando = true;
       try {
-        try {
-          const cred = await auth.createUserWithEmailAndPassword(email, senhaAleatoria());
-          const p = await carregarPerfil(cred.user);
-          if (!p) { await cred.user.delete(); throw new Error("sem-acesso"); }
-          await auth.signOut();
-        } catch (e) {
-          if (e.code !== "auth/email-already-in-use") throw e;   // já tem conta → só manda o link
-        }
-        await auth.sendPasswordResetEmail(email);
+        const cred = await auth.createUserWithEmailAndPassword((email || "").trim().toLowerCase(), senha || "");
+        const p = await carregarPerfil(cred.user);
+        if (!p) { await cred.user.delete(); throw new Error("sem-acesso"); }
+        usuarioAtual = p;
+        return p;
       } finally { criando = false; }
+    },
+    // ESQUECI A SENHA (esqueci.html): manda o link de redefinição (só chega a quem já tem conta)
+    async redefinirSenha(email) {
+      if (!SDK) throw new Error("SDK do Firebase não carregou");
+      await auth.sendPasswordResetEmail((email || "").trim().toLowerCase());
     },
     async sair() { if (auth) await auth.signOut(); usuarioAtual = null; },
 

@@ -324,8 +324,8 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <b>Usuários com acesso</b><button class="btn" type="button" id="usr-fechar">Fechar</button>
     </div>
-    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:12px">Quem não está na lista não entra. Cada pessoa cria a própria senha em
-      "Primeiro acesso" na tela de login.</div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:12px">Quem não está na lista não entra. Cada pessoa cria a própria conta e senha
+      em "Criar conta" na tela de login.</div>
     <div id="usr-lista" style="display:grid;gap:6px;margin-bottom:14px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <input id="usr-email" type="email" placeholder="e-mail@pharmaesthetics.com.br" autocomplete="off"
@@ -821,7 +821,7 @@
       const em = $("#usr-email").value.trim().toLowerCase();
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ msg("Digite um e-mail válido."); return; }
       try{ await PortalGate.salvarUsuario(em, $("#usr-perfil").value); $("#usr-email").value = "";
-           msg("Adicionado. A pessoa cria a senha em 'Primeiro acesso' na tela de login."); listar(); }
+           msg("Adicionado. A pessoa cria a conta e a senha em 'Criar conta' na tela de login."); listar(); }
       catch(e){ msg("Não foi possível salvar: " + (e.message||e)); }
     };
     $("#usr-lista").addEventListener("change", async e => {
