@@ -884,6 +884,9 @@
   // ---- tela "Usuários" (só perfil TI): cadastra/altera/remove quem tem acesso ----
   (function(){
     const modal = $("#usr-modal"); let cache = [];
+    const falha = (pref, e) => { const u = PortalGate.usuario() || {};
+      console.error("[usuarios]", e);
+      toast(pref + (e.message||e) + " — logado como " + (u.email||"?") + " (perfil " + (u.perfil||"?") + ")", {erro:true, ms:15000}); };
     const fmt = ms => ms ? new Date(ms).toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
     function desenhar(){
       const meu = PortalGate.usuario().email, q = $("#usr-busca").value.trim().toLowerCase(), f = $("#usr-filtro").value;
@@ -910,19 +913,19 @@
       if(!ok.length){ toast("Digite pelo menos um e-mail válido.", {erro:true}); return; }
       try{ await PortalGate.salvarVarios(ok, $("#usr-perfil").value); $("#usr-emails").value = "";
            toast(ok.length + (ok.length === 1 ? " pessoa adicionada." : " pessoas adicionadas.") + (ruins ? " " + ruins + " inválido(s) ignorado(s)." : "")); carregar(); }
-      catch(e){ toast("Não foi possível salvar: " + (e.message||e), {erro:true}); }
+      catch(e){ falha("Não foi possível salvar: ", e); }
     };
     $("#usr-lista").addEventListener("change", async e => {
       const s = e.target.closest("select[data-em]"); if(!s) return;
       if(s.dataset.em === PortalGate.usuario().email && !confirm("Você vai mudar o seu próprio perfil. Continuar?")){ desenhar(); return; }
       try{ await PortalGate.salvarUsuario(s.dataset.em, s.value); toast("Perfil atualizado."); carregar(); }
-      catch(x){ toast("Não foi possível salvar: " + (x.message||x), {erro:true}); desenhar(); }
+      catch(x){ falha("Não foi possível salvar: ", x); desenhar(); }
     });
     $("#usr-lista").addEventListener("click", async e => {
       const b = e.target.closest("button[data-rm]"); if(!b) return;
       if(!confirm("Remover o acesso de " + b.dataset.rm + "?")) return;
       try{ await PortalGate.removerUsuario(b.dataset.rm); toast("Acesso removido."); carregar(); }
-      catch(x){ toast("Não foi possível remover: " + (x.message||x), {erro:true}); }
+      catch(x){ falha("Não foi possível remover: ", x); }
     });
   })();
 
