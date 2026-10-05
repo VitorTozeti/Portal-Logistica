@@ -312,11 +312,31 @@
   <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
   <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
     <span id="quem"></span>
+    <a href="#" id="btn-usuarios" hidden style="color:var(--brand)">usuários</a>
     <a href="/logout" id="sair" style="color:var(--brand)">sair</a>
   </span>
 </header>
 
 <div id="alerta-fonte" class="alerta" role="alert" hidden></div>
+
+<div id="usr-modal" hidden style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:560px;max-height:85vh;overflow:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b>Usuários com acesso</b><button class="btn" type="button" id="usr-fechar">Fechar</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:12px">Quem não está na lista não entra. Cada pessoa cria a própria senha em
+      "Primeiro acesso" na tela de login.</div>
+    <div id="usr-lista" style="display:grid;gap:6px;margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input id="usr-email" type="email" placeholder="e-mail@pharmaesthetics.com.br" autocomplete="off"
+             style="flex:1;min-width:200px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+      <select id="usr-perfil" style="background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit">
+        <option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option></select>
+      <button class="btn" type="button" id="usr-add">Adicionar</button>
+    </div>
+    <div id="usr-msg" style="margin-top:10px;font-size:12.5px;color:var(--ink2)"></div>
+  </div>
+</div>
 
 <main>
   <div class="col">
@@ -779,6 +799,44 @@
     abrirDrawer();
   }
 
+  // ---- tela "Usuários" (só perfil TI): cadastra/altera/remove quem tem acesso ----
+  (function(){
+    const modal = $("#usr-modal"), msg = t => $("#usr-msg").textContent = t || "";
+    async function listar(){
+      const meu = PortalGate.usuario().email;
+      try{
+        const us = await PortalGate.listarUsuarios();
+        $("#usr-lista").innerHTML = us.length ? us.map(u =>
+          `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:6px 10px">`
+          + `<span style="overflow-wrap:anywhere">${esc(u.email)}</span><span style="display:flex;gap:6px;align-items:center">`
+          + `<select data-em="${esc(u.email)}" style="background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px;font:inherit">`
+          + ["logistica","ti","leitor"].map(p => `<option value="${p}"${u.perfil===p?" selected":""}>${PERFIL_ROT[p]}</option>`).join("")
+          + `</select>` + (u.email === meu ? "" : `<button class="btn" data-rm="${esc(u.email)}" type="button">remover</button>`)
+          + `</span></div>`).join("") : '<div class="empty">ninguém cadastrado ainda</div>';
+      }catch(e){ msg("Sem permissão para listar: " + (e.message||e)); }
+    }
+    $("#btn-usuarios").addEventListener("click", e => { e.preventDefault(); modal.hidden = false; modal.style.display = "flex"; msg(""); listar(); });
+    $("#usr-fechar").onclick = () => { modal.hidden = true; modal.style.display = "none"; };
+    $("#usr-add").onclick = async () => {
+      const em = $("#usr-email").value.trim().toLowerCase();
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ msg("Digite um e-mail válido."); return; }
+      try{ await PortalGate.salvarUsuario(em, $("#usr-perfil").value); $("#usr-email").value = "";
+           msg("Adicionado. A pessoa cria a senha em 'Primeiro acesso' na tela de login."); listar(); }
+      catch(e){ msg("Não foi possível salvar: " + (e.message||e)); }
+    };
+    $("#usr-lista").addEventListener("change", async e => {
+      const s = e.target.closest("select[data-em]"); if(!s) return;
+      try{ await PortalGate.salvarUsuario(s.dataset.em, s.value); msg("Perfil atualizado."); }
+      catch(x){ msg("Não foi possível salvar: " + (x.message||x)); listar(); }
+    });
+    $("#usr-lista").addEventListener("click", async e => {
+      const b = e.target.closest("button[data-rm]"); if(!b) return;
+      if(!confirm("Remover o acesso de " + b.dataset.rm + "?")) return;
+      try{ await PortalGate.removerUsuario(b.dataset.rm); msg("Removido."); listar(); }
+      catch(x){ msg("Não foi possível remover: " + (x.message||x)); }
+    });
+  })();
+
   const PERFIL_ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };
   // botão Ignorar/Reativar do drawer + (perfil TI) quem mexeu por último nesta NF
   function montarAcao(n){
@@ -907,6 +965,7 @@
     PortalGate.pronto.then(u => {
       if(!u) return;
       $("#quem").textContent = `${u.email} · ${PERFIL_ROT[u.perfil] || u.perfil}`;
+      if(u.perfil === "ti") $("#btn-usuarios").hidden = false;
       PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
     });
   } else {

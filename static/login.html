@@ -109,6 +109,11 @@
       document.querySelector(".brand small").textContent = "Acesso restrito";
       document.querySelector('label[for="usuario"]').textContent = "E-mail";
       document.getElementById("usuario").setAttribute("autocomplete", "email");
+      try { if (sessionStorage.getItem("portal_sem_acesso")) {
+        sessionStorage.removeItem("portal_sem_acesso");
+        document.getElementById("erro").textContent = "Este e-mail não está autorizado. Peça acesso ao TI.";
+        document.getElementById("erro").classList.add("show");
+      } } catch (_) {}
       PortalGate.pronto.then((u) => { if (u) location.replace("./"); });  // já logado → entra direto
       // cada pessoa cria a PRÓPRIA senha: o Firebase manda um e-mail com o link
       document.getElementById("criar-senha").hidden = false;
@@ -117,8 +122,14 @@
         const erro = document.getElementById("erro");
         const email = document.getElementById("usuario").value.trim();
         if (!email) { erro.textContent = "Digite seu e-mail acima primeiro."; erro.classList.add("show"); return; }
-        try { await PortalGate.redefinirSenha(email); } catch (_) { /* não revela se o e-mail existe */ }
-        erro.textContent = "Se este e-mail tem acesso, enviamos um link para criar a senha. Confira também o spam.";
+        try {
+          await PortalGate.primeiroAcesso(email);
+          erro.textContent = "Enviamos um link para criar a senha. Confira também o spam.";
+        } catch (x) {
+          erro.textContent = x.message === "sem-acesso"
+            ? "Este e-mail não está autorizado. Peça acesso ao TI."
+            : "Não foi possível enviar o link. Confira o e-mail e tente de novo.";
+        }
         erro.classList.add("show");
       });
       document.querySelector("form.card").addEventListener("submit", async (e) => {
@@ -129,8 +140,9 @@
           await PortalGate.entrar(document.getElementById("usuario").value,
                                   document.getElementById("senha").value);
           location.replace("./");
-        } catch (_) {
-          erro.textContent = "E-mail ou senha inválidos.";
+        } catch (x) {
+          erro.textContent = x.message === "sem-acesso"
+            ? "Este e-mail não está autorizado. Peça acesso ao TI." : "E-mail ou senha inválidos.";
           erro.classList.add("show");
         }
       });

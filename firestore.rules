@@ -3,28 +3,37 @@ rules_version = '2';
 //
 // Perfis moram em usuarios/{email} (id = e-mail em minúsculas) com campo `perfil`:
 //   "logistica" | "ti"   → editam (ignorar/reativar NF)
-//   (sem documento)      → leitor: só visualiza
-// Só o perfil "ti" lê acoes_log (quem mexeu). usuarios/ só se edita pelo Console (admin).
+//   "leitor"             → só visualiza
+//   (sem documento)      → sem acesso
+// Só o perfil "ti" lê acoes_log (quem mexeu) e gerencia usuarios/ (tela "Usuários" do site).
+// Sem documento em usuarios/ = SEM acesso (exceto os administradores iniciais em boot()).
 service cloud.firestore {
   match /databases/{db}/documents {
 
     function logado() { return request.auth != null && request.auth.token.email != null; }
     function meuEmail() { return request.auth.token.email.lower(); }
+    // administradores iniciais (entram como ti sem documento) — igual a BOOTSTRAP em portal-auth.js
+    function boot() { return meuEmail() in ['v.tozeti@pharmaesthetics.com.br', 'm.milani@pharmaesthetics.com.br']; }
     function perfil() {
       return exists(/databases/$(db)/documents/usuarios/$(meuEmail()))
         ? get(/databases/$(db)/documents/usuarios/$(meuEmail())).data.perfil
-        : 'leitor';
+        : (boot() ? 'ti' : 'nenhum');
     }
+    function membro() { return logado() && perfil() in ['logistica', 'ti', 'leitor']; }
     function editor() { return logado() && perfil() in ['logistica', 'ti']; }
 
     match /usuarios/{email} {
       allow read: if logado() && (email == meuEmail() || perfil() == 'ti');
-      allow write: if false;
+      // só o ti cadastra/altera/remove pessoas (pelo site); só aceita o campo `perfil`
+      allow create, update: if logado() && perfil() == 'ti'
+        && request.resource.data.keys().hasOnly(['perfil'])
+        && request.resource.data.perfil in ['logistica', 'ti', 'leitor'];
+      allow delete: if logado() && perfil() == 'ti';
     }
 
     // NFs ignoradas/tratadas — todo logado lê; só editor escreve
     match /acoes/{id} {
-      allow read: if logado();
+      allow read: if membro();
       allow create, update: if editor()
         && request.resource.data.keys().hasOnly(['tipo', 'motivo', 'nf', 'filial', 'em'])
         && request.resource.data.tipo in ['ignorada', 'tratada']

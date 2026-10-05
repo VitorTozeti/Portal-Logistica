@@ -26,28 +26,37 @@ window.PortalGate = (function () {
   const ATIVO = ESTATICO;                       // fail-CLOSED: se o SDK não carregar, ninguém entra
   const SDK = typeof firebase !== "undefined";
 
-  let auth = null, db = null, usuarioAtual = null;
+  // Administradores iniciais: entram como TI mesmo sem documento em `usuarios/` (para poder cadastrar
+  // os demais pelo site). DEVE bater com a função boot() de firestore.rules.
+  const BOOTSTRAP = ["v.tozeti@pharmaesthetics.com.br", "m.milani@pharmaesthetics.com.br"];
+  const PERFIS = ["logistica", "ti", "leitor"];
+
+  let auth = null, db = null, usuarioAtual = null, criando = false;
   if (ATIVO && SDK) {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.firestore();
   }
 
+  // perfil da pessoa, ou null se o e-mail NÃO está autorizado (sem documento em `usuarios/`)
   async function carregarPerfil(user) {
     const email = (user.email || "").toLowerCase();
-    let perfil = "leitor";
     try {
       const d = await db.collection("usuarios").doc(email).get();
-      if (d.exists && ["logistica", "ti"].includes(d.data().perfil)) perfil = d.data().perfil;
-    } catch (_) { /* sem permissão/rede → segue como leitor */ }
-    return { email, perfil };
+      if (d.exists && PERFIS.includes(d.data().perfil)) return { email, perfil: d.data().perfil };
+    } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
+    return BOOTSTRAP.includes(email) ? { email, perfil: "ti" } : null;
   }
+  const senhaAleatoria = () =>
+    [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
   // resolve {email, perfil} (logado) ou null (deslogado) — 1ª resposta do Firebase Auth
   const pronto = new Promise((resolve) => {
     if (!ATIVO || !SDK) { resolve(ATIVO ? null : { email: "", perfil: "servidor" }); return; }
     auth.onAuthStateChanged(async (u) => {
+      if (criando) return;                       // fluxo de login/1º acesso cuida da própria sessão
       usuarioAtual = u ? await carregarPerfil(u) : null;
+      if (u && !usuarioAtual) { try { sessionStorage.setItem("portal_sem_acesso", "1"); } catch (_) {} await auth.signOut(); }
       resolve(usuarioAtual);
     });
   });
@@ -63,17 +72,46 @@ window.PortalGate = (function () {
 
     async entrar(email, senha) {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
-      await auth.signInWithEmailAndPassword((email || "").trim(), senha || "");
-      usuarioAtual = await carregarPerfil(auth.currentUser);
-      return usuarioAtual;
+      criando = true;                                // evita corrida com o onAuthStateChanged
+      try {
+        await auth.signInWithEmailAndPassword((email || "").trim(), senha || "");
+        usuarioAtual = await carregarPerfil(auth.currentUser);
+        if (!usuarioAtual) { await auth.signOut(); throw new Error("sem-acesso"); }
+        return usuarioAtual;
+      } finally { criando = false; }
     },
-    // manda o e-mail do Firebase para a pessoa CRIAR/REDEFINIR a própria senha
-    // (só chega se já existir conta para o e-mail; ninguém se cadastra sozinho)
-    async redefinirSenha(email) {
+    // 1º acesso / esqueci a senha: a pessoa recebe um e-mail do Firebase para CRIAR a própria senha.
+    // Se ainda não tem conta, a conta nasce aqui (com senha aleatória descartada) — mas só se o
+    // e-mail estiver autorizado (documento em `usuarios/`); senão a conta recém-criada é apagada.
+    async primeiroAcesso(email) {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
-      await auth.sendPasswordResetEmail((email || "").trim());
+      email = (email || "").trim().toLowerCase();
+      criando = true;
+      try {
+        try {
+          const cred = await auth.createUserWithEmailAndPassword(email, senhaAleatoria());
+          const p = await carregarPerfil(cred.user);
+          if (!p) { await cred.user.delete(); throw new Error("sem-acesso"); }
+          await auth.signOut();
+        } catch (e) {
+          if (e.code !== "auth/email-already-in-use") throw e;   // já tem conta → só manda o link
+        }
+        await auth.sendPasswordResetEmail(email);
+      } finally { criando = false; }
     },
     async sair() { if (auth) await auth.signOut(); usuarioAtual = null; },
+
+    // ---- usuários (só o perfil ti; as Rules barram os demais) ----
+    async listarUsuarios() {
+      const q = await db.collection("usuarios").get();
+      const l = []; q.forEach((d) => l.push({ email: d.id, perfil: d.data().perfil }));
+      return l.sort((x, y) => x.email.localeCompare(y.email));
+    },
+    async salvarUsuario(email, perfil) {
+      if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
+      await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ perfil });
+    },
+    async removerUsuario(email) { await db.collection("usuarios").doc(email.toLowerCase()).delete(); },
 
     // ---- ações (ignorar/reativar NF) ----
     // Ouve `acoes` em tempo real; cb recebe Map(id → {tipo, motivo, nf, filial, em})
