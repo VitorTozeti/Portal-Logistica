@@ -51,6 +51,9 @@
   .foot{margin-top:20px;font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
   .foot b{color:var(--teal2)}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth.js"></script>
 </head>
 <body>
@@ -89,26 +92,33 @@
 
     <div class="foot">
       Operando com a <b>B4YOU</b> como transportadora integrada.<br>
-      Protótipo — nenhum dado real é enviado.
+      Cada pessoa entra com o próprio e-mail.
     </div>
   </form>
 
   <script>
-    // ---- GATE ESTÁTICO (GitHub Pages): valida no navegador, sem POST /login ----
-    // No Pages não há servidor: a credencial (1 usuário + 1 senha) vem do gate
-    // injetado no build (portal-auth.js). Fora do Pages (servidor real), este bloco
-    // não interfere e o POST /login normal do FastAPI segue.
+    // ---- LOGIN ESTÁTICO (GitHub Pages): Firebase Auth, e-mail + senha por pessoa ----
+    // No Pages não há servidor/rota /login. O perfil (Logística/TI/leitor) NÃO é escolhido
+    // aqui: vem do cadastro da pessoa no Firestore (portal-auth.js). Fora do Pages (servidor
+    // real), este bloco não interfere e o POST /login normal do FastAPI segue.
     if (window.PortalGate && PortalGate.ativo()) {
-      // 1 usuário/1 senha só: o seletor de perfil (Logística/TI) não se aplica aqui
       document.querySelector(".perfil")?.remove();
       document.querySelector(".brand small").textContent = "Acesso restrito";
-      if (PortalGate.autenticado()) location.replace("./");  // já logado → entra direto
+      document.querySelector('label[for="usuario"]').textContent = "E-mail";
+      document.getElementById("usuario").setAttribute("autocomplete", "email");
+      PortalGate.pronto.then((u) => { if (u) location.replace("./"); });  // já logado → entra direto
       document.querySelector("form.card").addEventListener("submit", async (e) => {
         e.preventDefault();  // no Pages não existe rota /login
-        const u = document.getElementById("usuario").value;
-        const s = document.getElementById("senha").value;
-        if (await PortalGate.validar(u, s)) location.replace("./");
-        else document.getElementById("erro").classList.add("show");
+        const erro = document.getElementById("erro");
+        erro.classList.remove("show");
+        try {
+          await PortalGate.entrar(document.getElementById("usuario").value,
+                                  document.getElementById("senha").value);
+          location.replace("./");
+        } catch (_) {
+          erro.textContent = "E-mail ou senha inválidos.";
+          erro.classList.add("show");
+        }
       });
     }
 

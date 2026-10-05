@@ -1,0 +1,44 @@
+rules_version = '2';
+// Regras do Firestore do Portal da Logística. Cole em Firebase Console → Firestore → Rules → Publicar.
+//
+// Perfis moram em usuarios/{email} (id = e-mail em minúsculas) com campo `perfil`:
+//   "logistica" | "ti"   → editam (ignorar/reativar NF)
+//   (sem documento)      → leitor: só visualiza
+// Só o perfil "ti" lê acoes_log (quem mexeu). usuarios/ só se edita pelo Console (admin).
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function logado() { return request.auth != null && request.auth.token.email != null; }
+    function meuEmail() { return request.auth.token.email.lower(); }
+    function perfil() {
+      return exists(/databases/$(db)/documents/usuarios/$(meuEmail()))
+        ? get(/databases/$(db)/documents/usuarios/$(meuEmail())).data.perfil
+        : 'leitor';
+    }
+    function editor() { return logado() && perfil() in ['logistica', 'ti']; }
+
+    match /usuarios/{email} {
+      allow read: if logado() && (email == meuEmail() || perfil() == 'ti');
+      allow write: if false;
+    }
+
+    // NFs ignoradas/tratadas — todo logado lê; só editor escreve
+    match /acoes/{id} {
+      allow read: if logado();
+      allow create, update: if editor()
+        && request.resource.data.keys().hasOnly(['tipo', 'motivo', 'nf', 'filial', 'em'])
+        && request.resource.data.tipo in ['ignorada', 'tratada']
+        && request.resource.data.em == request.time;
+      allow delete: if editor();
+    }
+
+    // trilha de auditoria — só ti lê; editor só acrescenta, com o próprio e-mail; imutável
+    match /acoes_log/{logId} {
+      allow read: if logado() && perfil() == 'ti';
+      allow create: if editor()
+        && request.resource.data.por == meuEmail()
+        && request.resource.data.em == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

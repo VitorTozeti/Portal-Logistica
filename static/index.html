@@ -11,11 +11,19 @@
 <link rel="preconnect" href="https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <!-- gate leve do front estático (GitHub Pages); no servidor real fica inerte -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth.js"></script>
 <script>
-  // Barra o acesso ANTES de carregar dados: sem login válido no Pages → tela de entrada.
-  if (window.PortalGate && PortalGate.ativo() && !PortalGate.autenticado()) {
-    location.replace("./login.html");
+  // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
+  // sem sessão válida → tela de entrada.
+  if (window.PortalGate && PortalGate.ativo()) {
+    document.documentElement.style.visibility = "hidden";
+    PortalGate.pronto.then(function (u) {
+      if (!u) location.replace("./login.html");
+      else document.documentElement.style.visibility = "";
+    });
   }
 </script>
 <script>
@@ -314,6 +322,7 @@
   <div class="col">
     <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span></h2>
     <div class="filtros" id="filtros"></div>
+    <div class="filtros" id="ocultas-bar"></div>
     <div id="stuck"><div class="empty">nada travado 🎉</div></div>
   </div>
   <div class="col">
@@ -364,6 +373,7 @@
   </div>
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
+    <button class="btn" type="button" id="dw-acao" hidden></button>
     <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
 </aside>
@@ -568,9 +578,26 @@
       + ` style="${st}">${label}${n}</span>`;
   }
 
+  // NFs ignoradas pela Logística/TI (Firestore `acoes`, ao vivo): id → {tipo,motivo,...}.
+  // Saem da lista de Travadas; o chip "⊘ ocultas" mostra só elas (e permite reativar).
+  const ocultas = new Map();
+  let mostrarOcultas = false;
+  function renderOcultasChip(){
+    const n = [...stuck.values()].filter(x => ocultas.has(x.id)).length;
+    $("#ocultas-bar").innerHTML = (n || mostrarOcultas)
+      ? `<span class="chip" role="button" tabindex="0" aria-pressed="${mostrarOcultas}">⊘ ocultas (${n})</span>` : "";
+  }
+  $("#ocultas-bar").addEventListener("click", e => {
+    if(!e.target.closest(".chip")) return;
+    mostrarOcultas = !mostrarOcultas; limiteTravadas = PASSO_TRAVADAS; render();
+  });
+
   function renderTravadas(){
+    renderOcultasChip();
+    // lista-base: as visíveis (sem as ocultas) ou, no modo "ocultas", só as ocultas
+    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas);
     const cont = new Map();
-    for(const n of stuck.values()){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
+    for(const n of base){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
     const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
     const bar = $("#filtros");
     if(cats.length <= 1){ bar.innerHTML = ""; }
@@ -580,8 +607,8 @@
         + (algumOff ? `<span class="chip limpar" role="button" tabindex="0" data-f="cat:__all__">limpar filtro</span>` : "");
     }
     const es = $("#stuck");
-    const vis = [...stuck.values()].filter(n => !filtroTravadas.has(catKey(n)));
-    if(!stuck.size)        es.innerHTML = '<div class="empty">nada travado 🎉</div>';
+    const vis = base.filter(n => !filtroTravadas.has(catKey(n)));
+    if(!base.length)       es.innerHTML = mostrarOcultas ? '<div class="empty">nenhuma nota oculta</div>' : '<div class="empty">nada travado 🎉</div>';
     else if(!vis.length)   es.innerHTML = '<div class="empty">nada nas categorias selecionadas</div>';
     else{
       const mostra = vis.slice(0, limiteTravadas);
@@ -590,7 +617,7 @@
         html += `<button class="maisbtn" type="button" data-mais-tr="1">▾ mostrar mais (${vis.length - mostra.length})</button>`;
       if(html !== _stuckHTML){ es.innerHTML = html; _stuckHTML = html; }
     }
-    $("#c-stuck").textContent = filtroTravadas.size ? `${vis.length}/${stuck.size}` : stuck.size;
+    $("#c-stuck").textContent = filtroTravadas.size ? `${vis.length}/${base.length}` : base.length;
   }
 
   function passaFiltrosSubiram(n){
@@ -745,9 +772,45 @@
         + `automaticamente no próximo ciclo. É só um aviso — nenhuma ação no portal é necessária `
         + `(a emissão fica com o Contas a Receber).</div></div>`;
     }
-    // Sem botões de ação/solução por enquanto (decisão do gestor) — só informação.
+    // Ações (ignorar/reativar) só para perfis que editam (logistica/ti); leitor só vê.
+    // Reabre a decisão "sem ações" de 31/08 — ver portal-logistica-auth no vault.
     $("#dw-body").innerHTML = corpo;
+    montarAcao(n);
     abrirDrawer();
+  }
+
+  const PERFIL_ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };
+  // botão Ignorar/Reativar do drawer + (perfil TI) quem mexeu por último nesta NF
+  function montarAcao(n){
+    const b = $("#dw-acao"); b.hidden = true; b.onclick = null;
+    document.getElementById("dw-quem-mexeu")?.remove();
+    if(!(window.PortalGate && PortalGate.ativo() && PortalGate.podeEditar())) return;
+    const oc = ocultas.get(n.id);
+    b.hidden = false;
+    b.textContent = oc ? "↺ Reativar nota" : "⊘ Ignorar nota";
+    b.onclick = async () => {
+      b.disabled = true;
+      try{
+        if(oc){ await PortalGate.reativar(n.id); }
+        else{
+          const motivo = prompt("Motivo para ignorar a NF " + (n.nf||"") + " (opcional):");
+          if(motivo === null) return;                       // cancelou
+          await PortalGate.ocultar(n.id, "ignorada", motivo.trim(), n.nf, n.filial);
+        }
+        fechar();
+      }catch(e){ alert("Não foi possível salvar (sem permissão ou sem rede): " + (e.message||e)); }
+      finally{ b.disabled = false; }
+    };
+    if(PortalGate.perfil() === "ti"){
+      PortalGate.ultimoLog(n.id).then(l => {
+        if(!l || abertaId !== n.id) return;
+        const quando = l.ms ? new Date(l.ms).toLocaleString("pt-BR") : "";
+        const acao = l.acao === "reativar" ? "Reativada" : "Ignorada";
+        $("#dw-body").insertAdjacentHTML("beforeend",
+          `<div class="info-row" id="dw-quem-mexeu"><span class="lbl">${acao} por</span>`
+          + `<span class="val">${esc(l.por)} · ${esc(quando)}${l.motivo ? " — " + esc(l.motivo) : ""}</span></div>`);
+      });
+    }
   }
 
   function abrirSubiu(id){
@@ -839,8 +902,13 @@
 
   // quem está logado (usuario · perfil) ao lado do "sair"
   if(window.PortalGate && PortalGate.ativo()){
-    // gate estático (Pages): não há /api/sessao nem /logout no servidor
-    $("#sair").addEventListener("click", e => { e.preventDefault(); PortalGate.sair(); location.replace("./login.html"); });
+    // Pages: Firebase Auth — não há /api/sessao nem /logout no servidor
+    $("#sair").addEventListener("click", async e => { e.preventDefault(); await PortalGate.sair(); location.replace("./login.html"); });
+    PortalGate.pronto.then(u => {
+      if(!u) return;
+      $("#quem").textContent = `${u.email} · ${PERFIL_ROT[u.perfil] || u.perfil}`;
+      PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
+    });
   } else {
     fetch("/api/sessao").then(r => r.json()).then(s => {
       if(s && s.usuario){
