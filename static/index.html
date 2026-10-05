@@ -1090,9 +1090,8 @@
       PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
     });
   } else {
-    fetch("/api/sessao").then(r => r.json()).then(s => {
-      if(s && s.usuario) montarConta(s.usuario, s.perfil === "ti" ? "ti" : "logistica");
-    }).catch(()=>{});
+    // sem Firebase (servidor interno/localhost): não há conta nem menu
+    $("#conta").hidden = true;
   }
 
   // ===== HISTÓRICO (SAP no servidor / Azure client-side no Pages) =====

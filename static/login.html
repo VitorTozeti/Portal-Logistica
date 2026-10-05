@@ -15,8 +15,7 @@
 <script src="./auth-ui.js"></script>
 </head>
 <body>
-  <!-- No servidor (FastAPI) o form posta em /login com o perfil; no Pages vale o Firebase (script abaixo). -->
-  <form class="card" id="form" method="post" action="/login" autocomplete="on" novalidate>
+  <form class="card" id="form" autocomplete="on" novalidate>
     <div class="brand">
       <span class="logo" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -25,53 +24,36 @@
       <span><b>Portal da Logística</b></span>
     </div>
     <h1>Entrar</h1>
-    <p class="sub" id="sub">Acesso restrito · Logística e TI</p>
+    <p class="sub" id="sub">Entre com seu e-mail e senha.</p>
 
-    <label for="usuario" id="lbl-usuario">Usuário</label>
-    <input id="usuario" name="usuario" type="text" autocapitalize="none" autocomplete="username"
+    <label for="usuario" id="lbl-usuario">E-mail</label>
+    <input id="usuario" name="username" type="text" autocapitalize="none" autocomplete="username"
            inputmode="email" spellcheck="false" required autofocus>
 
     <label for="senha">Senha</label>
-    <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+    <input id="senha" name="password" type="password" autocomplete="current-password" required>
 
-    <input type="hidden" id="perfil" name="perfil" value="logistica">
-
-    <div class="linha" id="linha-lembrar" hidden>
+    <div class="linha" id="linha-lembrar">
       <label><input type="checkbox" id="lembrar" checked> Manter conectado</label>
       <a href="./esqueci.html" id="lnk-esqueci">Esqueci a senha</a>
     </div>
 
     <button class="entrar" id="btn" type="submit">Entrar no portal →</button>
 
-    <div class="perfil" role="group" aria-label="Perfil de acesso" id="seletor-perfil">
-      <button type="button" data-perfil="logistica" aria-pressed="true">👤 Logística</button>
-      <button type="button" data-perfil="ti" aria-pressed="false">⚡ TI</button>
-    </div>
-
     <div class="aviso" id="aviso" role="alert" aria-live="assertive"></div>
 
     <div class="rodape" id="rodape">Problemas para entrar? Fale com o TI.</div>
-    <div class="rodape" id="links-conta" hidden>Ainda não tem conta? <a href="./cadastro.html" id="lnk-cadastro">Criar conta</a></div>
+    <div class="rodape" id="links-conta">Ainda não tem conta? <a href="./cadastro.html" id="lnk-cadastro">Criar conta</a></div>
   </form>
 
   <script>
     AuthUI.tema();
     const $ = AuthUI.$;
-    // seletor de perfil (só servidor)
-    document.querySelectorAll("#seletor-perfil button").forEach(b => b.addEventListener("click", () => {
-      document.querySelectorAll("#seletor-perfil button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
-      $("#perfil").value = b.dataset.perfil;
-    }));
-    // servidor: o backend volta com ?erro=1&perfil=...
-    const qs = new URLSearchParams(location.search);
-    if (qs.has("erro")) { AuthUI.aviso($("#aviso"), "erro", "Usuário ou senha inválidos para este perfil."); const p = qs.get("perfil"); if (p) document.querySelector('#seletor-perfil button[data-perfil="' + p + '"]')?.click(); }
-
-    // ---- PAGES: Firebase Auth, e-mail + senha por pessoa ----
-    if (window.PortalGate && PortalGate.ativo()) {
-      $("#seletor-perfil").remove();
-      $("#lbl-usuario").textContent = "E-mail";
-      $("#sub").textContent = "Entre com seu e-mail e senha.";
-      $("#linha-lembrar").hidden = false; $("#links-conta").hidden = false;
+    // ---- Firebase Auth, e-mail + senha por pessoa (GitHub Pages) ----
+    if (!(window.PortalGate && PortalGate.ativo())) {
+      // fora do Pages (servidor interno/localhost) não há login: segue direto para o portal
+      location.replace("./");
+    } else {
       AuthUI.olho($("#senha"));
       // preserva ?next= nos links das outras telas
       $("#lnk-cadastro").href = AuthUI.comNext("./cadastro.html");
