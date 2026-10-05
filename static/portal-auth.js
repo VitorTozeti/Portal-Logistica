@@ -67,6 +67,12 @@ window.PortalGate = (function () {
       usuarioAtual = await carregarPerfil(auth.currentUser);
       return usuarioAtual;
     },
+    // manda o e-mail do Firebase para a pessoa CRIAR/REDEFINIR a própria senha
+    // (só chega se já existir conta para o e-mail; ninguém se cadastra sozinho)
+    async redefinirSenha(email) {
+      if (!SDK) throw new Error("SDK do Firebase não carregou");
+      await auth.sendPasswordResetEmail((email || "").trim());
+    },
     async sair() { if (auth) await auth.signOut(); usuarioAtual = null; },
 
     // ---- ações (ignorar/reativar NF) ----

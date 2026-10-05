@@ -89,6 +89,9 @@
     </div>
 
     <div class="erro" id="erro">Usuário ou senha inválidos para este perfil.</div>
+    <div class="foot" id="criar-senha" hidden style="margin-top:14px">
+      <a href="#" id="criar-senha-link" style="color:var(--teal2)">Primeiro acesso ou esqueci a senha</a>
+    </div>
 
     <div class="foot">
       Operando com a <b>B4YOU</b> como transportadora integrada.<br>
@@ -107,6 +110,17 @@
       document.querySelector('label[for="usuario"]').textContent = "E-mail";
       document.getElementById("usuario").setAttribute("autocomplete", "email");
       PortalGate.pronto.then((u) => { if (u) location.replace("./"); });  // já logado → entra direto
+      // cada pessoa cria a PRÓPRIA senha: o Firebase manda um e-mail com o link
+      document.getElementById("criar-senha").hidden = false;
+      document.getElementById("criar-senha-link").addEventListener("click", async (e) => {
+        e.preventDefault();
+        const erro = document.getElementById("erro");
+        const email = document.getElementById("usuario").value.trim();
+        if (!email) { erro.textContent = "Digite seu e-mail acima primeiro."; erro.classList.add("show"); return; }
+        try { await PortalGate.redefinirSenha(email); } catch (_) { /* não revela se o e-mail existe */ }
+        erro.textContent = "Se este e-mail tem acesso, enviamos um link para criar a senha. Confira também o spam.";
+        erro.classList.add("show");
+      });
       document.querySelector("form.card").addEventListener("submit", async (e) => {
         e.preventDefault();  // no Pages não existe rota /login
         const erro = document.getElementById("erro");
