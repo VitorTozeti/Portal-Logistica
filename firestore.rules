@@ -26,8 +26,12 @@ service cloud.firestore {
       allow read: if logado() && (email == meuEmail() || perfil() == 'ti');
       // só o ti cadastra/altera/remove pessoas (pelo site); só aceita o campo `perfil`
       allow create, update: if logado() && perfil() == 'ti'
-        && request.resource.data.keys().hasOnly(['perfil'])
+        && request.resource.data.keys().hasOnly(['perfil', 'ultimoAcesso'])
         && request.resource.data.perfil in ['logistica', 'ti', 'leitor'];
+      // a própria pessoa só carimba o ÚLTIMO ACESSO (nunca o perfil)
+      allow update: if logado() && email == meuEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso'])
+        && request.resource.data.ultimoAcesso == request.time;
       allow delete: if logado() && perfil() == 'ti';
     }
 

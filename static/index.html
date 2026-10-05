@@ -19,10 +19,12 @@
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
   if (window.PortalGate && PortalGate.ativo()) {
-    document.documentElement.style.visibility = "hidden";
+    document.documentElement.classList.add("gate-pend");   // conteúdo oculto + spinner (ver CSS)
     PortalGate.pronto.then(function (u) {
-      if (!u) location.replace("./login.html");
-      else document.documentElement.style.visibility = "";
+      if (!u) {
+        var n = location.search + location.hash;           // volta para cá depois do login
+        location.replace("./login.html" + (n ? "?next=" + encodeURIComponent("./" + n) : ""));
+      } else document.documentElement.classList.remove("gate-pend");
     });
   }
 </script>
@@ -293,6 +295,54 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .loader-txt{font-size:13.5px;color:var(--ink);font-weight:600}
   .loader-count{font-size:12px;color:var(--ink2);font-family:ui-monospace,monospace;min-height:16px}
+
+  /* ===== acesso / conta / modais / toasts (UX de login e perfis) ===== */
+  html.gate-pend body > *{visibility:hidden}
+  html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border:3px solid var(--p3);border-top-color:var(--brand);border-radius:50%;visibility:visible;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  .conta{position:relative;margin-left:14px;flex:0 0 auto}
+  .avatar{width:36px;height:36px;border-radius:50%;cursor:pointer;font:inherit;font-weight:700;font-size:13px;
+    background:var(--brand);color:var(--p1);border:0;text-transform:uppercase}
+  .avatar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .conta-menu{position:absolute;right:0;top:44px;min-width:230px;z-index:40;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:8px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+  .conta-menu[hidden]{display:none}
+  .conta-quem{padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:6px;display:grid;gap:3px}
+  .conta-quem b{font-size:13px;overflow-wrap:anywhere;color:var(--ink)}
+  .conta-perfil{font-size:12px;color:var(--brand);font-weight:700}
+  .conta-menu a{display:block;padding:9px 10px;border-radius:8px;font-size:13.5px;color:var(--ink);text-decoration:none;cursor:pointer}
+  .conta-menu a:hover,.conta-menu a:focus-visible{background:color-mix(in srgb,var(--brand) 16%,transparent);outline:none}
+  .conta-menu a[hidden]{display:none}
+  .aviso-leitura{padding:9px 20px;font-size:13px;text-align:center;background:color-mix(in srgb,var(--brand) 14%,transparent);
+    border-bottom:1px solid var(--line);color:var(--ink)}
+  .aviso-leitura[hidden]{display:none}
+  .mdl{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+  .mdl[hidden]{display:none}
+  .mdl-box{background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:520px;max-height:88vh;overflow:auto;padding:20px}
+  .mdl-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+  .mdl-sub{font-size:12.5px;color:var(--ink2);margin:0 0 14px;opacity:.8}
+  .mdl-box input,.mdl-box select,.mdl-box textarea{background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:9px 10px;font:inherit;font-size:14px;width:100%}
+  .mdl-box input:focus-visible,.mdl-box select:focus-visible,.mdl-box textarea:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+  .mdl-acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .mdl-tools{display:flex;gap:8px;margin-bottom:12px}
+  .mdl-tools select{width:auto}
+  .usr-linha{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;border:1px solid var(--line);
+    border-radius:10px;padding:9px 11px;margin-bottom:6px}
+  .usr-linha .em{overflow-wrap:anywhere;font-size:13.5px;font-weight:600}
+  .usr-linha .st{font-size:12px;opacity:.85}
+  .usr-linha .st.pend{color:var(--alerta);opacity:1}
+  .usr-linha .ac{display:flex;gap:6px;align-items:center;grid-row:1/3;grid-column:2}
+  .usr-linha select{width:auto;padding:5px 6px;font-size:13px}
+  .usr-add{margin-top:12px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+  .usr-add summary{cursor:pointer;font-weight:700;font-size:13.5px}
+  .usr-add textarea{margin-top:10px;resize:vertical}
+  #toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:80;display:grid;gap:8px;width:min(92vw,420px)}
+  .toast{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);color:var(--ink);
+    border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .toast.erro{border-color:var(--alerta)}
+  .toast button{background:transparent;border:0;color:var(--brand);font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -310,31 +360,47 @@
   <span style="font-size:12px;color:var(--ink2)">· B4You</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
-  <span id="sessao" style="font-size:12.5px;color:var(--ink2);margin-left:14px;display:flex;gap:8px;align-items:center">
-    <span id="quem"></span>
-    <a href="#" id="btn-usuarios" hidden style="color:var(--brand)">usuários</a>
-    <a href="/logout" id="sair" style="color:var(--brand)">sair</a>
-  </span>
+  <div class="conta" id="conta">
+    <button type="button" class="avatar" id="avatar" aria-haspopup="true" aria-expanded="false" aria-label="Minha conta"><span id="avatar-ini">?</span></button>
+    <div class="conta-menu" id="conta-menu" hidden role="menu">
+      <div class="conta-quem"><b id="conta-email">—</b><span id="quem" class="conta-perfil"></span></div>
+      <a href="#" id="btn-usuarios" hidden role="menuitem">👥 Usuários</a>
+      <a href="#" id="btn-senha" hidden role="menuitem">🔑 Trocar senha</a>
+      <a href="/logout" id="sair" role="menuitem">⎋ Sair</a>
+    </div>
+  </div>
 </header>
+<div id="aviso-leitura" class="aviso-leitura" hidden>👁 Você só pode visualizar. Para editar, peça acesso ao TI.</div>
+<div id="toasts" aria-live="polite"></div>
 
 <div id="alerta-fonte" class="alerta" role="alert" hidden></div>
 
-<div id="usr-modal" hidden style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px">
-  <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:560px;max-height:85vh;overflow:auto;padding:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <b>Usuários com acesso</b><button class="btn" type="button" id="usr-fechar">Fechar</button>
+<div id="usr-modal" class="mdl" hidden>
+  <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="usr-titulo" style="max-width:720px">
+    <div class="mdl-top"><b id="usr-titulo">Usuários com acesso</b><button class="btn" type="button" id="usr-fechar">Fechar</button></div>
+    <p class="mdl-sub">Quem não está na lista não entra. Cada pessoa cria a própria conta e senha em “Criar conta” na tela de login.</p>
+    <div class="mdl-tools">
+      <input id="usr-busca" type="search" placeholder="Buscar e-mail…" aria-label="Buscar usuário">
+      <select id="usr-filtro" aria-label="Filtrar por perfil"><option value="">Todos</option>
+        <option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option>
+        <option value="pendente">Sem conta ainda</option></select>
     </div>
-    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:12px">Quem não está na lista não entra. Cada pessoa cria a própria conta e senha
-      em "Criar conta" na tela de login.</div>
-    <div id="usr-lista" style="display:grid;gap:6px;margin-bottom:14px"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <input id="usr-email" type="email" placeholder="e-mail@pharmaesthetics.com.br" autocomplete="off"
-             style="flex:1;min-width:200px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
-      <select id="usr-perfil" style="background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit">
-        <option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option></select>
-      <button class="btn" type="button" id="usr-add">Adicionar</button>
-    </div>
-    <div id="usr-msg" style="margin-top:10px;font-size:12.5px;color:var(--ink2)"></div>
+    <div id="usr-lista"></div>
+    <details class="usr-add"><summary>➕ Adicionar pessoas</summary>
+      <textarea id="usr-emails" rows="3" placeholder="Um ou vários e-mails (separe por vírgula, espaço ou linha)"></textarea>
+      <div class="mdl-acoes"><select id="usr-perfil" style="width:auto"><option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option></select>
+        <button class="btn" type="button" id="usr-add">Adicionar</button></div>
+    </details>
+  </div>
+</div>
+<div id="ign-modal" class="mdl" hidden>
+  <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="ign-titulo">
+    <b id="ign-titulo">Ignorar nota</b>
+    <p class="mdl-sub" id="ign-sub">A nota some da lista de travadas. Dá para reativar depois.</p>
+    <label for="ign-motivo" style="font-size:13px;font-weight:600">Motivo (opcional)</label>
+    <textarea id="ign-motivo" rows="3" maxlength="300" style="margin-top:6px"></textarea>
+    <div class="mdl-acoes"><button class="btn" type="button" id="ign-cancelar">Cancelar</button>
+      <button class="btn" type="button" id="ign-ok" style="background:var(--brand);color:var(--p1)">Ignorar nota</button></div>
   </div>
 </div>
 
@@ -799,45 +865,79 @@
     abrirDrawer();
   }
 
+  // ---- toast (aviso curto, com ação opcional "Desfazer") ----
+  function toast(msg, o){
+    o = o || {};
+    const t = document.createElement("div"); t.className = "toast" + (o.erro ? " erro" : "");
+    const sp = document.createElement("span"); sp.textContent = msg; t.appendChild(sp);
+    if(o.acao){ const b = document.createElement("button"); b.type = "button"; b.textContent = o.acao;
+      b.onclick = () => { t.remove(); o.onAcao && o.onAcao(); }; t.appendChild(b); }
+    $("#toasts").appendChild(t);
+    setTimeout(() => t.remove(), o.ms || (o.acao ? 8000 : 4500));
+  }
+  // modal com foco e Esc (reuso nos dois modais)
+  function abrirMdl(el, foco){ el.hidden = false; setTimeout(() => (foco || el.querySelector("input,textarea,select,button"))?.focus(), 30); }
+  function fecharMdl(el){ el.hidden = true; }
+  document.addEventListener("keydown", e => { if(e.key === "Escape") document.querySelectorAll(".mdl").forEach(m => m.hidden = true); });
+  document.querySelectorAll(".mdl").forEach(m => m.addEventListener("mousedown", e => { if(e.target === m) m.hidden = true; }));
+
   // ---- tela "Usuários" (só perfil TI): cadastra/altera/remove quem tem acesso ----
   (function(){
-    const modal = $("#usr-modal"), msg = t => $("#usr-msg").textContent = t || "";
-    async function listar(){
-      const meu = PortalGate.usuario().email;
-      try{
-        const us = await PortalGate.listarUsuarios();
-        $("#usr-lista").innerHTML = us.length ? us.map(u =>
-          `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:6px 10px">`
-          + `<span style="overflow-wrap:anywhere">${esc(u.email)}</span><span style="display:flex;gap:6px;align-items:center">`
-          + `<select data-em="${esc(u.email)}" style="background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px;font:inherit">`
-          + ["logistica","ti","leitor"].map(p => `<option value="${p}"${u.perfil===p?" selected":""}>${PERFIL_ROT[p]}</option>`).join("")
-          + `</select>` + (u.email === meu ? "" : `<button class="btn" data-rm="${esc(u.email)}" type="button">remover</button>`)
-          + `</span></div>`).join("") : '<div class="empty">ninguém cadastrado ainda</div>';
-      }catch(e){ msg("Sem permissão para listar: " + (e.message||e)); }
+    const modal = $("#usr-modal"); let cache = [];
+    const fmt = ms => ms ? new Date(ms).toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+    function desenhar(){
+      const meu = PortalGate.usuario().email, q = $("#usr-busca").value.trim().toLowerCase(), f = $("#usr-filtro").value;
+      const lista = cache.filter(u => (!q || u.email.includes(q)) && (!f || (f === "pendente" ? !u.ultimoAcesso : u.perfil === f)));
+      $("#usr-lista").innerHTML = lista.length ? lista.map(u =>
+        `<div class="usr-linha"><span class="em">${esc(u.email)}${u.email === meu ? " (você)" : ""}</span>`
+        + `<span class="ac"><select data-em="${esc(u.email)}" aria-label="Perfil de ${esc(u.email)}">`
+        + ["logistica","ti","leitor"].map(p => `<option value="${p}"${u.perfil===p?" selected":""}>${PERFIL_ROT[p]}</option>`).join("")
+        + `</select>` + (u.email === meu ? "" : `<button class="btn" data-rm="${esc(u.email)}" type="button">remover</button>`) + `</span>`
+        + (u.ultimoAcesso ? `<span class="st">● Ativo · último acesso ${fmt(u.ultimoAcesso)}</span>` : `<span class="st pend">○ Ainda não criou a conta</span>`)
+        + `</div>`).join("") : '<div class="empty">nenhum usuário encontrado</div>';
     }
-    $("#btn-usuarios").addEventListener("click", e => { e.preventDefault(); modal.hidden = false; modal.style.display = "flex"; msg(""); listar(); });
-    $("#usr-fechar").onclick = () => { modal.hidden = true; modal.style.display = "none"; };
+    async function carregar(){
+      try{ cache = await PortalGate.listarUsuarios(); desenhar(); }
+      catch(e){ toast("Sem permissão para listar usuários.", {erro:true}); }
+    }
+    $("#btn-usuarios").addEventListener("click", e => { e.preventDefault(); fecharMenu(); abrirMdl(modal, $("#usr-busca")); carregar(); });
+    $("#usr-fechar").onclick = () => fecharMdl(modal);
+    $("#usr-busca").addEventListener("input", desenhar);
+    $("#usr-filtro").addEventListener("change", desenhar);
     $("#usr-add").onclick = async () => {
-      const em = $("#usr-email").value.trim().toLowerCase();
-      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ msg("Digite um e-mail válido."); return; }
-      try{ await PortalGate.salvarUsuario(em, $("#usr-perfil").value); $("#usr-email").value = "";
-           msg("Adicionado. A pessoa cria a conta e a senha em 'Criar conta' na tela de login."); listar(); }
-      catch(e){ msg("Não foi possível salvar: " + (e.message||e)); }
+      const todos = $("#usr-emails").value.split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+      const ok = [...new Set(todos.filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))], ruins = todos.length - ok.length;
+      if(!ok.length){ toast("Digite pelo menos um e-mail válido.", {erro:true}); return; }
+      try{ await PortalGate.salvarVarios(ok, $("#usr-perfil").value); $("#usr-emails").value = "";
+           toast(ok.length + (ok.length === 1 ? " pessoa adicionada." : " pessoas adicionadas.") + (ruins ? " " + ruins + " inválido(s) ignorado(s)." : "")); carregar(); }
+      catch(e){ toast("Não foi possível salvar: " + (e.message||e), {erro:true}); }
     };
     $("#usr-lista").addEventListener("change", async e => {
       const s = e.target.closest("select[data-em]"); if(!s) return;
-      try{ await PortalGate.salvarUsuario(s.dataset.em, s.value); msg("Perfil atualizado."); }
-      catch(x){ msg("Não foi possível salvar: " + (x.message||x)); listar(); }
+      if(s.dataset.em === PortalGate.usuario().email && !confirm("Você vai mudar o seu próprio perfil. Continuar?")){ desenhar(); return; }
+      try{ await PortalGate.salvarUsuario(s.dataset.em, s.value); toast("Perfil atualizado."); carregar(); }
+      catch(x){ toast("Não foi possível salvar: " + (x.message||x), {erro:true}); desenhar(); }
     });
     $("#usr-lista").addEventListener("click", async e => {
       const b = e.target.closest("button[data-rm]"); if(!b) return;
       if(!confirm("Remover o acesso de " + b.dataset.rm + "?")) return;
-      try{ await PortalGate.removerUsuario(b.dataset.rm); msg("Removido."); listar(); }
-      catch(x){ msg("Não foi possível remover: " + (x.message||x)); }
+      try{ await PortalGate.removerUsuario(b.dataset.rm); toast("Acesso removido."); carregar(); }
+      catch(x){ toast("Não foi possível remover: " + (x.message||x), {erro:true}); }
     });
   })();
 
   const PERFIL_ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };
+  // pede o motivo num modal próprio (em vez do prompt() do navegador); resolve string ou null
+  function pedirMotivo(nf){
+    return new Promise(res => {
+      const m = $("#ign-modal"); $("#ign-motivo").value = "";
+      $("#ign-titulo").textContent = "Ignorar NF " + (nf||"");
+      const fim = v => { fecharMdl(m); $("#ign-ok").onclick = $("#ign-cancelar").onclick = null; res(v); };
+      $("#ign-ok").onclick = () => fim($("#ign-motivo").value.trim());
+      $("#ign-cancelar").onclick = () => fim(null);
+      abrirMdl(m, $("#ign-motivo"));
+    });
+  }
   // botão Ignorar/Reativar do drawer + (perfil TI) quem mexeu por último nesta NF
   function montarAcao(n){
     const b = $("#dw-acao"); b.hidden = true; b.onclick = null;
@@ -849,14 +949,16 @@
     b.onclick = async () => {
       b.disabled = true;
       try{
-        if(oc){ await PortalGate.reativar(n.id); }
-        else{
-          const motivo = prompt("Motivo para ignorar a NF " + (n.nf||"") + " (opcional):");
+        if(oc){
+          await PortalGate.reativar(n.id); fechar();
+          toast("NF " + (n.nf||"") + " reativada.", { acao:"Desfazer", onAcao: () => PortalGate.ocultar(n.id, oc.tipo || "ignorada", oc.motivo || "", n.nf, n.filial).catch(() => toast("Não foi possível desfazer.", {erro:true})) });
+        } else {
+          const motivo = await pedirMotivo(n.nf);
           if(motivo === null) return;                       // cancelou
-          await PortalGate.ocultar(n.id, "ignorada", motivo.trim(), n.nf, n.filial);
+          await PortalGate.ocultar(n.id, "ignorada", motivo, n.nf, n.filial); fechar();
+          toast("NF " + (n.nf||"") + " ignorada.", { acao:"Desfazer", onAcao: () => PortalGate.reativar(n.id).catch(() => toast("Não foi possível desfazer.", {erro:true})) });
         }
-        fechar();
-      }catch(e){ alert("Não foi possível salvar (sem permissão ou sem rede): " + (e.message||e)); }
+      }catch(e){ toast("Não foi possível salvar (sem permissão ou sem rede).", {erro:true}); }
       finally{ b.disabled = false; }
     };
     if(PortalGate.perfil() === "ti"){
@@ -958,22 +1060,38 @@
     });
   }, 1000);
 
-  // quem está logado (usuario · perfil) ao lado do "sair"
+  // ---- menu "Minha conta" (avatar) ----
+  function fecharMenu(){ $("#conta-menu").hidden = true; $("#avatar").setAttribute("aria-expanded","false"); }
+  $("#avatar").addEventListener("click", e => { e.stopPropagation();
+    const abre = $("#conta-menu").hidden; $("#conta-menu").hidden = !abre; $("#avatar").setAttribute("aria-expanded", String(abre)); });
+  document.addEventListener("click", e => { if(!e.target.closest("#conta")) fecharMenu(); });
+  document.addEventListener("keydown", e => { if(e.key === "Escape") fecharMenu(); });
+  function montarConta(email, perfil){
+    const nome = (email || "").split("@")[0], partes = nome.split(/[._-]+/).filter(Boolean);
+    $("#avatar-ini").textContent = ((partes[0]||"?")[0] + ((partes[1]||"")[0]||"")).slice(0,2);
+    $("#conta-email").textContent = email || "—";
+    $("#quem").textContent = PERFIL_ROT[perfil] || perfil || "";
+    $("#aviso-leitura").hidden = perfil !== "leitor";
+  }
+  // quem está logado
   if(window.PortalGate && PortalGate.ativo()){
     // Pages: Firebase Auth — não há /api/sessao nem /logout no servidor
-    $("#sair").addEventListener("click", async e => { e.preventDefault(); await PortalGate.sair(); location.replace("./login.html"); });
+    $("#sair").addEventListener("click", async e => { e.preventDefault(); await PortalGate.sair();
+      try{ sessionStorage.removeItem("portal_acesso_ok"); }catch(_){}
+      location.replace("./login.html"); });
+    $("#btn-senha").hidden = false;
+    $("#btn-senha").addEventListener("click", async e => { e.preventDefault(); fecharMenu();
+      try{ await PortalGate.redefinirSenhaPropria(); toast("Enviamos um link para criar uma nova senha no seu e-mail."); }
+      catch(_){ toast("Não foi possível enviar o link. Tente de novo.", {erro:true}); } });
     PortalGate.pronto.then(u => {
       if(!u) return;
-      $("#quem").textContent = `${u.email} · ${PERFIL_ROT[u.perfil] || u.perfil}`;
+      montarConta(u.email, u.perfil);
       if(u.perfil === "ti") $("#btn-usuarios").hidden = false;
       PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
     });
   } else {
     fetch("/api/sessao").then(r => r.json()).then(s => {
-      if(s && s.usuario){
-        const perfil = s.perfil === "ti" ? "TI" : "Logística";
-        $("#quem").textContent = `${s.usuario} · ${perfil}`;
-      }
+      if(s && s.usuario) montarConta(s.usuario, s.perfil === "ti" ? "ti" : "logistica");
     }).catch(()=>{});
   }
 

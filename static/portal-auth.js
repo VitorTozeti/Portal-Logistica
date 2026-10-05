@@ -38,6 +38,13 @@ window.PortalGate = (function () {
     db = firebase.firestore();
   }
 
+  // grava o último acesso (1x por sessão do navegador) — alimenta a coluna "Último acesso" da tela de usuários
+  function registrarAcesso(p) {
+    if (!p || !p.doc) return;
+    try { if (sessionStorage.getItem("portal_acesso_ok")) return; sessionStorage.setItem("portal_acesso_ok", "1"); } catch (_) {}
+    db.collection("usuarios").doc(p.email).update({ ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+  }
+
   // perfil da pessoa, ou null se o e-mail NÃO está autorizado (sem documento em `usuarios/`)
   async function carregarPerfil(user) {
     const email = (user.email || "").toLowerCase();
@@ -47,7 +54,7 @@ window.PortalGate = (function () {
         db.collection("usuarios").doc(email).get(),
         new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
       ]);
-      if (d.exists && PERFIS.includes(d.data().perfil)) return { email, perfil: d.data().perfil };
+      if (d.exists && PERFIS.includes(d.data().perfil)) return { email, perfil: d.data().perfil, doc: true };
     } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
     return BOOTSTRAP.includes(email) ? { email, perfil: "ti" } : null;
   }
@@ -59,6 +66,7 @@ window.PortalGate = (function () {
     auth.onAuthStateChanged(async (u) => {
       if (criando) return;                       // fluxo de login/1º acesso cuida da própria sessão
       usuarioAtual = u ? await carregarPerfil(u) : null;
+      registrarAcesso(usuarioAtual);
       if (u && !usuarioAtual) { try { sessionStorage.setItem("portal_sem_acesso", "1"); } catch (_) {} await auth.signOut(); }
       resolve(usuarioAtual);
     });
@@ -73,13 +81,16 @@ window.PortalGate = (function () {
     perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
     podeEditar() { return !!usuarioAtual && ["logistica", "ti"].includes(usuarioAtual.perfil); },
 
-    async entrar(email, senha) {
+    async entrar(email, senha, lembrar) {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
       criando = true;                                // evita corrida com o onAuthStateChanged
       try {
+        const P = firebase.auth.Auth.Persistence;
+        await auth.setPersistence(lembrar === false ? P.SESSION : P.LOCAL);   // "Manter conectado"
         await auth.signInWithEmailAndPassword((email || "").trim(), senha || "");
         usuarioAtual = await carregarPerfil(auth.currentUser);
         if (!usuarioAtual) { await auth.signOut(); throw new Error("sem-acesso"); }
+        registrarAcesso(usuarioAtual);
         return usuarioAtual;
       } finally { criando = false; }
     },
@@ -102,17 +113,30 @@ window.PortalGate = (function () {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
       await auth.sendPasswordResetEmail((email || "").trim().toLowerCase());
     },
+    // "Trocar senha" do menu da conta: manda o link para o e-mail de quem está logado
+    async redefinirSenhaPropria() {
+      if (!usuarioAtual) throw new Error("sem sessão");
+      await auth.sendPasswordResetEmail(usuarioAtual.email);
+    },
     async sair() { if (auth) await auth.signOut(); usuarioAtual = null; },
 
     // ---- usuários (só o perfil ti; as Rules barram os demais) ----
     async listarUsuarios() {
       const q = await db.collection("usuarios").get();
-      const l = []; q.forEach((d) => l.push({ email: d.id, perfil: d.data().perfil }));
+      const l = []; q.forEach((d) => { const x = d.data();
+        l.push({ email: d.id, perfil: x.perfil, ultimoAcesso: x.ultimoAcesso && x.ultimoAcesso.toMillis ? x.ultimoAcesso.toMillis() : 0 }); });
       return l.sort((x, y) => x.email.localeCompare(y.email));
     },
     async salvarUsuario(email, perfil) {
       if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
-      await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ perfil });
+      await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ perfil }, { merge: true });
+    },
+    // cadastra vários e-mails de uma vez (uma gravação em lote)
+    async salvarVarios(emails, perfil) {
+      if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
+      const b = db.batch();
+      emails.forEach((e) => b.set(db.collection("usuarios").doc(e.trim().toLowerCase()), { perfil }, { merge: true }));
+      await b.commit();
     },
     async removerUsuario(email) { await db.collection("usuarios").doc(email.toLowerCase()).delete(); },
 

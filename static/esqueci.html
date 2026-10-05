@@ -7,80 +7,58 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  /* 🎨 PALETA — as MESMAS 5 cores do portal (mesma regra: --p5 = letras). Espelha o index.html. */
-  :root{
-    --p1:#020202; --p2:#19191a; --p3:#373739; --p4:#60d4ea; --p5:#9ae5f3;
-    --bg1:var(--p1); --bg2:var(--p2); --card:var(--p2); --line:var(--p3);
-    --ink:var(--p5); --ink2:var(--p5); --teal:var(--p4); --teal2:var(--p4);
-    --field:var(--p2); --purple:var(--p4); --err:var(--p5);
-  }
-  *{box-sizing:border-box}
-  html,body{scrollbar-width:none;-ms-overflow-style:none}   /* barra de rolagem oculta — visual limpo */
-  ::-webkit-scrollbar{width:0;height:0;background:transparent}
-  body{margin:0;min-height:100vh;font:15px 'Montserrat',system-ui,-apple-system,Segoe UI,sans-serif;
-    color:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;
-    background:var(--bg1)}
-  .card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);
-    border-radius:16px;padding:28px 28px 22px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-  .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-  .logo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;
-    background:linear-gradient(150deg,var(--teal),var(--teal2));box-shadow:0 6px 16px rgba(0,0,0,.5)}
-  .logo svg{width:24px;height:24px}
-  .brand b{font-size:17px;display:block;line-height:1.2}
-  .brand small{font-size:12.5px;color:var(--ink2)}
-  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
-  input[type=text],input[type=password]{width:100%;background:var(--field);color:var(--ink);
-    border:1px solid var(--line);border-radius:9px;padding:12px 13px;font:inherit;outline:none}
-  input:focus{border-color:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--p4) 30%,transparent)}
-  .entrar{width:100%;margin-top:20px;border:0;border-radius:9px;padding:13px;cursor:pointer;
-    font:inherit;font-weight:700;font-size:15px;color:var(--p1);
-    background:linear-gradient(150deg,var(--teal),var(--teal2))}
-  .entrar:hover{filter:brightness(1.06)}
-  .perfil{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-  .perfil button{display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
-    background:var(--field);border:1px solid var(--line);border-radius:9px;padding:11px;
-    font:inherit;font-size:13.5px;font-weight:600;color:var(--ink2)}
-  .perfil button .ico{font-size:15px}
-  .perfil button[aria-pressed=true]{color:var(--ink);border-color:var(--teal);
-    box-shadow:0 0 0 2px color-mix(in srgb,var(--p4) 30%,transparent) inset}
-  .perfil button[data-perfil=logistica] .ico{color:var(--purple)}
-  .perfil button[data-perfil=ti] .ico{color:var(--teal)}
-  .erro{margin-top:14px;font-size:13px;color:var(--err);text-align:center;display:none}
-  .erro.show{display:block}
-  .foot{margin-top:20px;font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
-  .foot b{color:var(--teal2)}
-</style>
+<link rel="stylesheet" href="./auth.css">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth.js"></script>
+<script src="./auth-ui.js"></script>
 </head>
 <body>
-  <form class="card" autocomplete="on">
+  <form class="card" id="form" autocomplete="on" novalidate>
     <div class="brand">
       <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--p1)" stroke-width="2.2"
-             stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l8-4 8 4-8 4-8-4z"/>
-          <path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
       </span>
-      <span><b>Portal da Logística</b><small>Enviaremos um link para criar uma nova senha</small></span>
+      <span><b>Portal da Logística</b></span>
     </div>
+    <h1>Esqueci a senha</h1>
+    <p class="sub">Digite seu e-mail e enviaremos um link para criar uma nova senha.</p>
+
     <label for="email">E-mail</label>
-    <input id="email" type="text" autocapitalize="none" autocomplete="email" spellcheck="false" required>
-    <button class="entrar" type="submit">Enviar link →</button>
-    <div class="erro" id="erro"></div>
-    <div class="foot" style="margin-top:14px"><a href="./login.html" style="color:var(--teal2)">← Voltar para o login</a></div>
+    <input id="email" name="username" type="text" inputmode="email" autocapitalize="none"
+           autocomplete="username" spellcheck="false" required autofocus>
+
+    <button class="entrar" id="btn" type="submit">Enviar link →</button>
+    <div class="aviso" id="aviso" role="alert" aria-live="polite"></div>
+
+    <div class="rodape"><a href="./login.html" id="lnk-login">← Voltar para o login</a></div>
   </form>
+
   <script>
-    const erro = document.getElementById("erro");
+    AuthUI.tema();
+    const $ = AuthUI.$;
+    $("#lnk-login").href = AuthUI.comNext("./login.html");
     if (!(window.PortalGate && PortalGate.ativo())) { location.replace("./login.html"); }
-    else document.querySelector("form.card").addEventListener("submit", async (e) => {
-      e.preventDefault(); erro.classList.remove("show");
-      try { await PortalGate.redefinirSenha(document.getElementById("email").value); } catch (_) { /* não revela se o e-mail existe */ }
-      erro.textContent = "Se este e-mail tem conta, enviamos o link. Confira também o spam.";
-      erro.classList.add("show");
-    });
+    else {
+      let espera = 0, timer = null;
+      const contar = () => {
+        const b = $("#btn");
+        if (espera > 0) { b.disabled = true; b.textContent = "Reenviar em " + espera + " s"; espera--; timer = setTimeout(contar, 1000); }
+        else { b.disabled = false; b.textContent = "Reenviar link →"; }
+      };
+      $("#form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const em = $("#email").value.trim();
+        AuthUI.aviso($("#aviso"), "", ""); AuthUI.dica($("#email"), "");
+        if (!AuthUI.emailOk(em)) { AuthUI.dica($("#email"), "Digite um e-mail válido."); $("#email").focus(); return; }
+        AuthUI.carregando($("#btn"), true, "Enviando…");
+        try { await PortalGate.redefinirSenha(em); } catch (_) { /* não revela se o e-mail existe */ }
+        AuthUI.aviso($("#aviso"), "ok", "Se este e-mail tem conta, o link já está a caminho. Confira também a caixa de spam.");
+        espera = 30; clearTimeout(timer); contar();
+      });
+    }
   </script>
 </body>
 </html>

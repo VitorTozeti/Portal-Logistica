@@ -7,98 +7,79 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  /* 🎨 PALETA — as MESMAS 5 cores do portal (mesma regra: --p5 = letras). Espelha o index.html. */
-  :root{
-    --p1:#020202; --p2:#19191a; --p3:#373739; --p4:#60d4ea; --p5:#9ae5f3;
-    --bg1:var(--p1); --bg2:var(--p2); --card:var(--p2); --line:var(--p3);
-    --ink:var(--p5); --ink2:var(--p5); --teal:var(--p4); --teal2:var(--p4);
-    --field:var(--p2); --purple:var(--p4); --err:var(--p5);
-  }
-  *{box-sizing:border-box}
-  html,body{scrollbar-width:none;-ms-overflow-style:none}   /* barra de rolagem oculta — visual limpo */
-  ::-webkit-scrollbar{width:0;height:0;background:transparent}
-  body{margin:0;min-height:100vh;font:15px 'Montserrat',system-ui,-apple-system,Segoe UI,sans-serif;
-    color:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;
-    background:var(--bg1)}
-  .card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);
-    border-radius:16px;padding:28px 28px 22px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-  .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-  .logo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;
-    background:linear-gradient(150deg,var(--teal),var(--teal2));box-shadow:0 6px 16px rgba(0,0,0,.5)}
-  .logo svg{width:24px;height:24px}
-  .brand b{font-size:17px;display:block;line-height:1.2}
-  .brand small{font-size:12.5px;color:var(--ink2)}
-  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
-  input[type=text],input[type=password]{width:100%;background:var(--field);color:var(--ink);
-    border:1px solid var(--line);border-radius:9px;padding:12px 13px;font:inherit;outline:none}
-  input:focus{border-color:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--p4) 30%,transparent)}
-  .entrar{width:100%;margin-top:20px;border:0;border-radius:9px;padding:13px;cursor:pointer;
-    font:inherit;font-weight:700;font-size:15px;color:var(--p1);
-    background:linear-gradient(150deg,var(--teal),var(--teal2))}
-  .entrar:hover{filter:brightness(1.06)}
-  .perfil{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-  .perfil button{display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
-    background:var(--field);border:1px solid var(--line);border-radius:9px;padding:11px;
-    font:inherit;font-size:13.5px;font-weight:600;color:var(--ink2)}
-  .perfil button .ico{font-size:15px}
-  .perfil button[aria-pressed=true]{color:var(--ink);border-color:var(--teal);
-    box-shadow:0 0 0 2px color-mix(in srgb,var(--p4) 30%,transparent) inset}
-  .perfil button[data-perfil=logistica] .ico{color:var(--purple)}
-  .perfil button[data-perfil=ti] .ico{color:var(--teal)}
-  .erro{margin-top:14px;font-size:13px;color:var(--err);text-align:center;display:none}
-  .erro.show{display:block}
-  .foot{margin-top:20px;font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
-  .foot b{color:var(--teal2)}
-</style>
+<link rel="stylesheet" href="./auth.css">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth.js"></script>
+<script src="./auth-ui.js"></script>
 </head>
 <body>
-  <form class="card" autocomplete="on">
+  <form class="card" id="form" autocomplete="on" novalidate>
     <div class="brand">
       <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--p1)" stroke-width="2.2"
-             stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l8-4 8 4-8 4-8-4z"/>
-          <path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
       </span>
-      <span><b>Portal da Logística</b><small>Crie sua conta · só e-mails autorizados</small></span>
+      <span><b>Portal da Logística</b></span>
     </div>
+    <h1>Criar conta</h1>
+    <p class="sub">Use o e-mail da empresa que o TI autorizou. Você escolhe a própria senha.</p>
+
     <label for="email">E-mail</label>
-    <input id="email" name="username" type="text" autocapitalize="none" autocomplete="username" spellcheck="false" required>
-    <label for="senha">Senha (mínimo 6 caracteres)</label>
-    <input id="senha" name="new-password" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="email" name="username" type="text" inputmode="email" autocapitalize="none"
+           autocomplete="username" spellcheck="false" required autofocus>
+
+    <label for="senha">Senha</label>
+    <input id="senha" name="new-password" type="password" autocomplete="new-password" required>
+    <div class="forca" id="forca" data-n="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="forca-txt" id="forca-txt" aria-live="polite">Mínimo de 6 caracteres. Misture letras e números.</div>
+
     <label for="senha2">Repita a senha</label>
-    <input id="senha2" name="new-password-confirm" type="password" autocomplete="new-password" minlength="6" required>
-    <button class="entrar" type="submit">Criar conta →</button>
-    <div class="erro" id="erro"></div>
-    <div class="foot" style="margin-top:14px"><a href="./login.html" style="color:var(--teal2)">← Voltar para o login</a></div>
+    <input id="senha2" name="new-password-confirm" type="password" autocomplete="new-password" required>
+
+    <button class="entrar" id="btn" type="submit">Criar conta →</button>
+    <div class="aviso" id="aviso" role="alert" aria-live="assertive"></div>
+
+    <div class="rodape">Já tem conta? <a href="./login.html" id="lnk-login">Entrar</a></div>
   </form>
+
   <script>
-    const erro = document.getElementById("erro");
-    const msg = (t) => { erro.textContent = t; erro.classList.add("show"); };
+    AuthUI.tema();
+    const $ = AuthUI.$;
+    $("#lnk-login").href = AuthUI.comNext("./login.html");
     if (!(window.PortalGate && PortalGate.ativo())) { location.replace("./login.html"); }
-    else document.querySelector("form.card").addEventListener("submit", async (e) => {
-      e.preventDefault(); erro.classList.remove("show");
-      const senha = document.getElementById("senha").value;
-      if (senha.length < 6) return msg("A senha precisa ter pelo menos 6 caracteres.");
-      if (senha !== document.getElementById("senha2").value) return msg("As senhas não são iguais.");
-      const btn = document.querySelector(".entrar"); btn.disabled = true; btn.textContent = "Criando conta…";
-      try {
-        await PortalGate.cadastrar(document.getElementById("email").value, senha);
-        location.replace("./");
-      } catch (x) {
-        btn.disabled = false; btn.textContent = "Criar conta →";
-        const c = x.code || "";
-        msg(x.message === "sem-acesso" ? "Este e-mail não está autorizado. Peça acesso ao TI."
-          : c === "auth/email-already-in-use" ? "Já existe uma conta com este e-mail. Entre ou use “Esqueci a senha”."
-          : c === "auth/weak-password" ? "Senha muito fraca. Use pelo menos 6 caracteres."
-          : c === "auth/invalid-email" ? "E-mail inválido."
-          : "Não foi possível criar a conta. Tente de novo.");
-      }
-    });
+    else {
+      AuthUI.olho($("#senha")); AuthUI.olho($("#senha2"));
+      $("#senha").addEventListener("input", () => {
+        const n = AuthUI.forca($("#senha").value);
+        $("#forca").dataset.n = n;
+        $("#forca-txt").textContent = n ? "Senha: " + AuthUI.FORCA_TXT[n] : "Mínimo de 6 caracteres. Misture letras e números.";
+      });
+      $("#senha2").addEventListener("input", () => {
+        AuthUI.dica($("#senha2"), $("#senha2").value && $("#senha2").value !== $("#senha").value ? "As senhas não são iguais." : "");
+      });
+      PortalGate.pronto.then((u) => { if (u) location.replace(AuthUI.destino()); });
+
+      $("#form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const em = $("#email").value.trim(), s1 = $("#senha").value, s2 = $("#senha2").value;
+        AuthUI.aviso($("#aviso"), "", "");
+        ["#email", "#senha", "#senha2"].forEach(i => AuthUI.dica($(i), ""));
+        if (!AuthUI.emailOk(em)) { AuthUI.dica($("#email"), "Digite um e-mail válido."); $("#email").focus(); return; }
+        if (s1.length < 6) { AuthUI.dica($("#senha"), "A senha precisa ter pelo menos 6 caracteres."); $("#senha").focus(); return; }
+        if (s1 !== s2) { AuthUI.dica($("#senha2"), "As senhas não são iguais."); $("#senha2").focus(); return; }
+        AuthUI.carregando($("#btn"), true, "Criando conta…");
+        try {
+          await PortalGate.cadastrar(em, s1);
+          AuthUI.aviso($("#aviso"), "ok", "Conta criada! Entrando…");
+          location.replace(AuthUI.destino());
+        } catch (x) {
+          AuthUI.carregando($("#btn"), false, "Criar conta →");
+          AuthUI.aviso($("#aviso"), "erro", AuthUI.msgErro(x, "cadastro"));
+        }
+      });
+    }
   </script>
 </body>
 </html>
