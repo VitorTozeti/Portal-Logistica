@@ -201,6 +201,38 @@ def _enviar(notas: list) -> bool:
     return True
 
 
+# Trava de segurança da reconciliação: se ela quisesse apagar mais que isso de uma vez
+# (e mais da metade das travadas do espelho), algo na coleta falhou — não apaga nada.
+MAX_APAGAR = int(os.getenv("PORTAL_RECONCILIA_MAX", "10"))
+
+
+def _espelho_travadas() -> dict | None:
+    """Lê a foto PÚBLICA do espelho (GET, sem credencial) e devolve {id: filial,nf}
+    das linhas `travada`. Falha de rede -> None (o ciclo segue sem reconciliar)."""
+    if not AZURE_BASE:
+        return None
+    try:
+        r = requests.get(f"{AZURE_BASE}/v1/portal/nfs/publico", timeout=TIMEOUT)
+        r.raise_for_status()
+        return {f"{e.get('filial', '?')}:{e['nf']}": (e.get("filial", ""), e["nf"])
+                for e in r.json().get("nfs", []) if e.get("estado") == "travada"}
+    except Exception as ex:
+        print(f"  [COLETOR] não consegui ler o espelho p/ reconciliar: {ex}", flush=True)
+        return None
+
+
+def _orfas(espelho: dict, travadas_atuais: set) -> list:
+    """Travadas que o ESPELHO tem mas a coleta atual não tem mais. O delta por
+    `travadas_anteriores` não pega o que ficou preso de um estado local perdido ou de
+    uma versão antiga do coletor (ex.: Marketing fora da janela do robô)."""
+    orfas = [v for k, v in espelho.items() if k not in travadas_atuais]
+    if len(orfas) > MAX_APAGAR and len(orfas) > len(espelho) / 2:
+        print(f"  [COLETOR] reconciliação abortada: apagaria {len(orfas)} de {len(espelho)} "
+              f"travadas (limite {MAX_APAGAR}) — coleta suspeita.", flush=True)
+        return []
+    return orfas
+
+
 def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
     """UM ciclo: coleta → calcula deltas → POST. Só manda o que mudou desde o
     estado dado + as resolvidas (que sumiram da lista de travadas). Devolve o
@@ -231,6 +263,20 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
         atual[ev["id"]] = "subiu"
         if publicado.get(ev["id"]) != "subiu":
             pendentes.append(_nota(ev))
+
+    # 4) reconciliação com o espelho: remove/corrige o que ficou preso como travada
+    espelho = _espelho_travadas()
+    if espelho is not None:
+        ja = {(p["filial"], p["nf"]) for p in pendentes if p.get("estado") in ("resolvida", "subiu")}
+        sub_por_id = {ev["id"]: ev for ev in subiram}
+        for filial, nf in _orfas(espelho, travadas_atuais):
+            if (filial, nf) in ja:
+                continue
+            ev = sub_por_id.get(f"{filial}:{nf}")
+            pendentes.append(_nota(ev) if ev else {"nf": nf, "filial": filial, "estado": "resolvida"})
+            atual.pop(f"{filial}:{nf}", None)
+            if ev:
+                atual[ev["id"]] = "subiu"
 
     if pendentes:
         if _enviar(pendentes):
