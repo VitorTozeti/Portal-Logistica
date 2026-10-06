@@ -79,7 +79,7 @@ ESTADO_ARQ = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Campos que o endpoint entende (o resto o servidor descarta de qualquer jeito).
 _CAMPOS = ["nf", "filial", "estado", "transportadora", "atualizado_em",
            "ignorada", "problema_codigo", "problema_categoria",
-           "problema_descricao", "travada_desde", "grupo"]
+           "problema_descricao", "travada_desde", "grupo", "data_faturamento"]
 
 
 def _nota(ev: dict) -> dict:
@@ -120,6 +120,11 @@ def _montar_estado():
     todas_travadas = travadas + barradas + marketing + cancelamentos
     for ev in todas_travadas + subiram:
         ev["id"] = f"{ev.get('filial', '?')}:{ev['nf']}"
+    try:
+        import faturamento
+        faturamento.enriquecer(todas_travadas + subiram)
+    except Exception as e:
+        print(f"  [COLETOR] data de faturamento indisponível: {e}", flush=True)
 
     # NFs que o portal marcou ignorada/tratada somem da lista de travadas (igual ao feed)
     try:

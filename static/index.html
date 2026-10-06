@@ -637,7 +637,7 @@
       + grpBadge(n)
       + `<span class="carrier">${esc(n.transportadora)}</span></div>`
       + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
-      + (tempo ? `<div class="meta">${tempo}</div>` : "")
+      + ((tempo || n.data_faturamento) ? `<div class="meta">${n.data_faturamento ? `<span>Faturada em ${esc(dataBR(n.data_faturamento))}</span> ` : ""}${tempo}</div>` : "")
       + `</div>`;
   }
   function cardSubiu(n){
@@ -837,6 +837,7 @@
       ["Transportadora", esc(n.transportadora||"—"), false, null],
       ["Pedido", esc(n.pedido||"—"), false, null],
       ["Cliente", esc(n.cliente||"—"), false, null],
+      ["Faturada em", esc(dataBR(n.data_faturamento) || "—"), false, null],
       ["Travada há", t?("◷ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
     ];
     const partes = (n.problema_descricao||"").split(" + ");
@@ -987,8 +988,11 @@
     const rows = [
       ["Transportadora", esc(n.transportadora||"—")],
       ["Filial", esc(n.filial||"—")],
+      ["Faturada em", esc(dataBR(n.data_faturamento) || "—")],
       ["Subiu em", esc(dataBR(n.atualizado_em) || "—")],
     ];
+    { const f = Date.parse(n.data_faturamento), u = Date.parse(n.atualizado_em);
+      if(f && u && u >= f) rows.push(["Faturar → subir", Math.round((u - f) / 864e5) + " dia(s)"]); }
     if(n.ignorada) rows.push(["Situação", "⊘ Ignorada (Chave IGNORADO)"]);
     $("#dw-body").innerHTML =
       rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
