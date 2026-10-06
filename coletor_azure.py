@@ -103,7 +103,7 @@ def _montar_estado():
     barradas, marketing, cancelamentos = [], [], []
     try:
         import sap_feed
-        barradas = sap_feed.coletar_barradas(nfs_no_log)
+        barradas = sap_feed.coletar_barradas(nfs_no_log, log_index)
     except Exception as e:
         print(f"  [COLETOR] Motor 1 (SAP) indisponível: {e}", flush=True)
     try:

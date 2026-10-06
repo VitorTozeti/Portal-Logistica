@@ -287,7 +287,7 @@ async def rodar_feed_simulado() -> None:
             barradas, marketing, cancelamentos = [], [], []
             try:
                 import sap_feed
-                barradas = await asyncio.to_thread(sap_feed.coletar_barradas, nfs_no_log)
+                barradas = await asyncio.to_thread(sap_feed.coletar_barradas, nfs_no_log, log_index)
             except Exception as e:
                 print(f"  [FEED] Motor 1 (SAP) indisponível: {e}", flush=True)
             try:
