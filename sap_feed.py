@@ -49,22 +49,34 @@ SELECT B."Serial" AS "NF", B."BPLId", 'Nota Fiscal' AS "Tipo",
     MAX(L."MainUsage") AS "MainUsage", MAX(U."Usage") AS "DescricaoUso",
     MAX(E."U_inStatus") AS "inStatus", MAX(E."U_cdErro") AS "cdErro",
     MAX(ITM."WhsCode") AS "WhsCode", MAX(E."U_ChaveAcesso") AS "Chave",
-    MAX(B."DocDate") AS "DocDate"
+    MAX(B."DocDate") AS "DocDate", MAX(E."U_msgSEFAZ") AS "MsgSEFAZ"
 FROM "SBOPHARMAESTHETICS"."OINV" B
 LEFT JOIN "SBOPHARMAESTHETICS"."INV12" L ON B."DocEntry"=L."DocEntry"
 LEFT JOIN "SBOPHARMAESTHETICS"."OUSG" U ON L."MainUsage"=U."ID"
-LEFT JOIN "SBOPHARMAESTHETICS"."@SKL25NFE" E ON E."U_DocEntry"=B."DocEntry" AND E."U_tipoDocumento"='NS'
+LEFT JOIN (
+    SELECT * FROM (
+        SELECT "U_DocEntry","U_tipoDocumento","U_inStatus","U_cdErro","U_msgSEFAZ","U_ChaveAcesso",
+               ROW_NUMBER() OVER (PARTITION BY "U_DocEntry","U_tipoDocumento" ORDER BY TO_INT("Code") DESC) AS rn
+        FROM "SBOPHARMAESTHETICS"."@SKL25NFE"
+    ) WHERE rn = 1
+) E ON E."U_DocEntry"=B."DocEntry" AND E."U_tipoDocumento"='NS'
 LEFT JOIN "SBOPHARMAESTHETICS"."INV1" ITM ON B."DocEntry"=ITM."DocEntry"
 WHERE B."CANCELED"='N' AND B."BPLId" IN (3,4) AND B."DocDate">=ADD_DAYS(CURRENT_DATE,-7)
 GROUP BY B."DocEntry", B."Serial", B."BPLId"
 UNION ALL
 SELECT B."Serial" AS "NF", B."BPLId", 'Remessa' AS "Tipo",
     MAX(L."MainUsage"), MAX(U."Usage"), MAX(E."U_inStatus"), MAX(E."U_cdErro"),
-    MAX(ITM."WhsCode"), MAX(E."U_ChaveAcesso"), MAX(B."DocDate")
+    MAX(ITM."WhsCode"), MAX(E."U_ChaveAcesso"), MAX(B."DocDate"), MAX(E."U_msgSEFAZ")
 FROM "SBOPHARMAESTHETICS"."ODLN" B
 LEFT JOIN "SBOPHARMAESTHETICS"."DLN12" L ON B."DocEntry"=L."DocEntry"
 LEFT JOIN "SBOPHARMAESTHETICS"."OUSG" U ON L."MainUsage"=U."ID"
-LEFT JOIN "SBOPHARMAESTHETICS"."@SKL25NFE" E ON E."U_DocEntry"=B."DocEntry" AND E."U_tipoDocumento"='EM'
+LEFT JOIN (
+    SELECT * FROM (
+        SELECT "U_DocEntry","U_tipoDocumento","U_inStatus","U_cdErro","U_msgSEFAZ","U_ChaveAcesso",
+               ROW_NUMBER() OVER (PARTITION BY "U_DocEntry","U_tipoDocumento" ORDER BY TO_INT("Code") DESC) AS rn
+        FROM "SBOPHARMAESTHETICS"."@SKL25NFE"
+    ) WHERE rn = 1
+) E ON E."U_DocEntry"=B."DocEntry" AND E."U_tipoDocumento"='EM'
 LEFT JOIN "SBOPHARMAESTHETICS"."DLN1" ITM ON B."DocEntry"=ITM."DocEntry"
 WHERE B."CANCELED"='N' AND B."BPLId" IN (3,4) AND B."DocDate">=ADD_DAYS(CURRENT_DATE,-7)
 GROUP BY B."DocEntry", B."Serial", B."BPLId"
@@ -184,6 +196,7 @@ def coletar_barradas(nfs_no_log: set, log_index: dict | None = None) -> list[dic
         bplid, tipo, uso = r[1], r[2], r[3]
         desc_uso = str(r[4]) if r[4] else "Não preenchido"
         in_status, cd_erro, whs, chave, docdate = r[5], r[6], r[7], r[8], r[9]
+        msg_sefaz = str(r[10]).strip() if len(r) > 10 and r[10] else ""
         filial = "Varejo" if bplid == 3 else "Atacado"
 
         # silenciadores do robô (mesma ordem de auditoria.py:165-211)
@@ -211,8 +224,8 @@ def coletar_barradas(nfs_no_log: set, log_index: dict | None = None) -> list[dic
         if not chave:
             motivos.append("Falta Chave de Acesso"); cod = cod or "FALTA_CHAVE"
         elif in_status != 3 or cd_erro not in (100, 150):
-            motivos.append(f"Barrada na SEFAZ (Status: {in_status}, Erro: {cd_erro})"); cod = cod or "SEFAZ_BARRADA"
-        if uso not in (35, 61, 73, 86, 98):
+            motivos.append(f"Barrada na SEFAZ (Status: {in_status}, Erro: {cd_erro}{' - ' + msg_sefaz if msg_sefaz else ''})"); cod = cod or "SEFAZ_BARRADA"
+        if uso not in (35, 61, 73, 79, 86, 98):  # 79 = REM EM GARANTIA (auditoria.py usos_permitidos)
             motivos.append(f"Utilização ignorada: {uso} ({desc_uso})"); cod = cod or "USO_IGNORADO"
         if whs in ("03.05", "04.05"):
             motivos.append(f"Depósito bloqueado ({whs})"); cod = cod or "DEPOSITO_BLOQUEADO"
