@@ -287,7 +287,7 @@ async def rodar_feed_simulado() -> None:
             barradas, marketing, cancelamentos = [], [], []
             try:
                 import sap_feed
-                barradas = await asyncio.to_thread(sap_feed.coletar_barradas, nfs_no_log)
+                barradas = await asyncio.to_thread(sap_feed.coletar_barradas, nfs_no_log, log_index)
             except Exception as e:
                 print(f"  [FEED] Motor 1 (SAP) indisponível: {e}", flush=True)
             try:
@@ -305,6 +305,11 @@ async def rodar_feed_simulado() -> None:
             todas_travadas = travadas + barradas + marketing + cancelamentos
             for ev in todas_travadas + subiram:
                 ev["id"] = f"{ev.get('filial','?')}:{ev['nf']}"
+            try:
+                import faturamento
+                await asyncio.to_thread(faturamento.enriquecer, todas_travadas + subiram)
+            except Exception as e:
+                print(f"  [FEED] data de faturamento indisponível: {e}", flush=True)
 
             # ações do portal: NFs marcadas ignorada/tratada somem da lista de travadas
             import acoes

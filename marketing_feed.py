@@ -38,6 +38,39 @@ def _resumo_erro(msg: str) -> str:
     return "Falha ao gerar etiqueta Correios (marketing): " + m[:160]
 
 
+DIAS_BUSCA_MKT = 30  # janela do robô (etiqueta_marketing.py): passou disso ele não tenta nem avisa mais
+
+
+def _nfs_na_janela(nfs: set) -> set | None:
+    """NFs (matriz, uso 127) com DocDate dentro da janela do robô. Só leitura no HANA.
+    Qualquer falha -> None (o chamador mantém tudo, sem esconder erro por engano)."""
+    if not nfs:
+        return set()
+    try:
+        import sap_feed
+        from hdbcli import dbapi
+        lista = ",".join(str(int(n)) for n in nfs)
+        conn = dbapi.connect(address=sap_feed.HANA["address"], port=sap_feed.HANA["port"],
+                             user=sap_feed.HANA["user"], password=sap_feed.HANA["password"])
+        try:
+            cur = conn.cursor()
+            ok = set()
+            for tb, lk in (("OINV", "INV12"), ("ODLN", "DLN12")):
+                cur.execute(
+                    f'''SELECT B."Serial" FROM "SBOPHARMAESTHETICS"."{tb}" B
+                    JOIN "SBOPHARMAESTHETICS"."{lk}" L ON L."DocEntry"=B."DocEntry"
+                    WHERE B."CANCELED"='N' AND L."MainUsage"=127
+                      AND B."DocDate">=ADD_DAYS(CURRENT_DATE,-?) AND B."Serial" IN ({lista})''',
+                    (DIAS_BUSCA_MKT,))
+                ok.update(str(int(r[0])) for r in cur.fetchall())
+            return ok
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"  [MKT_FEED] janela de {DIAS_BUSCA_MKT}d não verificada: {e}")
+        return None
+
+
 def coletar_marketing() -> list[dict]:
     p = Path(CSV_MARKETING)
     if not p.exists():
@@ -55,12 +88,14 @@ def coletar_marketing() -> list[dict]:
             print(f"  [MKT_FEED] erro lendo CSV: {e}")
             return []
 
+    erros = [r for r in linhas
+             if str(r.get("Status", "")).strip().upper() == "ERRO" and str(r.get("NF", "")).strip()]
+    # o robô só reprocessa/avisa NFs dentro da janela; o CSV mantém ERRO para sempre
+    na_janela = _nfs_na_janela({str(r["NF"]).strip() for r in erros})
     out = []
-    for r in linhas:
-        if str(r.get("Status", "")).strip().upper() != "ERRO":
-            continue
+    for r in erros:
         nf = str(r.get("NF", "")).strip()
-        if not nf:
+        if na_janela is not None and nf.lstrip("0") not in na_janela:
             continue
         out.append({
             "nf": nf, "filial": "Matriz", "estado": "travada",
