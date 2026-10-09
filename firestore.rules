@@ -5,6 +5,7 @@ rules_version = '2';
 //   "logistica" | "ti"   → editam (ignorar/reativar NF)
 //   "leitor"             → só visualiza
 //   (sem documento)      → sem acesso
+// Ferramentas do painel: `ferramentas` (lista de ids, ex. ["monitor","custo"]) em usuarios/{email}; o TI tem todas.
 // Custo de Frete: campo booleano `acessoCusto` em usuarios/{email} (o TI sempre tem); a API da Azure lê esse
 // documento com o token da própria pessoa para decidir quem pode editar a cobertura das transportadoras.
 // Só o perfil "ti" lê acoes_log (quem mexeu) e gerencia usuarios/ (tela "Usuários" do site).
@@ -28,9 +29,10 @@ service cloud.firestore {
       allow read: if logado() && (email == meuEmail() || perfil() == 'ti');
       // só o ti cadastra/altera/remove pessoas (pelo site); só aceita o campo `perfil`
       allow create, update: if logado() && perfil() == 'ti'
-        && request.resource.data.keys().hasOnly(['perfil', 'ultimoAcesso', 'acessoCusto'])
+        && request.resource.data.keys().hasOnly(['perfil', 'ultimoAcesso', 'acessoCusto', 'ferramentas'])
         && request.resource.data.perfil in ['logistica', 'ti', 'leitor']
-        && (!('acessoCusto' in request.resource.data) || request.resource.data.acessoCusto is bool);
+        && (!('acessoCusto' in request.resource.data) || request.resource.data.acessoCusto is bool)
+        && (!('ferramentas' in request.resource.data) || (request.resource.data.ferramentas is list && request.resource.data.ferramentas.size() <= 20));
       // a própria pessoa só carimba o ÚLTIMO ACESSO (nunca o perfil)
       allow update: if logado() && email == meuEmail()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso'])

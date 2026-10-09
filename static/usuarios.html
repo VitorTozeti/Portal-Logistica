@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usuários e permissões — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./portal-auth.js"></script>
+<script>
+  if (window.PortalGate && PortalGate.ativo()) {
+    document.documentElement.classList.add("gate-pend");
+    PortalGate.pronto.then(function (u) {
+      if (!u) location.replace("./login.html?next=" + encodeURIComponent("./usuarios.html"));
+      else if (u.perfil !== "ti") location.replace("./painel.html");     // só o TI administra pessoas
+      else document.documentElement.classList.remove("gate-pend");
+    });
+  }
+</script>
+<script>
+  (function(){
+    try{ var t = localStorage.getItem("portal_tema");
+      if(!t){ t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(_){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
+<style>
+  :root, :root[data-theme="dark"]{ --p1:#0e0d0d; --p2:#242424; --p3:#005b6b; --p4:#31cceb; --p5:#ffffff; }
+  :root[data-theme="light"]{ --p1:#eff3f9; --p2:#ffffff; --p3:#cbd5e1; --p4:#1d4ed8; --p5:#0f172a; }
+  :root{ --bg:var(--p1); --card:var(--p2); --ink:var(--p5); --line:var(--p3); --brand:var(--p4); --alerta:#f4a72c;
+    --soft:color-mix(in srgb,var(--p5) 62%,transparent); }
+  *{box-sizing:border-box}
+  html,body{overflow-x:hidden;scrollbar-width:none} ::-webkit-scrollbar{width:0;height:0}
+  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
+  html.gate-pend body > *{visibility:hidden}
+  html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand)}
+  header b{font-size:16px;color:var(--brand)} header a{color:var(--ink);text-decoration:none;font-size:13px;font-weight:600;opacity:.85}
+  header a:hover{opacity:1;color:var(--brand)} .esp{margin-left:auto}
+  .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);
+    border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
+  button,input,select,textarea{font:inherit;color:var(--ink)}
+  .btn{font-size:13px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:7px 12px;cursor:pointer}
+  .btn:hover:not(:disabled){background:var(--line)} .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.pri{background:var(--brand);color:var(--p1);border-color:var(--brand)} .btn.pri:hover:not(:disabled){background:var(--brand);filter:brightness(1.1)}
+  .btn.perigo{border-color:color-mix(in srgb,var(--alerta) 60%,transparent);color:var(--alerta)}
+  .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  main{width:100%;max-width:1200px;margin:0 auto;padding:24px 22px 70px;flex:1}
+  h1{font-size:20px;margin:0 0 4px} .sub{margin:0 0 18px;color:var(--soft);font-size:13.5px;line-height:1.5}
+  .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px}
+  .tools input[type=search],.tools select{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+  .tools input[type=search]{flex:1;min-width:200px}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:760px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  thead th{font-size:12px;color:var(--soft);font-weight:700;white-space:nowrap}
+  th.c,td.c{text-align:center}
+  th .mini{display:block;margin-top:4px;font-weight:600;font-size:11px}
+  th .mini button{background:none;border:0;color:var(--brand);cursor:pointer;padding:0 3px;font-size:11px;font-weight:700;text-decoration:underline}
+  .em{font-weight:600;overflow-wrap:anywhere} .st{display:block;font-size:11.5px;color:var(--soft);margin-top:2px} .st.pend{color:var(--alerta)}
+  select.perfil{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:13px}
+  input[type=checkbox]{width:20px;height:20px;accent-color:var(--brand);cursor:pointer}
+  input[type=checkbox]:disabled{cursor:not-allowed;opacity:.55}
+  .acoes{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+  .acoes .btn{padding:4px 9px;font-size:12px}
+  .tag{font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 8px;background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand);margin-left:6px}
+  .vazio{padding:30px;text-align:center;color:var(--soft)}
+  details.add{margin:0 0 14px;border:1px dashed var(--line);border-radius:12px;padding:10px 14px;background:var(--card)}
+  details.add summary{cursor:pointer;font-weight:700;font-size:13.5px}
+  details.add textarea{width:100%;margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;resize:vertical}
+  .linha{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:13px}
+  .linha label{display:inline-flex;align-items:center;gap:6px}
+  .massa{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  #toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:80;display:grid;gap:8px;width:min(92vw,440px)}
+  .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+  .toast.erro{border-color:var(--alerta)}
+  @media (max-width:640px){main{padding:16px 12px 60px} header{padding:12px 14px}}
+</style>
+</head>
+<body>
+<header>
+  <a href="./painel.html">← Painel</a>
+  <b>Usuários e permissões</b>
+  <span class="esp"></span>
+  <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
+</header>
+<main>
+  <h1>Quem entra e o que pode abrir</h1>
+  <p class="sub">Marque as ferramentas de cada pessoa — a mudança vale na hora, no próximo acesso dela. O TI sempre tem tudo. O <b>perfil</b> continua definindo quem pode editar notas no Monitor.</p>
+
+  <details class="add" id="add"><summary>➕ Adicionar pessoas</summary>
+    <textarea id="add-emails" rows="3" placeholder="Um ou vários e-mails (separe por vírgula, espaço ou linha)"></textarea>
+    <div class="linha">
+      <label>Perfil <select id="add-perfil" class="perfil"><option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option></select></label>
+      <span id="add-ferr" style="display:inline-flex;gap:12px;flex-wrap:wrap"></span>
+      <button class="btn pri" id="add-ok" type="button">Adicionar</button>
+    </div>
+  </details>
+
+  <div class="tools">
+    <input id="busca" type="search" placeholder="Buscar e-mail…" aria-label="Buscar e-mail">
+    <select id="filtro" aria-label="Filtrar"><option value="">Todos</option><option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option><option value="pendente">Sem conta ainda</option><option value="semtudo">Sem nenhuma ferramenta</option></select>
+    <span class="massa">
+      <button class="btn" id="m-tudo" type="button">Liberar tudo (filtrados)</button>
+      <button class="btn perigo" id="m-nada" type="button">Retirar tudo (filtrados)</button>
+    </span>
+  </div>
+  <div class="scroll"><table><thead id="cab"></thead><tbody id="corpo"><tr><td class="vazio" colspan="9">carregando…</td></tr></tbody></table></div>
+</main>
+<div id="toasts" aria-live="polite"></div>
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };
+const FERR = PortalGate.ferramentas();
+const IDS = FERR.map(f => f.id);
+let lista = [], eu = "";
+function toast(m, erro){ const t = document.createElement("div"); t.className = "toast" + (erro ? " erro" : ""); t.textContent = m; $("#toasts").appendChild(t); setTimeout(() => t.remove(), erro ? 9000 : 4500); }
+const fmt = ms => ms ? new Date(ms).toLocaleString("pt-BR", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) : "";
+const falha = (p, e) => { console.error(e); toast(p + ((e && e.message) || e), true); };
+
+function filtrados(){
+  const q = $("#busca").value.trim().toLowerCase(), f = $("#filtro").value;
+  return lista.filter(u => (!q || u.email.includes(q)) &&
+    (!f || (f === "pendente" ? !u.ultimoAcesso : f === "semtudo" ? (u.perfil !== "ti" && !u.ferramentas.length) : u.perfil === f)));
+}
+function desenhar(){
+  $("#cab").innerHTML = "<tr><th>Pessoa</th><th>Perfil</th>"
+    + FERR.map(f => '<th class="c">' + f.icone + " " + esc(f.nome) + '<span class="mini"><button type="button" data-col="' + f.id + '" data-v="1">todos</button>·<button type="button" data-col="' + f.id + '" data-v="0">nenhum</button></span></th>').join("")
+    + '<th style="text-align:right">Ações</th></tr>';
+  const l = filtrados();
+  $("#corpo").innerHTML = l.length ? l.map(u => {
+    const ti = u.perfil === "ti", voce = u.email === eu;
+    return '<tr data-em="' + esc(u.email) + '"><td><span class="em">' + esc(u.email) + (voce ? '<span class="tag">você</span>' : "") + "</span>"
+      + (u.ultimoAcesso ? '<span class="st">● Ativo · último acesso ' + fmt(u.ultimoAcesso) + "</span>" : '<span class="st pend">○ Ainda não criou a conta</span>') + "</td>"
+      + '<td><select class="perfil" data-perfil aria-label="Perfil de ' + esc(u.email) + '">' + Object.keys(ROT).map(p => '<option value="' + p + '"' + (u.perfil === p ? " selected" : "") + ">" + ROT[p] + "</option>").join("") + "</select></td>"
+      + FERR.map(f => '<td class="c"><input type="checkbox" data-f="' + f.id + '" aria-label="' + esc(f.nome) + " para " + esc(u.email) + '"' + (u.ferramentas.includes(f.id) ? " checked" : "") + (ti ? ' disabled title="O TI sempre tem acesso"' : "") + "></td>").join("")
+      + '<td><div class="acoes">' + (ti ? "" : '<button class="btn" data-tudo="1" type="button">Liberar tudo</button><button class="btn perigo" data-tudo="0" type="button">Retirar tudo</button>')
+      + (voce ? "" : '<button class="btn perigo" data-rm type="button">Remover</button>') + "</div></td></tr>";
+  }).join("") : '<tr><td class="vazio" colspan="' + (FERR.length + 3) + '">nenhuma pessoa encontrada</td></tr>';
+}
+async function carregar(){
+  try{ lista = await PortalGate.listarUsuarios(); desenhar(); }
+  catch(e){ $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Sem permissão para listar usuários.</td></tr>'; }
+}
+const achar = em => lista.find(u => u.email === em);
+async function gravar(u, ferr, msg){
+  const antes = u.ferramentas; u.ferramentas = ferr; desenhar();
+  try{ await PortalGate.salvarFerramentas(u.email, ferr); if(msg) toast(msg); }
+  catch(e){ u.ferramentas = antes; desenhar(); falha("Não foi possível salvar: ", e); }
+}
+$("#corpo").addEventListener("change", async e => {
+  const tr = e.target.closest("tr[data-em]"); if(!tr) return; const u = achar(tr.dataset.em);
+  if(e.target.matches("input[data-f]")){
+    const novo = IDS.filter(id => id === e.target.dataset.f ? e.target.checked : u.ferramentas.includes(id));
+    await gravar(u, novo, (e.target.checked ? "Liberado" : "Retirado") + ": " + FERR.find(f => f.id === e.target.dataset.f).nome + " — " + u.email);
+  } else if(e.target.matches("select[data-perfil]")){
+    if(u.email === eu && !confirm("Você vai mudar o seu próprio perfil. Continuar?")){ desenhar(); return; }
+    try{ await PortalGate.salvarUsuario(u.email, e.target.value); u.perfil = e.target.value;
+         u.ferramentas = PortalGate.ferramentasDe(u.perfil, { ferramentas: u.ferramentas }); desenhar(); toast("Perfil atualizado."); }
+    catch(x){ falha("Não foi possível salvar: ", x); desenhar(); }
+  }
+});
+$("#corpo").addEventListener("click", async e => {
+  const tr = e.target.closest("tr[data-em]"); if(!tr) return; const u = achar(tr.dataset.em);
+  if(e.target.matches("[data-tudo]")){
+    const dar = e.target.dataset.tudo === "1";
+    if(!dar && !confirm("Retirar TODAS as ferramentas de " + u.email + "? Ela ainda poderá entrar, mas verá o painel vazio.")) return;
+    await gravar(u, dar ? IDS.slice() : [], dar ? "Tudo liberado para " + u.email : "Todas as permissões retiradas de " + u.email);
+  } else if(e.target.matches("[data-rm]")){
+    if(!confirm("Remover o acesso de " + u.email + " ao portal?")) return;
+    try{ await PortalGate.removerUsuario(u.email); lista = lista.filter(x => x !== u); desenhar(); toast("Acesso removido."); }
+    catch(x){ falha("Não foi possível remover: ", x); }
+  }
+});
+$("#cab").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-col]"); if(!b) return;
+  const alvo = filtrados().filter(u => u.perfil !== "ti"), dar = b.dataset.v === "1", nome = FERR.find(f => f.id === b.dataset.col).nome;
+  if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
+  if(!confirm((dar ? "Liberar " : "Retirar ") + nome + (dar ? " para " : " de ") + alvo.length + " pessoa(s) (TI não muda)?")) return;
+  await massa(alvo, u => IDS.filter(id => id === b.dataset.col ? dar : u.ferramentas.includes(id)), (dar ? "Liberado" : "Retirado") + ": " + nome + " (" + alvo.length + " pessoas)");
+});
+async function massa(alvo, calc, msg){
+  const antes = alvo.map(u => u.ferramentas);
+  alvo.forEach(u => { u.ferramentas = calc(u); }); desenhar();
+  try{ await PortalGate.salvarFerramentasVarios(alvo.map(u => ({ email: u.email, ferramentas: u.ferramentas }))); toast(msg); }
+  catch(e){ alvo.forEach((u, i) => { u.ferramentas = antes[i]; }); desenhar(); falha("Não foi possível salvar: ", e); }
+}
+$("#m-tudo").onclick = async () => {
+  const alvo = filtrados().filter(u => u.perfil !== "ti"); if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
+  if(!confirm("Liberar TODAS as ferramentas para " + alvo.length + " pessoa(s)?")) return;
+  await massa(alvo, () => IDS.slice(), "Tudo liberado para " + alvo.length + " pessoa(s).");
+};
+$("#m-nada").onclick = async () => {
+  const alvo = filtrados().filter(u => u.perfil !== "ti"); if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
+  if(!confirm("RETIRAR todas as permissões de " + alvo.length + " pessoa(s)? O TI não é afetado.")) return;
+  await massa(alvo, () => [], "Todas as permissões retiradas de " + alvo.length + " pessoa(s).");
+};
+$("#busca").addEventListener("input", desenhar); $("#filtro").addEventListener("change", desenhar);
+$("#add-ferr").innerHTML = FERR.map(f => '<label><input type="checkbox" data-addf="' + f.id + '"' + (f.id === "monitor" ? " checked" : "") + "> " + esc(f.nome) + "</label>").join("");
+$("#add-ok").onclick = async () => {
+  const todos = $("#add-emails").value.split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+  const ok = [...new Set(todos.filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))], ruins = todos.length - ok.length;
+  if(!ok.length){ toast("Digite pelo menos um e-mail válido.", true); return; }
+  const ferr = [...document.querySelectorAll("[data-addf]")].filter(c => c.checked).map(c => c.dataset.addf);
+  try{ await PortalGate.salvarVarios(ok, $("#add-perfil").value); await PortalGate.salvarFerramentasVarios(ok.map(email => ({ email, ferramentas: ferr })));
+       $("#add-emails").value = ""; toast(ok.length + (ok.length === 1 ? " pessoa adicionada." : " pessoas adicionadas.") + (ruins ? " " + ruins + " inválido(s) ignorado(s)." : "")); carregar(); }
+  catch(e){ falha("Não foi possível salvar: ", e); }
+};
+function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
+$("#tema").onclick = () => { const n = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", n); try{ localStorage.setItem("portal_tema", n); }catch(_){} icone(); };
+icone();
+if(window.PortalGate && PortalGate.ativo()){
+  PortalGate.pronto.then(u => { if(!u || u.perfil !== "ti") return; eu = u.email; carregar(); });
+} else {
+  $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Esta tela funciona só no portal publicado (login Firebase).</td></tr>';
+}
+})();
+</script>
+</body>
+</html>
