@@ -72,23 +72,6 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
   .legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--soft);margin:0 0 12px}
   .legenda span{display:inline-flex;align-items:center;gap:6px}
-  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
-  table.mx{border-collapse:separate;border-spacing:0;min-width:100%}
-  .mx th,.mx td{padding:0;text-align:center;border-bottom:1px solid var(--line)}
-  .mx thead th{font-size:11.5px;font-weight:800;padding:10px 0;color:var(--soft);min-width:44px;background:var(--card);position:sticky;top:0}
-  .mx tbody tr:last-child td,.mx tbody tr:last-child th{border-bottom:0}
-  .mx th.nome{position:sticky;left:0;z-index:2;background:var(--card);text-align:left;padding:10px 14px;min-width:190px;
-    border-right:1px solid var(--line);font-size:13.5px}
-  .mx th.nome small{display:block;font-weight:400;font-size:11px;color:var(--soft);margin-top:2px}
-  .mx thead th.nome{z-index:3}
-  .cel{position:relative;width:38px;height:34px;margin:5px;border-radius:9px;border:1px solid transparent;cursor:pointer;font-weight:800;font-size:14px;
-    background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand);transition:transform .08s}
-  .cel:hover:not(:disabled){transform:scale(1.08)}
-  .cel.bl{background:color-mix(in srgb,var(--bl) 20%,transparent);color:var(--bl);border-color:color-mix(in srgb,var(--bl) 55%,transparent)}
-  .cel.na{background:transparent;color:var(--soft);opacity:.35;cursor:default;font-weight:400}
-  .cel.mod{outline:2px dashed var(--ink);outline-offset:1px}
-  .ex{position:absolute;right:-4px;top:-5px;min-width:17px;height:17px;border-radius:9px;background:var(--ink);color:var(--p1);
-    font-size:10px;font-style:normal;font-weight:800;line-height:17px;padding:0 4px;cursor:pointer}
   .tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 8px;margin-left:6px;vertical-align:1px;
     background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
   .tag.op{background:transparent;border:1px solid var(--line);color:var(--soft)}
@@ -132,6 +115,69 @@
   .toast.erro{border-color:var(--alerta)}
   .semacesso{max-width:520px;margin:60px auto;text-align:center}
   @media (max-width:640px){main{padding:16px 12px 150px} header{padding:12px 14px} .eu{display:none} .dois{grid-template-columns:1fr}}
+  /* ---- Cobertura: explorador estado → cidade ----
+     Vocabulário: claro = segue o estado · cheio com marcador = exceção da cidade · listrado = estado com exceções.
+     Tracejado = alteração ainda não salva. */
+  .st{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 4px;border-radius:8px;border:1px solid transparent;
+    font-size:12.5px;font-weight:800;position:relative;cursor:pointer;background:transparent;line-height:1;color:var(--ink)}
+  .st.lh,.st.l{background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+  .st.bh,.st.b{background:color-mix(in srgb,var(--bl) 18%,transparent);color:var(--bl)}
+  .st.l,.st.b{border-color:currentColor}
+  .st.le{background:var(--brand);color:var(--p1)}
+  .st.be{background:var(--bl);color:#1f1300}
+  .st.le::after,.st.be::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid var(--card)}
+  .st.p{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--brand) 26%,transparent) 0 5px,color-mix(in srgb,var(--bl) 22%,transparent) 5px 10px);color:var(--ink);border-color:var(--brand)}
+  .st.pb{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--bl) 26%,transparent) 0 5px,color-mix(in srgb,var(--brand) 18%,transparent) 5px 10px);color:var(--ink);border-color:var(--bl)}
+  .st.na{cursor:default;color:var(--soft);opacity:.45}
+  .st:not(.na):hover{transform:scale(1.07)}
+  .st.mod{outline:2px dashed var(--ink);outline-offset:2px}
+  .st:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .saude{display:inline-block;font-size:11px;font-weight:800;border-radius:20px;padding:2px 8px;white-space:nowrap}
+  .saude.ok{background:color-mix(in srgb,#22c55e 16%,transparent);color:#16a34a}
+  :root[data-theme="dark"] .saude.ok{color:#4ade80}
+  .saude.fragil{background:color-mix(in srgb,var(--bl) 18%,transparent);color:var(--bl)}
+  .saude.zero{background:color-mix(in srgb,#ef4444 16%,transparent);color:#ef4444}
+  .exp{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+  .ufs{border:1px solid var(--line);border-radius:14px;background:var(--card);max-height:calc(100dvh - 230px);min-height:320px;overflow:auto;position:sticky;top:12px}
+  .ufs h4{margin:0;padding:9px 14px 4px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);position:sticky;top:0;background:var(--card);z-index:1}
+  .ufb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:none;padding:9px 14px;cursor:pointer}
+  .ufb:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  .ufb[aria-current="true"]{background:color-mix(in srgb,var(--brand) 14%,transparent);box-shadow:inset 3px 0 0 var(--brand)}
+  .ufb b{font-size:13.5px;display:flex;gap:6px;align-items:center}
+  .ufb .mm{width:7px;height:7px;border-radius:50%;background:var(--ink);display:inline-block}
+  .ufb small{font-size:11px;color:var(--soft);text-align:right}
+  .dots{display:flex;gap:4px}
+  .dots i{width:10px;height:10px;border-radius:3px;display:block}
+  .dots i.l{background:color-mix(in srgb,var(--brand) 45%,transparent)} .dots i.b{background:var(--bl)}
+  .dots i.p{background:repeating-linear-gradient(135deg,var(--brand) 0 2px,var(--bl) 2px 4px)} .dots i.na{background:var(--line)}
+  .painel-uf{display:grid;gap:12px;min-width:0}
+  .cab-uf{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+  .cab-uf h3{margin:0;font-size:20px}
+  .cab-uf .cont{font-size:12.5px;color:var(--soft)}
+  .linha-estado{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  .linha-estado .rt{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-right:6px}
+  .te{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:3px 4px 3px 12px;font-size:12.5px;font-weight:600}
+  .ferr{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .ferr input[type=search]{flex:1;min-width:200px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap;cursor:pointer}
+  .massa{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--brand) 12%,transparent);font-size:13px}
+  .massa b{color:var(--brand)}
+  .massa select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  .tab-cid{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  table.dt{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  .dt th,.dt td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  .dt tbody tr:last-child td{border-bottom:0}
+  .dt thead th{font-size:11.5px;color:var(--soft);font-weight:700;position:sticky;top:0;background:var(--card);z-index:1}
+  .dt th.d,.dt td.d{text-align:left;white-space:normal;min-width:170px}
+  .dt td.ck,.dt th.ck{width:34px}
+  .dt tr.sel td{background:color-mix(in srgb,var(--brand) 8%,transparent)}
+  .dt .ib{font-size:11px;color:var(--soft);margin-left:6px}
+  .dt input[type=checkbox],.chk input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
+  .lnk{background:none;border:0;color:var(--brand);font-weight:700;cursor:pointer;padding:0;font-size:13px}
+  .lnk:hover{text-decoration:underline}
+  .uf-mob{display:none;width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700;font-size:15px}
+  @media (max-width:860px){.exp{grid-template-columns:minmax(0,1fr)} .ufs{display:none} .uf-mob{display:block}
+    .legenda{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;font-size:11.5px}}
 </style>
 </head>
 <body>
@@ -159,17 +205,22 @@
 
   <section id="s-cobertura" data-s="cobertura">
     <h2>Quem atende onde</h2>
-    <p class="sub">Clique numa célula para bloquear ou liberar a transportadora naquele estado. Nada vale até você salvar. Um bloqueio só é aceito se todo destino continuar com pelo menos uma transportadora de tabela.</p>
-    <div class="legenda">
-      <span><button class="cel" tabindex="-1" style="margin:0;width:26px;height:24px;cursor:default">✓</button> liberada</span>
-      <span><button class="cel bl" tabindex="-1" style="margin:0;width:26px;height:24px;cursor:default">✕</button> bloqueada</span>
-      <span><button class="cel na" tabindex="-1" style="margin:0;width:26px;height:24px">–</button> não atende por natureza</span>
-      <span><button class="cel mod" tabindex="-1" style="margin:0;width:26px;height:24px;cursor:default">✓</button> alterada (ainda não salva)</span>
-      <span><i class="ex" style="position:static">2</i> exceções por cidade</span>
+    <p class="sub">Escolha um estado. A linha “Estado inteiro” vale para o estado todo; cada cidade segue o estado até ganhar uma exceção (clique na célula da cidade). Nada vale até você salvar, e nenhuma mudança pode deixar estado ou cidade sem transportadora de tabela.</p>
+    <div class="legenda" aria-label="Legenda">
+      <span><span class="st lh" style="cursor:default">✓</span> atende (segue o estado)</span>
+      <span><span class="st bh" style="cursor:default">✕</span> bloqueada (segue o estado)</span>
+      <span><span class="st le" style="cursor:default">✓</span> exceção da cidade: atende</span>
+      <span><span class="st be" style="cursor:default">✕</span> exceção da cidade: bloqueada</span>
+      <span><span class="st p" style="cursor:default">◐</span> estado com exceções</span>
+      <span><span class="st na">–</span> não atende pela tabela</span>
+      <span><span class="st lh mod" style="cursor:default">✓</span> ainda não salva</span>
+      <span><span class="saude fragil">1</span> só 1 de tabela</span>
     </div>
-    <div class="scroll"><table class="mx" id="mx" aria-label="Cobertura por transportadora e estado"></table></div>
+    <div class="exp">
+      <div class="ufs" id="ufs" role="listbox" aria-label="Estados"></div>
+      <div class="painel-uf" id="painel-uf"><div class="vazio">carregando…</div></div>
+    </div>
     <div class="tools">
-      <button class="btn" id="b-cidade" type="button">＋ Exceção por cidade</button>
       <button class="btn" id="b-recarregar" type="button">↻ Recarregar do servidor</button>
       <span class="sub" style="margin:0" id="versao"></span>
     </div>
@@ -211,20 +262,6 @@
   <button class="btn pri" id="b-salvar" type="button" disabled>Salvar…</button>
 </div>
 
-<div class="mdl" id="m-cidade" hidden>
-  <div class="box" role="dialog" aria-modal="true" aria-labelledby="mc-t">
-    <h3 id="mc-t">Exceção por cidade</h3>
-    <p class="sub" style="margin:0">Dentro de um estado liberado, bloqueie cidades; dentro de um estado bloqueado, libere cidades.</p>
-    <div class="dois">
-      <label>Transportadora<select id="mc-transp"></select></label>
-      <label>Estado<select id="mc-uf"></select></label>
-    </div>
-    <input id="mc-busca" type="search" placeholder="Buscar cidade…" aria-label="Buscar cidade">
-    <div class="linhas" id="mc-lista"></div>
-    <div class="acoes"><button class="btn pri" id="mc-fechar" type="button">Pronto</button></div>
-  </div>
-</div>
-
 <div class="mdl" id="m-salvar" hidden>
   <div class="box" role="dialog" aria-modal="true" aria-labelledby="ms-t">
     <h3 id="ms-t">Confirmar alterações</h3>
@@ -250,7 +287,7 @@ const GATE = window.PortalGate && PortalGate.ativo();
 const API = (!GATE && new URLSearchParams(location.search).get("api")) || AZURE;
 const UF_PREFIXO = {"11":"RO","12":"AC","13":"AM","14":"RR","15":"PA","16":"AP","17":"TO","21":"MA","22":"PI","23":"CE","24":"RN","25":"PB","26":"PE","27":"AL","28":"SE","29":"BA","31":"MG","32":"ES","33":"RJ","35":"SP","41":"PR","42":"SC","43":"RS","50":"MS","51":"MT","52":"GO","53":"DF"};
 const ufDe = ibge => UF_PREFIXO[String(ibge).slice(0,2)] || "";
-const norm = s => String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+const norm = s => String(s == null ? "" : s).normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
 
 let E = null;                 // estado do servidor: {versao, ufs, transportadoras, regras}
 let base = new Map();         // regras salvas   key = cod|escopo|chave -> {liberado, motivo}
@@ -293,10 +330,10 @@ const msgErro = e => (e && e.corpo && e.corpo.erro) || "Algo deu errado. Tente d
 async function carregar(){
   try{
     E = await api("GET", "/v1/cobertura");
-  }catch(e){ $("#mx").innerHTML = ""; toast(msgErro(e), {erro:true}); if(!E) aviso("Não consegui carregar a cobertura agora. " + esc(msgErro(e))); return false; }
+  }catch(e){ $("#painel-uf").innerHTML = ""; toast(msgErro(e), {erro:true}); if(!E) aviso("Não consegui carregar a cobertura agora. " + esc(msgErro(e))); return false; }
   base = new Map(E.regras.map(r => [chave(r.transportadora, r.escopo, r.chave), { liberado: r.liberado, motivo: r.motivo }]));
   des = new Map([...base].map(([k, v]) => [k, Object.assign({}, v)]));
-  val = null; aviso(""); desenhar(); barra();
+  val = null; aviso(""); selCid.clear(); if(!ufSel) ufSel = ufInicial(); render(); barra();
   $("#versao").textContent = "versão das regras: " + E.versao;
   return true;
 }
@@ -304,33 +341,6 @@ const itens = () => [...des].map(([k, v]) => { const [c, e, ch] = k.split("|"); 
 function mudou(k){ const a = base.get(k), b = des.get(k); return (a ? a.liberado : null) !== (b ? b.liberado : null); }
 const pendentes = () => new Set([...base.keys(), ...des.keys()]).size && [...new Set([...base.keys(), ...des.keys()])].filter(mudou).length;
 const ufBloqueada = (c, uf) => { const r = des.get(chave(c, "UF", uf)); return !!r && r.liberado === false; };
-function excecoes(c, uf){ let n = 0; for(const k of des.keys()){ const [kc, e, ch] = k.split("|"); if(kc === c && e === "IBGE" && ufDe(ch) === uf) n++; } return n; }
-
-// ---------- matriz ----------
-function desenhar(){
-  const ufs = E.ufs;
-  let h = '<thead><tr><th class="nome">Transportadora</th>' + ufs.map(u => "<th>" + u + "</th>").join("") + "</tr></thead><tbody>";
-  for(const t of E.transportadoras){
-    h += '<tr><th class="nome" scope="row">' + esc(t.nome) + '<span class="tag' + (t.garante_cobertura ? "" : " op") + '">' + (t.garante_cobertura ? "tabela" : "opcional") + "</span>"
-      + "<small>" + esc(t.codigo) + " · atende " + t.ufs_naturais.length + " UF" + "</small></th>";
-    for(const u of ufs){
-      if(!t.ufs_naturais.includes(u)){ h += '<td><button class="cel na" disabled aria-label="' + esc(t.nome) + ' não atende ' + u + '">–</button></td>'; continue; }
-      const bl = ufBloqueada(t.codigo, u), mod = mudou(chave(t.codigo, "UF", u)), ex = excecoes(t.codigo, u);
-      h += '<td><button class="cel' + (bl ? " bl" : "") + (mod ? " mod" : "") + '" data-c="' + t.codigo + '" data-u="' + u + '" aria-label="' + esc(t.nome) + " em " + u + ": "
-        + (bl ? "bloqueada. Clique para liberar" : "liberada. Clique para bloquear") + '">' + (bl ? "✕" : "✓")
-        + (ex ? '<i class="ex" data-city="1" title="' + ex + ' exceção(ões) por cidade">' + ex + "</i>" : "") + "</button></td>";
-    }
-    h += "</tr>";
-  }
-  $("#mx").innerHTML = h + "</tbody>";
-}
-$("#mx").addEventListener("click", ev => {
-  const b = ev.target.closest(".cel[data-c]"); if(!b) return;
-  if(ev.target.closest("[data-city]")){ abrirCidades(b.dataset.c, b.dataset.u); return; }
-  const k = chave(b.dataset.c, "UF", b.dataset.u);
-  if(ufBloqueada(b.dataset.c, b.dataset.u)) des.delete(k); else des.set(k, { liberado: false, motivo: "" });
-  desenhar(); agendar();
-});
 
 // ---------- validação e barra de pendências ----------
 function agendar(){ clearTimeout(timer); barra(); timer = setTimeout(validar, 350); }
@@ -350,7 +360,7 @@ function barra(){
   $("#bar-st").innerHTML = h;
   $("#b-salvar").disabled = !(val && val.ok && val.mudancas.length);
 }
-$("#b-descartar").onclick = () => { des = new Map([...base].map(([k, v]) => [k, Object.assign({}, v)])); val = null; desenhar(); barra(); };
+$("#b-descartar").onclick = () => { des = new Map([...base].map(([k, v]) => [k, Object.assign({}, v)])); val = null; render(); barra(); };
 $("#b-recarregar").onclick = async () => { if(pendentes() && !confirm("Descartar as alterações pendentes e recarregar?")) return; await carregar(); toast("Regras recarregadas."); };
 
 // ---------- salvar ----------
@@ -380,44 +390,154 @@ $("#ms-ok").onclick = async () => {
   }finally{ bt.disabled = false; bt.textContent = "Aplicar"; }
 };
 
-// ---------- exceção por cidade ----------
-let mcT = "", mcU = "";
-async function municipios(uf){ if(!munis[uf]) munis[uf] = (await api("GET", "/v1/cobertura/municipios?uf=" + uf)).municipios; return munis[uf]; }
-function preencherSelects(){
-  const t = $("#mc-transp"), u = $("#mc-uf");
-  t.innerHTML = E.transportadoras.map(x => '<option value="' + x.codigo + '">' + esc(x.nome) + "</option>").join("");
-  t.value = mcT || E.transportadoras[0].codigo;
-  const nat = E.transportadoras.find(x => x.codigo === t.value).ufs_naturais;
-  u.innerHTML = nat.map(x => '<option value="' + x + '">' + x + "</option>").join("");
-  u.value = nat.includes(mcU) ? mcU : nat[0];
-  mcT = t.value; mcU = u.value;
+// ---------- explorador estado → cidade ----------
+// Regras locais espelham as da API (cobertura.py): cidade segue o estado até ganhar exceção; UF só guarda bloqueio;
+// exceção igual ao estado deixa de existir; ninguém pode ficar sem transportadora de tabela. A API valida de novo ao salvar.
+const REGIOES = [["Norte",["AC","AM","AP","PA","RO","RR","TO"]],["Nordeste",["AL","BA","CE","MA","PB","PE","PI","RN","SE"]],
+  ["Centro-Oeste",["DF","GO","MS","MT"]],["Sudeste",["ES","MG","RJ","SP"]],["Sul",["PR","RS","SC"]]];
+const NOME_UF = {AC:"Acre",AM:"Amazonas",AP:"Amapá",PA:"Pará",RO:"Rondônia",RR:"Roraima",TO:"Tocantins",AL:"Alagoas",BA:"Bahia",CE:"Ceará",MA:"Maranhão",PB:"Paraíba",PE:"Pernambuco",PI:"Piauí",RN:"Rio Grande do Norte",SE:"Sergipe",DF:"Distrito Federal",GO:"Goiás",MS:"Mato Grosso do Sul",MT:"Mato Grosso",ES:"Espírito Santo",MG:"Minas Gerais",RJ:"Rio de Janeiro",SP:"São Paulo",PR:"Paraná",RS:"Rio Grande do Sul",SC:"Santa Catarina"};
+const MINUSC = new Set(["de","da","do","das","dos","e","d"]);
+const titulo = n => String(n).toLowerCase().split(" ").map((w, i) => (i && MINUSC.has(w)) ? w : w.replace(/(^|['-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase())).join(" ");
+let ufSel = "", qCid = "", soExc = false, limCid = 60;
+const selCid = new Set();
+const tr = () => E.transportadoras;
+const SIGLAS = new Set(["TGT", "VIP"]);
+const nomeT = t => String(t.nome).split(" ").map(w => SIGLAS.has(w.toUpperCase()) ? w.toUpperCase() : titulo(w)).join(" ");
+const garantidoras = () => tr().filter(t => t.garante_cobertura);
+const nat = (c, uf) => (tr().find(t => t.codigo === c) || {ufs_naturais: []}).ufs_naturais.includes(uf);
+const ufLib = (c, uf) => nat(c, uf) && !ufBloqueada(c, uf);
+function cidEf(c, ib){
+  const uf = ufDe(ib);
+  if(!nat(c, uf)) return {lib: false, origem: "natureza"};
+  const r = des.get(chave(c, "IBGE", ib));
+  return r ? {lib: r.liberado, origem: "excecao"} : {lib: ufLib(c, uf), origem: "estado"};
 }
-async function abrirCidades(c, uf){ mcT = c || ""; mcU = uf || ""; preencherSelects(); $("#mc-busca").value = ""; abrir($("#m-cidade")); await listaCidades(); $("#mc-busca").focus(); }
-async function listaCidades(){
-  const box = $("#mc-lista"); box.innerHTML = '<div class="vazio">carregando…</div>';
-  let lista; try{ lista = await municipios(mcU); }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; return; }
-  const q = norm($("#mc-busca").value), blUF = ufBloqueada(mcT, mcU);
-  const exc = lista.filter(m => des.has(chave(mcT, "IBGE", m.ibge)));
-  let vis = lista.filter(m => !q || norm(m.cidade).includes(q));
-  const total = vis.length; vis = vis.slice(0, 150);
-  const lin = m => { const r = des.get(chave(mcT, "IBGE", m.ibge)), efet = r ? r.liberado : !blUF;
-    return '<div class="lin"><span>' + esc(m.cidade) + "<small>" + (r ? "exceção: " + (r.liberado ? "liberada" : "bloqueada") : "segue o estado: " + (blUF ? "bloqueada" : "liberada")) + "</small></span>"
-      + '<button class="btn" data-ibge="' + m.ibge + '">' + (r ? "Remover exceção" : efet ? "Bloquear aqui" : "Liberar aqui") + "</button></div>"; };
-  box.innerHTML = (exc.length && !q ? '<div class="lin" style="background:color-mix(in srgb,var(--brand) 10%,transparent)"><b>Exceções nesta UF (' + exc.length + ")</b></div>" + exc.map(lin).join("") : "")
-    + (vis.length ? vis.map(lin).join("") : '<div class="vazio">nenhuma cidade encontrada</div>')
-    + (total > 150 ? '<div class="lin"><small>mostrando 150 de ' + total + " — refine a busca</small></div>" : "");
+const garantUF = uf => garantidoras().filter(t => ufLib(t.codigo, uf)).length;
+const garantCid = ib => garantidoras().filter(t => cidEf(t.codigo, ib).lib).length;
+function excDe(c, uf){ const r = []; for(const k of des.keys()){ const [kc, e, ch] = k.split("|"); if(kc === c && e === "IBGE" && ufDe(ch) === uf) r.push(ch); } return r; }
+function excUF(uf){ const s = new Set(); for(const k of des.keys()){ const [, e, ch] = k.split("|"); if(e === "IBGE" && ufDe(ch) === uf) s.add(ch); } return s; }
+function ufTemPendencia(uf){ for(const k of new Set([...base.keys(), ...des.keys()])){ const [, e, ch] = k.split("|"); if((e === "UF" ? ch : ufDe(ch)) === uf && mudou(k)) return true; } return false; }
+function classeUF(c, uf){ if(!nat(c, uf)) return "na"; const lib = ufLib(c, uf), ex = excDe(c, uf).length; return ex ? (lib ? "p" : "pb") : (lib ? "l" : "b"); }
+function classeCid(c, ib){ const e = cidEf(c, ib); if(e.origem === "natureza") return "na"; return e.origem === "excecao" ? (e.lib ? "le" : "be") : (e.lib ? "lh" : "bh"); }
+const ICONE = {na: "–", l: "✓", b: "✕", p: "◐", pb: "◐", lh: "✓", bh: "✕", le: "✓", be: "✕"};
+const ROTULO = {na: "não atende pela tabela", l: "atende o estado", b: "bloqueada no estado", p: "atende o estado, com exceções em cidades", pb: "bloqueada no estado, com exceções em cidades", lh: "atende (segue o estado)", bh: "bloqueada (segue o estado)", le: "exceção da cidade: atende", be: "exceção da cidade: bloqueada"};
+function saude(n, curto){ const c = n === 0 ? "zero" : n === 1 ? "fragil" : "ok"; return '<span class="saude ' + c + '" title="' + n + ' transportadora(s) de tabela">' + (curto ? n : (n === 0 ? "sem cobertura" : n + " de tabela")) + "</span>"; }
+const copiaDes = () => new Map([...des].map(([k, v]) => [k, Object.assign({}, v)]));
+// cidades com exceção (de qualquer transportadora) que ficariam sem nenhuma de tabela
+function cidadesDescobertas(){ const r = [], vistos = new Set(); for(const k of des.keys()){ const [, e, ch] = k.split("|"); if(e !== "IBGE" || vistos.has(ch)) continue; vistos.add(ch); if(garantCid(ch) === 0) r.push(ch); } return r; }
+const nomeCid = ib => { const m = (munis[ufDe(ib)] || []).find(x => x.ibge === ib); return m ? titulo(m.cidade) : ib; };
+const ehGarantidora = c => !!(tr().find(t => t.codigo === c) || {}).garante_cobertura;
+
+function setUF(c, uf, lib){
+  if(!nat(c, uf) || ufLib(c, uf) === lib) return;
+  const antes = copiaDes();
+  if(lib) des.delete(chave(c, "UF", uf)); else des.set(chave(c, "UF", uf), {liberado: false, motivo: ""});
+  for(const ib of excDe(c, uf)) if(des.get(chave(c, "IBGE", ib)).liberado === ufLib(c, uf)) des.delete(chave(c, "IBGE", ib));
+  if(ehGarantidora(c) && garantUF(uf) === 0){ des = antes; toast("Não dá: " + NOME_UF[uf] + " ficaria sem nenhuma transportadora de tabela.", {erro: true}); return; }
+  const sem = cidadesDescobertas();
+  if(sem.length){ des = antes; toast("Não dá: " + sem.slice(0, 3).map(nomeCid).join(", ") + " ficaria sem transportadora de tabela.", {erro: true}); return; }
+  render(); agendar();
 }
-$("#mc-transp").onchange = () => { mcT = $("#mc-transp").value; preencherSelects(); listaCidades(); };
-$("#mc-uf").onchange = () => { mcU = $("#mc-uf").value; listaCidades(); };
-$("#mc-busca").oninput = () => listaCidades();
-$("#mc-lista").addEventListener("click", ev => {
-  const b = ev.target.closest("button[data-ibge]"); if(!b) return;
-  const k = chave(mcT, "IBGE", b.dataset.ibge);
-  if(des.has(k)) des.delete(k); else des.set(k, { liberado: ufBloqueada(mcT, mcU), motivo: "" });  // exceção = o contrário da UF
-  listaCidades(); desenhar(); agendar();
+// modo: "seguir" | "lib" | "bl"
+function setCids(c, ibs, modo){
+  const recusadas = [], viraram = []; let feitas = 0;
+  if(modo !== "seguir"){   // seleção que cobre o estado inteiro vira 1 regra de estado (não 853 exceções)
+    const porUF = {}; for(const ib of ibs) (porUF[ufDe(ib)] = porUF[ufDe(ib)] || []).push(ib);
+    for(const [uf, l] of Object.entries(porUF)){
+      if(!munis[uf] || l.length !== munis[uf].length || !nat(c, uf)) continue;
+      const antes = copiaDes(), lib = modo === "lib";
+      if(lib) des.delete(chave(c, "UF", uf)); else des.set(chave(c, "UF", uf), {liberado: false, motivo: ""});
+      for(const ib of excDe(c, uf)) des.delete(chave(c, "IBGE", ib));
+      if(ehGarantidora(c) && (garantUF(uf) === 0 || cidadesDescobertas().length)){ des = antes; recusadas.push(NOME_UF[uf] + " (estado inteiro)"); }
+      else viraram.push(NOME_UF[uf] + " (" + l.length + " cidades)");
+      const s = new Set(l); ibs = ibs.filter(ib => !s.has(ib));
+    }
+  }
+  for(const ib of ibs){
+    const uf = ufDe(ib); if(!nat(c, uf)) continue;
+    const k = chave(c, "IBGE", ib), antes = des.has(k) ? des.get(k).liberado : undefined;
+    if(modo === "seguir") des.delete(k);
+    else { const lib = modo === "lib"; if(lib === ufLib(c, uf)) des.delete(k); else des.set(k, {liberado: lib, motivo: ""}); }
+    if(ehGarantidora(c) && garantCid(ib) === 0){ if(antes === undefined) des.delete(k); else des.set(k, {liberado: antes, motivo: ""}); recusadas.push(nomeCid(ib)); }
+    else if(antes !== (des.has(k) ? des.get(k).liberado : undefined)) feitas++;
+  }
+  const partes = [];
+  if(viraram.length) partes.push("Virou regra do estado inteiro: " + titulo(nomeDe(c)) + (modo === "lib" ? " atende " : " bloqueada em ") + viraram.join(", ") + ".");
+  if(feitas && (ibs.length > 1 || viraram.length)) partes.push(feitas + " cidade(s) alterada(s).");
+  if(recusadas.length) partes.push(recusadas.length + " recusada(s) porque ficariam sem transportadora de tabela: " + recusadas.slice(0, 4).join(", ") + (recusadas.length > 4 ? "…" : "") + ".");
+  if(partes.length) toast(partes.join(" "), recusadas.length ? {erro: true, ms: 8000} : undefined);
+  render(); agendar();
+}
+function ciclo(c, ib){ const e = cidEf(c, ib); if(e.origem === "natureza") return; setCids(c, [ib], e.origem === "excecao" ? "seguir" : (e.lib ? "bl" : "lib")); }
+
+function render(){ renderUFs(); renderPainel(); }
+function renderUFs(){
+  let h = "";
+  for(const [rn, l] of REGIOES){
+    h += "<h4>" + rn + "</h4>";
+    for(const u of l){
+      const ex = excUF(u).size;
+      h += '<button class="ufb" role="option" data-uf="' + u + '" aria-current="' + (u === ufSel) + '"><b>' + NOME_UF[u] + (ufTemPendencia(u) ? '<span class="mm" title="alterações ainda não salvas"></span>' : "") + "</b>" + saude(garantUF(u), true)
+        + '<span class="dots">' + garantidoras().map(t => { const c = classeUF(t.codigo, u); return '<i class="' + (c === "pb" ? "p" : c) + '" title="' + esc(nomeT(t)) + ": " + ROTULO[c] + '"></i>'; }).join("") + "</span>"
+        + "<small>" + (ex ? ex + " cidade" + (ex > 1 ? "s" : "") + " c/ exceção" : "") + "</small></button>";
+    }
+  }
+  $("#ufs").innerHTML = h;
+}
+function filtradas(){
+  const q = norm(qCid), lista = munis[ufSel] || [];
+  const comExc = ib => tr().some(t => des.has(chave(t.codigo, "IBGE", ib)));
+  return lista.filter(m => (!q || norm(m.cidade).includes(q) || m.ibge === q) && (!soExc || comExc(m.ibge)))
+    .sort((a, b) => (comExc(b.ibge) - comExc(a.ibge)) || a.cidade.localeCompare(b.cidade));
+}
+async function renderPainel(){
+  const p = $("#painel-uf"), uf = ufSel;
+  if(!munis[uf]){
+    p.innerHTML = '<div class="vazio">carregando as cidades de ' + NOME_UF[uf] + "…</div>";
+    try{ await municipios(uf); }catch(e){ p.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; return; }
+    if(uf !== ufSel) return;
+  }
+  const todas = munis[uf], lista = filtradas(), vis = lista.slice(0, limCid);
+  let h = '<select class="uf-mob" id="uf-mob" aria-label="Estado">' + REGIOES.map(([rn, l]) => '<optgroup label="' + rn + '">' + l.map(u => { const n = garantUF(u), ex = excUF(u).size;
+    return '<option value="' + u + '"' + (u === uf ? " selected" : "") + ">" + NOME_UF[u] + " · " + n + " de tabela" + (ex ? " · " + ex + " c/ exceção" : "") + "</option>"; }).join("") + "</optgroup>").join("") + "</select>";
+  h += '<div class="cab-uf"><h3>' + NOME_UF[uf] + "</h3>" + saude(garantUF(uf)) + '<span class="cont">' + todas.length + " cidades · " + excUF(uf).size + " com exceção</span></div>";
+  h += '<div class="linha-estado"><span class="rt">Estado inteiro</span>' + tr().map(t => { const c = classeUF(t.codigo, uf), mod = mudou(chave(t.codigo, "UF", uf));
+    return '<span class="te">' + esc(nomeT(t)) + ' <button type="button" class="st ' + c + (mod ? " mod" : "") + '" data-ue="' + t.codigo + '" title="' + esc(t.nome) + " · " + NOME_UF[uf] + ": " + ROTULO[c] + (c === "na" ? "" : ". Clique para " + (ufLib(t.codigo, uf) ? "bloquear" : "liberar") + " o estado") + '"' + (c === "na" ? " disabled" : "") + ">" + ICONE[c] + "</button></span>"; }).join("") + "</div>";
+  h += '<div class="ferr"><input id="q-cid" type="search" placeholder="Buscar cidade em ' + NOME_UF[uf] + ' (nome ou código IBGE)…" value="' + esc(qCid) + '" aria-label="Buscar cidade"><label class="chk"><input type="checkbox" id="so-exc"' + (soExc ? " checked" : "") + "> só cidades com exceção</label></div>";
+  if(selCid.size) h += '<div class="massa"><b>' + selCid.size + " cidade" + (selCid.size > 1 ? "s" : "") + " selecionada" + (selCid.size > 1 ? "s" : "") + '</b><select id="mt" aria-label="Transportadora">' + tr().map(t => '<option value="' + t.codigo + '">' + esc(nomeT(t)) + "</option>").join("") + '</select><select id="mm" aria-label="Ação"><option value="bl">bloquear</option><option value="lib">liberar</option><option value="seguir">voltar a seguir o estado</option></select><button class="btn pri" type="button" id="b-massa">Aplicar</button><button class="btn" type="button" id="b-limpa">Limpar seleção</button></div>';
+  const todasVis = vis.length && vis.every(m => selCid.has(m.ibge));
+  h += '<div class="tab-cid"><table class="dt"><thead><tr><th class="ck"><input type="checkbox" id="ck-all" aria-label="Selecionar as cidades listadas"' + (todasVis ? " checked" : "") + '></th><th class="d">Cidade</th>' + tr().map(t => '<th title="' + esc(t.codigo) + '">' + esc(nomeT(t)) + "</th>").join("") + "<th>Saúde</th></tr></thead><tbody>";
+  h += vis.map(m => { const ib = m.ibge, sel = selCid.has(ib);
+    return '<tr class="' + (sel ? "sel" : "") + '"><td class="ck"><input type="checkbox" data-ck="' + ib + '"' + (sel ? " checked" : "") + ' aria-label="Selecionar ' + esc(titulo(m.cidade)) + '"></td><td class="d">' + esc(titulo(m.cidade)) + '<span class="ib">' + ib + "</span></td>"
+      + tr().map(t => { const c = classeCid(t.codigo, ib), mod = mudou(chave(t.codigo, "IBGE", ib));
+        return '<td><button type="button" class="st ' + c + (mod ? " mod" : "") + '" data-cc="' + t.codigo + "|" + ib + '" title="' + esc(t.nome) + " em " + esc(titulo(m.cidade)) + ": " + ROTULO[c] + '"' + (c === "na" ? " disabled" : "") + ">" + ICONE[c] + "</button></td>"; }).join("")
+      + "<td>" + saude(garantCid(ib), true) + "</td></tr>"; }).join("");
+  h += "</tbody></table></div>";
+  if(!vis.length) h += '<div class="vazio">Nenhuma cidade encontrada.</div>';
+  if(lista.length > vis.length || lista.length > 1) h += '<div class="tools" style="margin:0">' + (lista.length > vis.length ? '<button class="btn" type="button" id="b-mais">Mostrar mais (' + (lista.length - vis.length) + " restantes)</button>" : "")
+    + (lista.length > 1 ? '<button class="lnk" type="button" id="b-sel-todas">Selecionar as ' + lista.length + " cidades" + (qCid || soExc ? " do filtro" : " do estado") + "</button>" : "") + "</div>";
+  p.innerHTML = h;
+}
+function escolherUF(uf){ if(uf === ufSel) return; ufSel = uf; qCid = ""; soExc = false; limCid = 60; selCid.clear(); render(); }
+$("#ufs").addEventListener("click", e => { const b = e.target.closest("[data-uf]"); if(b) escolherUF(b.dataset.uf); });
+$("#painel-uf").addEventListener("click", e => {
+  const ue = e.target.closest("[data-ue]"); if(ue){ setUF(ue.dataset.ue, ufSel, !ufLib(ue.dataset.ue, ufSel)); return; }
+  const cc = e.target.closest("[data-cc]"); if(cc){ const [c, ib] = cc.dataset.cc.split("|"); ciclo(c, ib); return; }
+  if(e.target.id === "b-mais"){ limCid += 120; renderPainel(); return; }
+  if(e.target.id === "b-sel-todas"){ filtradas().forEach(m => selCid.add(m.ibge)); renderPainel(); return; }
+  if(e.target.id === "b-massa"){ const alvo = [...selCid]; selCid.clear(); setCids($("#mt").value, alvo, $("#mm").value); return; }
+  if(e.target.id === "b-limpa"){ selCid.clear(); renderPainel(); }
 });
-$("#mc-fechar").onclick = () => fechar($("#m-cidade"));
-$("#b-cidade").onclick = () => abrirCidades("", "");
+$("#painel-uf").addEventListener("change", e => {
+  if(e.target.id === "uf-mob"){ escolherUF(e.target.value); return; }
+  if(e.target.id === "so-exc"){ soExc = e.target.checked; limCid = 60; renderPainel(); return; }
+  if(e.target.id === "ck-all"){ filtradas().slice(0, limCid).forEach(m => e.target.checked ? selCid.add(m.ibge) : selCid.delete(m.ibge)); renderPainel(); return; }
+  const ck = e.target.closest("[data-ck]"); if(ck){ ck.checked ? selCid.add(ck.dataset.ck) : selCid.delete(ck.dataset.ck); renderPainel(); }
+});
+$("#painel-uf").addEventListener("input", e => { if(e.target.id === "q-cid"){ qCid = e.target.value; limCid = 60; const pos = e.target.selectionStart; renderPainel().then(() => { const i = $("#q-cid"); if(i){ i.focus(); i.setSelectionRange(pos, pos); } }); } });
+function ufInicial(){ for(const [, l] of REGIOES) for(const u of l) if(tr().some(t => ufBloqueada(t.codigo, u) || excDe(t.codigo, u).length)) return u; return "SP"; }
+
+async function municipios(uf){ if(!munis[uf]) munis[uf] = (await api("GET", "/v1/cobertura/municipios?uf=" + uf)).municipios; return munis[uf]; }
 
 // ---------- Excel ----------
 const SIM = new Set(["sim","s","liberado","liberada","1","true","x","ok"]), NAO = new Set(["nao","n","bloqueado","bloqueada","0","false"]);
@@ -564,7 +684,7 @@ $("#hist-corpo").addEventListener("click", ev => {
   const h = histCache[+b.dataset.desfazer];
   for(const m of h.mudancas){ const k = chave(m.transportadora, m.escopo, m.chave);
     if(m.antes === null) des.delete(k); else des.set(k, { liberado: m.antes, motivo: "" }); }
-  trocarAba("cobertura"); desenhar(); agendar();
+  trocarAba("cobertura"); render(); agendar();
   toast("Reversão preparada: confira e clique em Salvar.");
 });
 
