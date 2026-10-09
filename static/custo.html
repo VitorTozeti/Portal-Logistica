@@ -120,14 +120,18 @@
      Tracejado = alteração ainda não salva. */
   .st{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 4px;border-radius:8px;border:1px solid transparent;
     font-size:12.5px;font-weight:800;position:relative;cursor:pointer;background:transparent;line-height:1;color:var(--ink)}
-  .st.lh,.st.l{background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
-  .st.bh,.st.b{background:color-mix(in srgb,var(--bl) 18%,transparent);color:var(--bl)}
-  .st.l,.st.b{border-color:currentColor}
-  .st.le{background:var(--brand);color:var(--p1)}
-  .st.be{background:var(--bl);color:#1f1300}
+  /* verde = atende, vermelho = bloqueada (mesma lógica do contador da lista de estados) */
+  :root, :root[data-theme="dark"]{ --at:#34d399; --bq:#f87171; }
+  :root[data-theme="light"]{ --at:#059669; --bq:#dc2626; }
+  .st.lh,.st.l{background:color-mix(in srgb,var(--at) 15%,transparent);color:var(--at)}
+  .st.bh,.st.b{background:color-mix(in srgb,var(--bq) 15%,transparent);color:var(--bq)}
+  .st.l,.st.b{border-color:color-mix(in srgb,currentColor 55%,transparent)}
+  .st.le{background:var(--at);color:#ffffff}
+  .st.be{background:var(--bq);color:#ffffff}
+  :root[data-theme="dark"] .st.le{color:#052e1c} :root[data-theme="dark"] .st.be{color:#3b0808}
   .st.le::after,.st.be::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid var(--card)}
-  .st.p{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--brand) 26%,transparent) 0 5px,color-mix(in srgb,var(--bl) 22%,transparent) 5px 10px);color:var(--ink);border-color:var(--brand)}
-  .st.pb{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--bl) 26%,transparent) 0 5px,color-mix(in srgb,var(--brand) 18%,transparent) 5px 10px);color:var(--ink);border-color:var(--bl)}
+  .st.p{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--at) 28%,transparent) 0 5px,color-mix(in srgb,var(--bq) 18%,transparent) 5px 10px);color:var(--at);border-color:color-mix(in srgb,var(--at) 55%,transparent)}
+  .st.pb{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--bq) 28%,transparent) 0 5px,color-mix(in srgb,var(--at) 18%,transparent) 5px 10px);color:var(--bq);border-color:color-mix(in srgb,var(--bq) 55%,transparent)}
   .st.na{cursor:default;color:var(--soft);opacity:.45}
   .st:not(.na):hover{transform:scale(1.07)}
   .st.mod{outline:2px dashed var(--ink);outline-offset:2px}
