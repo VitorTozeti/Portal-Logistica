@@ -137,19 +137,21 @@
   :root[data-theme="dark"] .saude.ok{color:#4ade80}
   .saude.fragil{background:color-mix(in srgb,var(--bl) 18%,transparent);color:var(--bl)}
   .saude.zero{background:color-mix(in srgb,#ef4444 16%,transparent);color:#ef4444}
-  .exp{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+  .exp{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}
   .ufs{border:1px solid var(--line);border-radius:14px;background:var(--card);max-height:calc(100dvh - 230px);min-height:320px;overflow:auto;position:sticky;top:12px}
-  .ufs h4{margin:0;padding:9px 14px 4px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);position:sticky;top:0;background:var(--card);z-index:1}
-  .ufb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:none;padding:9px 14px;cursor:pointer}
-  .ufb:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
-  .ufb[aria-current="true"]{background:color-mix(in srgb,var(--brand) 14%,transparent);box-shadow:inset 3px 0 0 var(--brand)}
-  .ufb b{font-size:13.5px;display:flex;gap:6px;align-items:center}
-  .ufb .mm{width:7px;height:7px;border-radius:50%;background:var(--ink);display:inline-block}
-  .ufb small{font-size:11px;color:var(--soft);text-align:right}
-  .dots{display:flex;gap:4px}
-  .dots i{width:10px;height:10px;border-radius:3px;display:block}
-  .dots i.l{background:color-mix(in srgb,var(--brand) 45%,transparent)} .dots i.b{background:var(--bl)}
-  .dots i.p{background:repeating-linear-gradient(135deg,var(--brand) 0 2px,var(--bl) 2px 4px)} .dots i.na{background:var(--line)}
+  .ufs{padding:4px 6px 8px}
+  .ufs h4{margin:0 -6px;padding:12px 16px 6px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);position:sticky;top:0;background:var(--card);z-index:1}
+  .ufb{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;border:0;border-radius:10px;background:none;padding:6px 10px;margin:1px 0;cursor:pointer;color:var(--ink);font-family:inherit;transition:background .12s}
+  .ufb:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+  .ufb:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+  .ufb .sg{flex:none;width:32px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;letter-spacing:.03em;background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--soft)}
+  .ufb .nm{flex:1;min-width:0;font-size:13.5px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+  .ufb .mm{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bl);box-shadow:0 0 0 3px color-mix(in srgb,var(--bl) 25%,transparent)}
+  .ufb .ex{flex:none;font-size:10.5px;font-weight:800;border-radius:20px;padding:2px 7px;background:color-mix(in srgb,var(--bl) 16%,transparent);color:var(--bl)}
+  .ufb .saude{flex:none;min-width:24px;text-align:center}
+  .ufb[aria-current="true"]{background:color-mix(in srgb,var(--brand) 16%,transparent)}
+  .ufb[aria-current="true"] .sg{background:var(--brand);color:var(--card)}
+  .ufb[aria-current="true"] .nm{font-weight:800}
   .painel-uf{display:grid;gap:12px;min-width:0}
   .cab-uf{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
   .cab-uf h3{margin:0;font-size:20px}
@@ -477,9 +479,10 @@ function renderUFs(){
     h += "<h4>" + rn + "</h4>";
     for(const u of l){
       const ex = excUF(u).size;
-      h += '<button class="ufb" role="option" data-uf="' + u + '" aria-current="' + (u === ufSel) + '"><b>' + NOME_UF[u] + (ufTemPendencia(u) ? '<span class="mm" title="alterações ainda não salvas"></span>' : "") + "</b>" + saude(garantUF(u), true)
-        + '<span class="dots">' + garantidoras().map(t => { const c = classeUF(t.codigo, u); return '<i class="' + (c === "pb" ? "p" : c) + '" title="' + esc(nomeT(t)) + ": " + ROTULO[c] + '"></i>'; }).join("") + "</span>"
-        + "<small>" + (ex ? ex + " cidade" + (ex > 1 ? "s" : "") + " c/ exceção" : "") + "</small></button>";
+      h += '<button class="ufb" role="option" data-uf="' + u + '" aria-current="' + (u === ufSel) + '"><span class="sg">' + u + '</span><span class="nm">' + NOME_UF[u] + "</span>"
+        + (ufTemPendencia(u) ? '<span class="mm" title="alterações ainda não salvas"></span>' : "")
+        + (ex ? '<span class="ex" title="' + ex + " cidade" + (ex > 1 ? "s" : "") + ' com exceção">' + ex + " exc.</span>" : "")
+        + saude(garantUF(u), true) + "</button>";
     }
   }
   $("#ufs").innerHTML = h;
