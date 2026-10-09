@@ -335,6 +335,8 @@
   .usr-linha .st.pend{color:var(--alerta);opacity:1}
   .usr-linha .ac{display:flex;gap:6px;align-items:center;grid-row:1/3;grid-column:2}
   .usr-linha select{width:auto;padding:5px 6px;font-size:13px}
+  .custo-chk{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer}
+  .custo-chk input{width:auto;margin:0}
   .usr-add{margin-top:12px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
   .usr-add summary{cursor:pointer;font-weight:700;font-size:13.5px}
   .usr-add textarea{margin-top:10px;resize:vertical}
@@ -364,6 +366,7 @@
     <button type="button" class="avatar" id="avatar" aria-haspopup="true" aria-expanded="false" aria-label="Minha conta"><span id="avatar-ini">?</span></button>
     <div class="conta-menu" id="conta-menu" hidden role="menu">
       <div class="conta-quem"><b id="conta-email">—</b><span id="quem" class="conta-perfil"></span></div>
+      <a href="./custo.html" id="btn-custo" hidden role="menuitem">💲 Custo de Frete</a>
       <a href="#" id="btn-usuarios" hidden role="menuitem">👥 Usuários</a>
       <a href="#" id="btn-senha" hidden role="menuitem">🔑 Trocar senha</a>
       <a href="/logout" id="sair" role="menuitem">⎋ Sair</a>
@@ -896,7 +899,9 @@
         `<div class="usr-linha"><span class="em">${esc(u.email)}${u.email === meu ? " (você)" : ""}</span>`
         + `<span class="ac"><select data-em="${esc(u.email)}" aria-label="Perfil de ${esc(u.email)}">`
         + ["logistica","ti","leitor"].map(p => `<option value="${p}"${u.perfil===p?" selected":""}>${PERFIL_ROT[p]}</option>`).join("")
-        + `</select>` + (u.email === meu ? "" : `<button class="btn" data-rm="${esc(u.email)}" type="button">remover</button>`) + `</span>`
+        + `</select>`
+        + `<label class="custo-chk" title="${u.perfil === "ti" ? "O TI sempre tem acesso" : "Pode ver e editar o Custo de Frete"}"><input type="checkbox" data-custo="${esc(u.email)}"${u.perfil === "ti" || u.acessoCusto ? " checked" : ""}${u.perfil === "ti" ? " disabled" : ""}> Custo de Frete</label>`
+        + (u.email === meu ? "" : `<button class="btn" data-rm="${esc(u.email)}" type="button">remover</button>`) + `</span>`
         + (u.ultimoAcesso ? `<span class="st">● Ativo · último acesso ${fmt(u.ultimoAcesso)}</span>` : `<span class="st pend">○ Ainda não criou a conta</span>`)
         + `</div>`).join("") : '<div class="empty">nenhum usuário encontrado</div>';
     }
@@ -920,6 +925,12 @@
       const s = e.target.closest("select[data-em]"); if(!s) return;
       if(s.dataset.em === PortalGate.usuario().email && !confirm("Você vai mudar o seu próprio perfil. Continuar?")){ desenhar(); return; }
       try{ await PortalGate.salvarUsuario(s.dataset.em, s.value); toast("Perfil atualizado."); carregar(); }
+      catch(x){ falha("Não foi possível salvar: ", x); desenhar(); }
+    });
+    $("#usr-lista").addEventListener("change", async e => {
+      const c = e.target.closest("input[data-custo]"); if(!c) return;
+      try{ await PortalGate.salvarAcessoCusto(c.dataset.custo, c.checked);
+           toast(c.checked ? "Acesso ao Custo de Frete liberado." : "Acesso ao Custo de Frete removido."); carregar(); }
       catch(x){ falha("Não foi possível salvar: ", x); desenhar(); }
     });
     $("#usr-lista").addEventListener("click", async e => {
@@ -1094,6 +1105,7 @@
       if(!u) return;
       montarConta(u.email, u.perfil);
       if(u.perfil === "ti") $("#btn-usuarios").hidden = false;
+      if(PortalGate.podeCusto()) $("#btn-custo").hidden = false;
       PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
     });
   } else {

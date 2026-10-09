@@ -54,9 +54,13 @@ window.PortalGate = (function () {
         db.collection("usuarios").doc(email).get(),
         new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
       ]);
-      if (d.exists && PERFIS.includes(d.data().perfil)) return { email, perfil: d.data().perfil, doc: true };
+      if (d.exists && PERFIS.includes(d.data().perfil)) {
+        const perfil = d.data().perfil;
+        // Custo de Frete: o TI sempre pode; os demais só com o campo `acessoCusto` ligado pelo TI
+        return { email, perfil, doc: true, acessoCusto: perfil === "ti" || d.data().acessoCusto === true };
+      }
     } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
-    return BOOTSTRAP.includes(email) ? { email, perfil: "ti" } : null;
+    return BOOTSTRAP.includes(email) ? { email, perfil: "ti", acessoCusto: true } : null;
   }
 
 
@@ -80,6 +84,15 @@ window.PortalGate = (function () {
     usuario() { return usuarioAtual; },
     perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
     podeEditar() { return !!usuarioAtual && ["logistica", "ti"].includes(usuarioAtual.perfil); },
+    podeCusto() { return !!usuarioAtual && usuarioAtual.acessoCusto === true; },
+    // ID token para a API da Azure (rotas /v1/cobertura/*). `forcar` renova (ex.: depois de confirmar o e-mail)
+    async idToken(forcar) {
+      if (!auth || !auth.currentUser) throw new Error("sem sessão");
+      if (forcar) await auth.currentUser.reload();
+      return auth.currentUser.getIdToken(!!forcar);
+    },
+    emailConfirmado() { return !!(auth && auth.currentUser && auth.currentUser.emailVerified); },
+    async reenviarConfirmacao() { if (!auth || !auth.currentUser) throw new Error("sem sessão"); await auth.currentUser.sendEmailVerification(); },
 
     async entrar(email, senha, lembrar) {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
@@ -103,6 +116,8 @@ window.PortalGate = (function () {
         const cred = await auth.createUserWithEmailAndPassword((email || "").trim().toLowerCase(), senha || "");
         const p = await carregarPerfil(cred.user);
         if (!p) { await cred.user.delete(); throw new Error("sem-acesso"); }
+        // a API do Custo de Frete só aceita e-mail confirmado: manda o link de confirmação (não bloqueia o cadastro)
+        try { await cred.user.sendEmailVerification(); } catch (_) {}
         await cred.user.getIdToken();      // garante a sessão gravada antes de redirecionar
         usuarioAtual = p;
         return p;
@@ -124,12 +139,16 @@ window.PortalGate = (function () {
     async listarUsuarios() {
       const q = await db.collection("usuarios").get();
       const l = []; q.forEach((d) => { const x = d.data();
-        l.push({ email: d.id, perfil: x.perfil, ultimoAcesso: x.ultimoAcesso && x.ultimoAcesso.toMillis ? x.ultimoAcesso.toMillis() : 0 }); });
+        l.push({ email: d.id, perfil: x.perfil, acessoCusto: x.acessoCusto === true, ultimoAcesso: x.ultimoAcesso && x.ultimoAcesso.toMillis ? x.ultimoAcesso.toMillis() : 0 }); });
       return l.sort((x, y) => x.email.localeCompare(y.email));
     },
     async salvarUsuario(email, perfil) {
       if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
       await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ perfil }, { merge: true });
+    },
+    // liga/desliga o acesso ao Custo de Frete de uma pessoa (o TI tem sempre; o campo vale para os demais perfis)
+    async salvarAcessoCusto(email, ligado) {
+      await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ acessoCusto: !!ligado }, { merge: true });
     },
     // cadastra vários e-mails de uma vez (uma gravação em lote)
     async salvarVarios(emails, perfil) {
