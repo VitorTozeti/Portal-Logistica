@@ -14,7 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth.js"></script>
+<script src="./portal-auth.js?v=20261009"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
@@ -24,10 +24,15 @@
       if (!u) {
         var n = location.search + location.hash;           // volta para cá depois do login
         location.replace("./login.html" + (n ? "?next=" + encodeURIComponent("./" + n) : ""));
-      } else if (!PortalGate.podeFerramenta("monitor")) {
-        location.replace("./painel.html");                    // sem acesso ao Monitor: volta ao painel
-      } else document.documentElement.classList.remove("gate-pend");
-    });
+        return;
+      }
+      // sem acesso ao Monitor: volta ao painel. Se o portal-auth.js em cache for antigo (sem podeFerramenta),
+      // NÃO trava: segue como antes — o spinner nunca pode ficar para sempre.
+      var semMonitor = false;
+      try { semMonitor = typeof PortalGate.podeFerramenta === "function" && !PortalGate.podeFerramenta("monitor"); } catch (_) {}
+      if (semMonitor) location.replace("./painel.html");
+      else document.documentElement.classList.remove("gate-pend");
+    }).catch(function () { document.documentElement.classList.remove("gate-pend"); });
   }
 </script>
 <script>
