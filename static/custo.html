@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custo de Frete — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./portal-auth.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script>
+  // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
+  if (window.PortalGate && PortalGate.ativo()) {
+    document.documentElement.classList.add("gate-pend");
+    PortalGate.pronto.then(function (u) {
+      if (!u) location.replace("./login.html?next=" + encodeURIComponent("./custo.html"));
+      else document.documentElement.classList.remove("gate-pend");
+    });
+  }
+</script>
+<script>
+  // TEMA: aplica a escolha salva antes da 1ª pintura (mesma chave do portal).
+  (function(){
+    try{ var t = localStorage.getItem("portal_tema");
+      if(!t){ t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(_){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
+<style>
+  :root, :root[data-theme="dark"]{ --p1:#0e0d0d; --p2:#242424; --p3:#005b6b; --p4:#31cceb; --p5:#ffffff; }
+  :root[data-theme="light"]{ --p1:#eff3f9; --p2:#ffffff; --p3:#cbd5e1; --p4:#1d4ed8; --p5:#0f172a; }
+  :root{ --bg:var(--p1); --card:var(--p2); --ink:var(--p5); --line:var(--p3); --brand:var(--p4); --alerta:#f4a72c;
+    --bl:#f4a72c; --soft:color-mix(in srgb,var(--p5) 62%,transparent); }
+  *{box-sizing:border-box}
+  html,body{overflow-x:hidden;scrollbar-width:none}
+  ::-webkit-scrollbar{width:0;height:0}
+  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;
+    display:flex;flex-direction:column}
+  html.gate-pend body > *{visibility:hidden}
+  html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand)}
+  header b{font-size:16px;color:var(--brand)}
+  header a.volta{color:var(--ink);text-decoration:none;font-size:13px;font-weight:600;opacity:.85}
+  header a.volta:hover{opacity:1;color:var(--brand)}
+  .esp{margin-left:auto}
+  .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);
+    border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
+  .tema-btn:hover{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+  .eu{font-size:12.5px;color:var(--soft);max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  button,select,input,textarea{font:inherit;color:var(--ink)}
+  .btn{font-size:13.5px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:8px 14px;cursor:pointer}
+  .btn:hover:not(:disabled){background:var(--line)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.pri{background:var(--brand);color:var(--p1);border-color:var(--brand)}
+  .btn.pri:hover:not(:disabled){filter:brightness(1.1);background:var(--brand)}
+  .btn:focus-visible,.cel:focus-visible,.tab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  nav.tabs{display:flex;gap:4px;padding:0 20px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab{background:transparent;border:0;border-bottom:3px solid transparent;padding:12px 14px;font-weight:700;font-size:14px;
+    color:var(--soft);cursor:pointer;white-space:nowrap}
+  .tab[aria-selected="true"]{color:var(--brand);border-bottom-color:var(--brand)}
+  main{width:100%;max-width:1440px;margin:0 auto;padding:22px 24px 120px;flex:1}
+  section[hidden]{display:none}
+  h2{font-size:17px;margin:0 0 4px} .sub{margin:0 0 16px;color:var(--soft);font-size:13.5px;line-height:1.5}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--soft);margin:0 0 12px}
+  .legenda span{display:inline-flex;align-items:center;gap:6px}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  table.mx{border-collapse:separate;border-spacing:0;min-width:100%}
+  .mx th,.mx td{padding:0;text-align:center;border-bottom:1px solid var(--line)}
+  .mx thead th{font-size:11.5px;font-weight:800;padding:10px 0;color:var(--soft);min-width:44px;background:var(--card);position:sticky;top:0}
+  .mx tbody tr:last-child td,.mx tbody tr:last-child th{border-bottom:0}
+  .mx th.nome{position:sticky;left:0;z-index:2;background:var(--card);text-align:left;padding:10px 14px;min-width:190px;
+    border-right:1px solid var(--line);font-size:13.5px}
+  .mx th.nome small{display:block;font-weight:400;font-size:11px;color:var(--soft);margin-top:2px}
+  .mx thead th.nome{z-index:3}
+  .cel{position:relative;width:38px;height:34px;margin:5px;border-radius:9px;border:1px solid transparent;cursor:pointer;font-weight:800;font-size:14px;
+    background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand);transition:transform .08s}
+  .cel:hover:not(:disabled){transform:scale(1.08)}
+  .cel.bl{background:color-mix(in srgb,var(--bl) 20%,transparent);color:var(--bl);border-color:color-mix(in srgb,var(--bl) 55%,transparent)}
+  .cel.na{background:transparent;color:var(--soft);opacity:.35;cursor:default;font-weight:400}
+  .cel.mod{outline:2px dashed var(--ink);outline-offset:1px}
+  .ex{position:absolute;right:-4px;top:-5px;min-width:17px;height:17px;border-radius:9px;background:var(--ink);color:var(--p1);
+    font-size:10px;font-style:normal;font-weight:800;line-height:17px;padding:0 4px;cursor:pointer}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 8px;margin-left:6px;vertical-align:1px;
+    background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
+  .tag.op{background:transparent;border:1px solid var(--line);color:var(--soft)}
+  .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 0}
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:2px solid var(--brand);padding:12px 20px;
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .bar[hidden]{display:none}
+  .bar .st{flex:1;min-width:220px;font-size:13.5px;line-height:1.45}
+  .bar .st b{color:var(--brand)} .bar .st .r{color:var(--bl)}
+  .bar .st ul{margin:6px 0 0;padding-left:18px;color:var(--bl);font-size:12.5px}
+  .aviso{margin:0 0 14px;padding:11px 15px;border-radius:10px;font-size:13.5px;line-height:1.5;
+    background:color-mix(in srgb,var(--alerta) 16%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 60%,transparent)}
+  .aviso[hidden]{display:none}
+  .vazio{padding:28px;text-align:center;color:var(--soft)}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .peso{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13.5px}
+  .peso .b{height:10px;border-radius:6px;background:var(--brand)} .peso span:first-child{width:120px}
+  table.lt{width:100%;border-collapse:collapse;font-size:13px}
+  .lt th,.lt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)} .lt th{color:var(--soft);font-size:12px}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--soft)}
+  .drop.over,.drop:hover{border-color:var(--brand);color:var(--ink)}
+  .hist{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin:0 0 10px;background:var(--card)}
+  .hist .q{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px}
+  .hist .q b{font-size:13.5px} .hist .m{margin:6px 0 0;font-size:12.5px;color:var(--soft)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+  .chip{font-size:12px;border:1px solid var(--line);border-radius:20px;padding:2px 10px}
+  .chip.l{border-color:var(--brand);color:var(--brand)} .chip.b{border-color:var(--bl);color:var(--bl)}
+  .mdl{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+  .mdl[hidden]{display:none}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:640px;max-height:88vh;overflow:auto;padding:20px}
+  .box h3{margin:0 0 4px;font-size:16px}
+  .box input,.box select,.box textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-top:6px}
+  .acoes{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+  .linhas{margin:12px 0 0;max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .lin{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+  .lin:last-child{border-bottom:0} .lin small{color:var(--soft);display:block;font-size:11.5px}
+  .lin .btn{padding:5px 10px;font-size:12.5px}
+  .dois{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #toasts{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:80;display:grid;gap:8px;width:min(92vw,440px)}
+  .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+  .toast.erro{border-color:var(--alerta)}
+  .semacesso{max-width:520px;margin:60px auto;text-align:center}
+  @media (max-width:640px){main{padding:16px 12px 150px} header{padding:12px 14px} .eu{display:none} .dois{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <a class="volta" href="./">← Portal</a>
+  <b>Custo de Frete</b>
+  <span class="esp"></span>
+  <span class="eu" id="eu"></span>
+  <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
+</header>
+<nav class="tabs" role="tablist" id="tabs">
+  <button class="tab" role="tab" data-t="cobertura" aria-selected="true">Cobertura</button>
+  <button class="tab" role="tab" data-t="excel" aria-selected="false">Excel</button>
+  <button class="tab" role="tab" data-t="regras" aria-selected="false">Regras da escolha</button>
+  <button class="tab" role="tab" data-t="historico" aria-selected="false">Histórico</button>
+</nav>
+
+<main id="main">
+  <div class="aviso" id="aviso" hidden></div>
+  <div class="semacesso" id="semacesso" hidden>
+    <h2>Você não tem acesso ao Custo de Frete</h2>
+    <p class="sub">Peça ao TI para liberar o seu e-mail em Usuários.</p>
+    <a class="btn" href="./">Voltar ao portal</a>
+  </div>
+
+  <section id="s-cobertura" data-s="cobertura">
+    <h2>Quem atende onde</h2>
+    <p class="sub">Clique numa célula para bloquear ou liberar a transportadora naquele estado. Nada vale até você salvar. Um bloqueio só é aceito se todo destino continuar com pelo menos uma transportadora de tabela.</p>
+    <div class="legenda">
+      <span><button class="cel" tabindex="-1" style="margin:0;width:26px;height:24px;cursor:default">✓</button> liberada</span>
+      <span><button class="cel bl" tabindex="-1" style="margin:0;width:26px;height:24px;cursor:default">✕</button> bloqueada</span>
+      <span><button class="cel na" tabindex="-1" style="margin:0;width:26px;height:24px">–</button> não atende por natureza</span>
+      <span><button class="cel mod" tabindex="-1" style="margin:0;width:26px;height:24px;cursor:default">✓</button> alterada (ainda não salva)</span>
+      <span><i class="ex" style="position:static">2</i> exceções por cidade</span>
+    </div>
+    <div class="scroll"><table class="mx" id="mx" aria-label="Cobertura por transportadora e estado"></table></div>
+    <div class="tools">
+      <button class="btn" id="b-cidade" type="button">＋ Exceção por cidade</button>
+      <button class="btn" id="b-recarregar" type="button">↻ Recarregar do servidor</button>
+      <span class="sub" style="margin:0" id="versao"></span>
+    </div>
+  </section>
+
+  <section id="s-excel" data-s="excel" hidden>
+    <h2>Editar pelo Excel</h2>
+    <p class="sub">Baixe a planilha com as regras de hoje, ajuste e importe de volta. Antes de aplicar você vê exatamente o que muda — e o que for recusado aparece com o motivo.</p>
+    <div class="grid2">
+      <div class="card">
+        <b>1. Exportar</b>
+        <p class="sub" style="margin-top:6px">Gera <i>cobertura-transportadoras.xlsx</i> com três abas: <b>Cobertura</b> (transportadora × estado, Sim/Não), <b>Cidades</b> (exceções) e <b>Leia-me</b>.</p>
+        <button class="btn pri" id="b-exportar" type="button">⬇ Baixar planilha</button>
+      </div>
+      <div class="card">
+        <b>2. Importar</b>
+        <p class="sub" style="margin-top:6px">A planilha vale como o estado completo: o que não estiver nela volta ao padrão (liberado).</p>
+        <label class="drop" id="drop" for="arq">Arraste o arquivo aqui ou clique para escolher<input type="file" id="arq" accept=".xlsx,.xls" hidden></label>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-regras" data-s="regras" hidden>
+    <h2>Regras da escolha</h2>
+    <p class="sub">Somente leitura. É assim que a API decide a transportadora de cada pedido do SAP. A edição dos pesos fica para uma próxima etapa.</p>
+    <div id="regras-corpo"><div class="vazio">carregando…</div></div>
+  </section>
+
+  <section id="s-historico" data-s="historico" hidden>
+    <h2>Histórico de alterações</h2>
+    <p class="sub">Quem mudou o quê e quando. “Desfazer” prepara a reversão na aba Cobertura para você conferir antes de salvar.</p>
+    <div id="hist-corpo"><div class="vazio">carregando…</div></div>
+  </section>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <div class="st" id="bar-st"></div>
+  <button class="btn" id="b-descartar" type="button">Descartar</button>
+  <button class="btn pri" id="b-salvar" type="button" disabled>Salvar…</button>
+</div>
+
+<div class="mdl" id="m-cidade" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="mc-t">
+    <h3 id="mc-t">Exceção por cidade</h3>
+    <p class="sub" style="margin:0">Dentro de um estado liberado, bloqueie cidades; dentro de um estado bloqueado, libere cidades.</p>
+    <div class="dois">
+      <label>Transportadora<select id="mc-transp"></select></label>
+      <label>Estado<select id="mc-uf"></select></label>
+    </div>
+    <input id="mc-busca" type="search" placeholder="Buscar cidade…" aria-label="Buscar cidade">
+    <div class="linhas" id="mc-lista"></div>
+    <div class="acoes"><button class="btn pri" id="mc-fechar" type="button">Pronto</button></div>
+  </div>
+</div>
+
+<div class="mdl" id="m-salvar" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="ms-t">
+    <h3 id="ms-t">Confirmar alterações</h3>
+    <div id="ms-resumo"></div>
+    <label style="display:block;margin-top:12px;font-size:13px;font-weight:600">Motivo (fica no histórico)
+      <textarea id="ms-motivo" rows="2" maxlength="300" placeholder="Ex.: Acerta com muitos atrasos em MG"></textarea></label>
+    <p class="sub" style="margin:10px 0 0">A API passa a usar as novas regras em até 1 minuto.</p>
+    <div class="acoes"><button class="btn" id="ms-cancelar" type="button">Cancelar</button>
+      <button class="btn pri" id="ms-ok" type="button">Aplicar</button></div>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const AZURE = "https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io";
+const GATE = window.PortalGate && PortalGate.ativo();
+// Em servidor local (sem Firebase) dá para apontar a API com ?api=http://127.0.0.1:8099 — só fora do Pages.
+const API = (!GATE && new URLSearchParams(location.search).get("api")) || AZURE;
+const UF_PREFIXO = {"11":"RO","12":"AC","13":"AM","14":"RR","15":"PA","16":"AP","17":"TO","21":"MA","22":"PI","23":"CE","24":"RN","25":"PB","26":"PE","27":"AL","28":"SE","29":"BA","31":"MG","32":"ES","33":"RJ","35":"SP","41":"PR","42":"SC","43":"RS","50":"MS","51":"MT","52":"GO","53":"DF"};
+const ufDe = ibge => UF_PREFIXO[String(ibge).slice(0,2)] || "";
+const norm = s => String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+
+let E = null;                 // estado do servidor: {versao, ufs, transportadoras, regras}
+let base = new Map();         // regras salvas   key = cod|escopo|chave -> {liberado, motivo}
+let des = new Map();          // regras desejadas (com as edições ainda não salvas)
+let val = null;               // última validação {ok, violacoes, avisos, mudancas}
+let validando = 0, timer = null;
+const munis = {};             // cache de municípios por UF
+
+// ---------- utilidades ----------
+function toast(msg, o){ const t = document.createElement("div"); t.className = "toast" + (o && o.erro ? " erro" : ""); t.textContent = msg;
+  $("#toasts").appendChild(t); setTimeout(() => t.remove(), (o && o.ms) || 5000); }
+function aviso(html){ const a = $("#aviso"); a.hidden = !html; a.innerHTML = html || ""; }
+function abrir(m){ m.hidden = false; }
+function fechar(m){ m.hidden = true; }
+const chave = (c, e, k) => c + "|" + e + "|" + k;
+const nomeDe = cod => (E.transportadoras.find(t => t.codigo === cod) || {}).nome || cod;
+const dataBR = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString("pt-BR", {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"}); };
+
+async function token(){ return GATE ? PortalGate.idToken() : "dev"; }
+async function api(metodo, caminho, corpo){
+  let r;
+  try{
+    r = await fetch(API + caminho, { method: metodo, headers: Object.assign({ "Authorization": "Bearer " + await token() },
+      corpo ? {"Content-Type": "application/json"} : {}), body: corpo ? JSON.stringify(corpo) : undefined });
+  }catch(e){ throw { status: 0, corpo: { erro: "Sem conexão com o servidor. Tente de novo." } }; }
+  let j = {}; try{ j = await r.json(); }catch(_){}
+  if(!r.ok){ if(r.status === 403 && /e-mail/i.test(j.erro || "")) avisoEmail(); throw { status: r.status, corpo: j }; }
+  return j;
+}
+function avisoEmail(){
+  aviso('Confirme o seu e-mail para editar a cobertura. Enviamos um link no cadastro. '
+    + '<button class="btn" id="re-env" type="button">Reenviar link</button> <button class="btn" id="re-ok" type="button">Já confirmei</button>');
+  const env = $("#re-env"), ok = $("#re-ok");
+  if(env) env.onclick = async () => { try{ await PortalGate.reenviarConfirmacao(); toast("Link enviado para o seu e-mail."); }catch(_){ toast("Não foi possível enviar agora.", {erro:true}); } };
+  if(ok) ok.onclick = async () => { try{ await PortalGate.idToken(true); aviso(""); await carregar(); }catch(_){ toast("Ainda não confirmado.", {erro:true}); } };
+}
+const msgErro = e => (e && e.corpo && e.corpo.erro) || "Algo deu errado. Tente de novo.";
+
+// ---------- estado ----------
+async function carregar(){
+  try{
+    E = await api("GET", "/v1/cobertura");
+  }catch(e){ $("#mx").innerHTML = ""; toast(msgErro(e), {erro:true}); if(!E) aviso("Não consegui carregar a cobertura agora. " + esc(msgErro(e))); return false; }
+  base = new Map(E.regras.map(r => [chave(r.transportadora, r.escopo, r.chave), { liberado: r.liberado, motivo: r.motivo }]));
+  des = new Map([...base].map(([k, v]) => [k, Object.assign({}, v)]));
+  val = null; aviso(""); desenhar(); barra();
+  $("#versao").textContent = "versão das regras: " + E.versao;
+  return true;
+}
+const itens = () => [...des].map(([k, v]) => { const [c, e, ch] = k.split("|"); return { transportadora: c, escopo: e, chave: ch, liberado: v.liberado, motivo: v.motivo || "" }; });
+function mudou(k){ const a = base.get(k), b = des.get(k); return (a ? a.liberado : null) !== (b ? b.liberado : null); }
+const pendentes = () => new Set([...base.keys(), ...des.keys()]).size && [...new Set([...base.keys(), ...des.keys()])].filter(mudou).length;
+const ufBloqueada = (c, uf) => { const r = des.get(chave(c, "UF", uf)); return !!r && r.liberado === false; };
+function excecoes(c, uf){ let n = 0; for(const k of des.keys()){ const [kc, e, ch] = k.split("|"); if(kc === c && e === "IBGE" && ufDe(ch) === uf) n++; } return n; }
+
+// ---------- matriz ----------
+function desenhar(){
+  const ufs = E.ufs;
+  let h = '<thead><tr><th class="nome">Transportadora</th>' + ufs.map(u => "<th>" + u + "</th>").join("") + "</tr></thead><tbody>";
+  for(const t of E.transportadoras){
+    h += '<tr><th class="nome" scope="row">' + esc(t.nome) + '<span class="tag' + (t.garante_cobertura ? "" : " op") + '">' + (t.garante_cobertura ? "tabela" : "opcional") + "</span>"
+      + "<small>" + esc(t.codigo) + " · atende " + t.ufs_naturais.length + " UF" + "</small></th>";
+    for(const u of ufs){
+      if(!t.ufs_naturais.includes(u)){ h += '<td><button class="cel na" disabled aria-label="' + esc(t.nome) + ' não atende ' + u + '">–</button></td>'; continue; }
+      const bl = ufBloqueada(t.codigo, u), mod = mudou(chave(t.codigo, "UF", u)), ex = excecoes(t.codigo, u);
+      h += '<td><button class="cel' + (bl ? " bl" : "") + (mod ? " mod" : "") + '" data-c="' + t.codigo + '" data-u="' + u + '" aria-label="' + esc(t.nome) + " em " + u + ": "
+        + (bl ? "bloqueada. Clique para liberar" : "liberada. Clique para bloquear") + '">' + (bl ? "✕" : "✓")
+        + (ex ? '<i class="ex" data-city="1" title="' + ex + ' exceção(ões) por cidade">' + ex + "</i>" : "") + "</button></td>";
+    }
+    h += "</tr>";
+  }
+  $("#mx").innerHTML = h + "</tbody>";
+}
+$("#mx").addEventListener("click", ev => {
+  const b = ev.target.closest(".cel[data-c]"); if(!b) return;
+  if(ev.target.closest("[data-city]")){ abrirCidades(b.dataset.c, b.dataset.u); return; }
+  const k = chave(b.dataset.c, "UF", b.dataset.u);
+  if(ufBloqueada(b.dataset.c, b.dataset.u)) des.delete(k); else des.set(k, { liberado: false, motivo: "" });
+  desenhar(); agendar();
+});
+
+// ---------- validação e barra de pendências ----------
+function agendar(){ clearTimeout(timer); barra(); timer = setTimeout(validar, 350); }
+async function validar(){
+  if(!pendentes()){ val = null; barra(); return; }
+  const id = ++validando;
+  try{ const r = await api("POST", "/v1/cobertura/validar", { regras: itens(), base_versao: E.versao }); if(id === validando){ val = r; barra(); } }
+  catch(e){ if(id === validando){ val = { ok: false, violacoes: [msgErro(e)], avisos: [], mudancas: [] }; barra(); } }
+}
+function barra(){
+  const n = pendentes(), bar = $("#bar");
+  bar.hidden = !n; if(!n) return;
+  let h = "<b>" + n + (n === 1 ? " alteração pendente" : " alterações pendentes") + "</b>";
+  if(!val) h += " · conferindo…";
+  else if(val.ok) h += " · tudo certo para salvar" + (val.avisos.length ? '<ul>' + val.avisos.map(a => "<li>" + esc(a) + "</li>").join("") + "</ul>" : "");
+  else h += ' · <span class="r">não pode ser salva</span><ul>' + val.violacoes.map(a => "<li>" + esc(a) + "</li>").join("") + "</ul>";
+  $("#bar-st").innerHTML = h;
+  $("#b-salvar").disabled = !(val && val.ok && val.mudancas.length);
+}
+$("#b-descartar").onclick = () => { des = new Map([...base].map(([k, v]) => [k, Object.assign({}, v)])); val = null; desenhar(); barra(); };
+$("#b-recarregar").onclick = async () => { if(pendentes() && !confirm("Descartar as alterações pendentes e recarregar?")) return; await carregar(); toast("Regras recarregadas."); };
+
+// ---------- salvar ----------
+function resumoMudancas(ms){
+  if(!ms.length) return '<div class="vazio">Nenhuma alteração.</div>';
+  return '<div class="linhas">' + ms.map(m => '<div class="lin"><span>' + esc(m.nome) + " · " + esc(m.rotulo) + "<small>" + (m.escopo === "IBGE" ? "cidade" : "estado") + "</small></span>"
+    + '<span class="chip ' + (m.depois === false ? "b" : "l") + '">' + rot(m.antes) + " → " + rot(m.depois) + "</span></div>").join("") + "</div>";
+}
+const rot = v => v === null || v === undefined ? "padrão" : v ? "liberada" : "bloqueada";
+let aplicarFn = null;
+function abrirSalvar(resumo, fn){ $("#ms-resumo").innerHTML = resumo; $("#ms-motivo").value = ""; aplicarFn = fn; abrir($("#m-salvar")); $("#ms-motivo").focus(); }
+$("#b-salvar").onclick = () => { $("#ms-t").textContent = "Confirmar alterações"; $("#ms-ok").hidden = false; $("#ms-motivo").parentElement.hidden = false;
+  abrirSalvar(resumoMudancas(val.mudancas), () => itens()); };
+$("#ms-cancelar").onclick = () => fechar($("#m-salvar"));
+$("#ms-ok").onclick = async () => {
+  const bt = $("#ms-ok"); bt.disabled = true; bt.textContent = "Aplicando…";
+  try{
+    const r = await api("PUT", "/v1/cobertura", { regras: aplicarFn(), base_versao: E.versao, motivo: $("#ms-motivo").value.trim() });
+    fechar($("#m-salvar")); await carregar();
+    toast(r.mudancas.length ? "Cobertura atualizada (" + r.mudancas.length + (r.mudancas.length === 1 ? " alteração" : " alterações") + "). Vale na API em até 1 minuto." : "Nada mudou.");
+    if(!$("#s-historico").hidden) carregarHistorico();
+  }catch(e){
+    fechar($("#m-salvar"));
+    if(e.status === 409){ toast("As regras mudaram enquanto você editava. Recarreguei — refaça a alteração.", {erro:true, ms:9000}); await carregar(); }
+    else if(e.status === 422 && e.corpo.violacoes){ val = { ok:false, violacoes: e.corpo.violacoes, avisos: [], mudancas: [] }; barra(); toast("Recusado: " + e.corpo.violacoes[0], {erro:true, ms:9000}); }
+    else toast(msgErro(e), {erro:true, ms:8000});
+  }finally{ bt.disabled = false; bt.textContent = "Aplicar"; }
+};
+
+// ---------- exceção por cidade ----------
+let mcT = "", mcU = "";
+async function municipios(uf){ if(!munis[uf]) munis[uf] = (await api("GET", "/v1/cobertura/municipios?uf=" + uf)).municipios; return munis[uf]; }
+function preencherSelects(){
+  const t = $("#mc-transp"), u = $("#mc-uf");
+  t.innerHTML = E.transportadoras.map(x => '<option value="' + x.codigo + '">' + esc(x.nome) + "</option>").join("");
+  t.value = mcT || E.transportadoras[0].codigo;
+  const nat = E.transportadoras.find(x => x.codigo === t.value).ufs_naturais;
+  u.innerHTML = nat.map(x => '<option value="' + x + '">' + x + "</option>").join("");
+  u.value = nat.includes(mcU) ? mcU : nat[0];
+  mcT = t.value; mcU = u.value;
+}
+async function abrirCidades(c, uf){ mcT = c || ""; mcU = uf || ""; preencherSelects(); $("#mc-busca").value = ""; abrir($("#m-cidade")); await listaCidades(); $("#mc-busca").focus(); }
+async function listaCidades(){
+  const box = $("#mc-lista"); box.innerHTML = '<div class="vazio">carregando…</div>';
+  let lista; try{ lista = await municipios(mcU); }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; return; }
+  const q = norm($("#mc-busca").value), blUF = ufBloqueada(mcT, mcU);
+  const exc = lista.filter(m => des.has(chave(mcT, "IBGE", m.ibge)));
+  let vis = lista.filter(m => !q || norm(m.cidade).includes(q));
+  const total = vis.length; vis = vis.slice(0, 150);
+  const lin = m => { const r = des.get(chave(mcT, "IBGE", m.ibge)), efet = r ? r.liberado : !blUF;
+    return '<div class="lin"><span>' + esc(m.cidade) + "<small>" + (r ? "exceção: " + (r.liberado ? "liberada" : "bloqueada") : "segue o estado: " + (blUF ? "bloqueada" : "liberada")) + "</small></span>"
+      + '<button class="btn" data-ibge="' + m.ibge + '">' + (r ? "Remover exceção" : efet ? "Bloquear aqui" : "Liberar aqui") + "</button></div>"; };
+  box.innerHTML = (exc.length && !q ? '<div class="lin" style="background:color-mix(in srgb,var(--brand) 10%,transparent)"><b>Exceções nesta UF (' + exc.length + ")</b></div>" + exc.map(lin).join("") : "")
+    + (vis.length ? vis.map(lin).join("") : '<div class="vazio">nenhuma cidade encontrada</div>')
+    + (total > 150 ? '<div class="lin"><small>mostrando 150 de ' + total + " — refine a busca</small></div>" : "");
+}
+$("#mc-transp").onchange = () => { mcT = $("#mc-transp").value; preencherSelects(); listaCidades(); };
+$("#mc-uf").onchange = () => { mcU = $("#mc-uf").value; listaCidades(); };
+$("#mc-busca").oninput = () => listaCidades();
+$("#mc-lista").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-ibge]"); if(!b) return;
+  const k = chave(mcT, "IBGE", b.dataset.ibge);
+  if(des.has(k)) des.delete(k); else des.set(k, { liberado: ufBloqueada(mcT, mcU), motivo: "" });  // exceção = o contrário da UF
+  listaCidades(); desenhar(); agendar();
+});
+$("#mc-fechar").onclick = () => fechar($("#m-cidade"));
+$("#b-cidade").onclick = () => abrirCidades("", "");
+
+// ---------- Excel ----------
+const SIM = new Set(["sim","s","liberado","liberada","1","true","x","ok"]), NAO = new Set(["nao","n","bloqueado","bloqueada","0","false"]);
+const precisaXlsx = () => { if(typeof XLSX === "undefined"){ toast("A biblioteca de Excel não carregou. Recarregue a página.", {erro:true}); return false; } return true; };
+$("#b-exportar").onclick = async () => {
+  if(!precisaXlsx()) return;
+  const bt = $("#b-exportar"); bt.disabled = true;
+  try{
+    const wb = XLSX.utils.book_new();
+    const cab = ["Código", "Transportadora"].concat(E.ufs), linhas = [cab];
+    for(const t of E.transportadoras){
+      linhas.push([t.codigo, t.nome].concat(E.ufs.map(u => !t.ufs_naturais.includes(u) ? "—" : (base.get(chave(t.codigo, "UF", u)) || {liberado:true}).liberado ? "Sim" : "Não")));
+    }
+    const ws = XLSX.utils.aoa_to_sheet(linhas); ws["!cols"] = [{wch:11},{wch:22}].concat(E.ufs.map(() => ({wch:5})));
+    XLSX.utils.book_append_sheet(wb, ws, "Cobertura");
+    const cid = [["Código","Transportadora","IBGE","Cidade","UF","Liberado","Motivo"]];
+    const ibges = [...base].filter(([k]) => k.split("|")[1] === "IBGE");
+    const ufsExc = [...new Set(ibges.map(([k]) => ufDe(k.split("|")[2])))].filter(Boolean);
+    for(const u of ufsExc) await municipios(u);
+    for(const [k, v] of ibges){ const [c, , ib] = k.split("|"), u = ufDe(ib), m = (munis[u] || []).find(x => x.ibge === ib);
+      cid.push([c, nomeDe(c), ib, m ? m.cidade : "", u, v.liberado ? "Sim" : "Não", v.motivo || ""]); }
+    const wc = XLSX.utils.aoa_to_sheet(cid); wc["!cols"] = [{wch:11},{wch:22},{wch:10},{wch:30},{wch:5},{wch:9},{wch:40}];
+    XLSX.utils.book_append_sheet(wb, wc, "Cidades");
+    const ler = [["Como usar esta planilha"],[""],
+      ["Cobertura: uma linha por transportadora, uma coluna por estado. Escreva Sim (atende) ou Não (bloqueada). “—” = a transportadora não atende esse estado por natureza; deixe como está."],
+      ["Cidades: só as EXCEÇÕES. IBGE = código de 7 dígitos; Liberado = Sim/Não para aquela cidade, contrariando a regra do estado. Para apagar uma exceção, apague a linha."],
+      ["Ao importar, a planilha vale como o estado completo: o que não estiver nela volta ao padrão (liberado)."],
+      ["A importação mostra o que vai mudar antes de aplicar e recusa qualquer regra que deixe um estado ou cidade sem transportadora de tabela (Acerta, VIP, Sul Cargo, Quality)."],
+      ["Gerada em " + dataBR(new Date()) + " · versão das regras " + E.versao]];
+    const wl = XLSX.utils.aoa_to_sheet(ler); wl["!cols"] = [{wch:120}];
+    XLSX.utils.book_append_sheet(wb, wl, "Leia-me");
+    XLSX.writeFile(wb, "cobertura-transportadoras-" + new Date().toISOString().slice(0,10) + ".xlsx");
+    toast("Planilha baixada.");
+  }catch(e){ toast("Não foi possível gerar a planilha: " + (e.message || msgErro(e)), {erro:true}); }
+  finally{ bt.disabled = false; }
+};
+function lerPlanilha(buf){
+  const wb = XLSX.read(buf, { type: "array" }), erros = [], regras = []; let ignoradas = 0;
+  const nomeAba = n => wb.SheetNames.find(s => norm(s) === n);
+  const abaC = nomeAba("cobertura"), abaD = nomeAba("cidades");
+  if(!abaC) throw new Error("A planilha precisa ter a aba “Cobertura”. Baixe o modelo em “Exportar”.");
+  const linhasC = XLSX.utils.sheet_to_json(wb.Sheets[abaC], { header: 1, defval: "" });
+  const cab = (linhasC[0] || []).map(x => String(x).trim().toUpperCase());
+  const iCod = cab.findIndex(x => norm(x) === "codigo"), iNome = cab.findIndex(x => norm(x) === "transportadora");
+  const colUf = E.ufs.map(u => [u, cab.indexOf(u)]).filter(x => x[1] >= 0);
+  if((iCod < 0 && iNome < 0) || !colUf.length) throw new Error("Não achei as colunas de transportadora e de estados na aba “Cobertura”.");
+  for(let i = 1; i < linhasC.length; i++){
+    const l = linhasC[i]; if(!l.some(x => String(x).trim())) continue;
+    const t = E.transportadoras.find(x => (iCod >= 0 && String(l[iCod]).trim() === x.codigo) || (iNome >= 0 && norm(l[iNome]) === norm(x.nome)));
+    if(!t){ erros.push("Cobertura, linha " + (i + 1) + ": transportadora “" + (l[iNome] || l[iCod]) + "” não reconhecida."); continue; }
+    for(const [u, c] of colUf){ const v = norm(l[c]); if(!v || v === "—" || v === "-") continue;
+      if(!t.ufs_naturais.includes(u)){ ignoradas++; continue; }   // a transportadora não atende esse estado por natureza
+      if(SIM.has(v)) regras.push({ transportadora: t.codigo, escopo: "UF", chave: u, liberado: true });
+      else if(NAO.has(v)) regras.push({ transportadora: t.codigo, escopo: "UF", chave: u, liberado: false });
+      else erros.push("Cobertura, " + t.nome + " / " + u + ": valor “" + l[c] + "” não entendido (use Sim ou Não)."); }
+  }
+  if(abaD){
+    const lc = XLSX.utils.sheet_to_json(wb.Sheets[abaD], { header: 1, defval: "" });
+    const h = (lc[0] || []).map(norm), pos = n => h.indexOf(n);
+    const pc = pos("codigo"), pn = pos("transportadora"), pi = pos("ibge"), pl = pos("liberado"), pm = pos("motivo");
+    if(pi < 0 || pl < 0 || (pc < 0 && pn < 0)) erros.push("Cidades: faltam colunas (Código ou Transportadora, IBGE, Liberado).");
+    else for(let i = 1; i < lc.length; i++){
+      const l = lc[i]; if(!l.some(x => String(x).trim())) continue;
+      const t = E.transportadoras.find(x => (pc >= 0 && String(l[pc]).trim() === x.codigo) || (pn >= 0 && norm(l[pn]) === norm(x.nome)));
+      const ib = String(l[pi]).replace(/\D/g, ""), v = norm(l[pl]);
+      if(!t){ erros.push("Cidades, linha " + (i + 1) + ": transportadora não reconhecida."); continue; }
+      if(!SIM.has(v) && !NAO.has(v)){ erros.push("Cidades, linha " + (i + 1) + ": “Liberado” precisa ser Sim ou Não."); continue; }
+      regras.push({ transportadora: t.codigo, escopo: "IBGE", chave: ib, liberado: SIM.has(v), motivo: pm >= 0 ? String(l[pm]).slice(0, 300) : "" });
+    }
+  }
+  return { regras, erros, ignoradas };
+}
+async function importar(arquivo){
+  if(!precisaXlsx()) return;
+  try{
+    await carregar();   // compara com o estado mais recente do servidor
+    const { regras, erros, ignoradas } = lerPlanilha(await arquivo.arrayBuffer());
+    if(erros.length){ mostrarErrosImport(erros); return; }
+    const r = await api("POST", "/v1/cobertura/validar", { regras, base_versao: E.versao });
+    $("#ms-t").textContent = "Importar " + arquivo.name;
+    const avs = r.avisos.slice(0, 6).map(esc); if(r.avisos.length > 6) avs.push("… e mais " + (r.avisos.length - 6) + " aviso(s)");
+    if(ignoradas) avs.push(ignoradas + " célula(s) em estados que a transportadora não atende por natureza foram ignoradas.");
+    const av = avs.length ? '<div class="aviso" style="margin-top:10px">' + avs.join("<br>") + "</div>" : "";
+    if(!r.ok){
+      $("#ms-resumo").innerHTML = '<div class="aviso"><b>A planilha não pode ser aplicada:</b><br>' + r.violacoes.map(esc).join("<br>") + "</div>" + av;
+      $("#ms-ok").hidden = true; $("#ms-motivo").parentElement.hidden = true; aplicarFn = null; abrir($("#m-salvar")); return;
+    }
+    $("#ms-ok").hidden = false; $("#ms-motivo").parentElement.hidden = false;
+    abrirSalvar((r.mudancas.length ? "<p class='sub' style='margin:6px 0 0'>" + r.mudancas.length + " alteração(ões) em relação ao que está salvo:</p>" : "") + resumoMudancas(r.mudancas) + av, () => regras);
+    if(!r.mudancas.length) $("#ms-ok").hidden = true;
+  }catch(e){ toast(e.message || msgErro(e), {erro:true, ms:9000}); }
+}
+function mostrarErrosImport(erros){
+  $("#ms-t").textContent = "Problemas na planilha";
+  $("#ms-resumo").innerHTML = '<div class="aviso">Corrija e importe de novo:<br>' + erros.slice(0, 25).map(esc).join("<br>") + (erros.length > 25 ? "<br>… e mais " + (erros.length - 25) : "") + "</div>";
+  $("#ms-ok").hidden = true; $("#ms-motivo").parentElement.hidden = true; aplicarFn = null; abrir($("#m-salvar"));
+}
+$("#ms-cancelar").addEventListener("click", () => { $("#ms-t").textContent = "Confirmar alterações"; $("#ms-ok").hidden = false; $("#ms-motivo").parentElement.hidden = false; });
+$("#arq").onchange = ev => { const f = ev.target.files[0]; ev.target.value = ""; if(f) importar(f); };
+const drop = $("#drop");
+["dragover", "dragenter"].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) importar(f); });
+window.__custoTeste = { lerPlanilha: (b) => lerPlanilha(b), importar };
+
+// ---------- Regras ----------
+async function carregarRegras(){
+  const box = $("#regras-corpo");
+  try{
+    const r = await api("GET", "/v1/cobertura/regras-escolha"), p = r.pesos, tot = p.custo + p.prazo + p.confiabilidade;
+    const barra = (n, v) => '<div class="peso"><span>' + n + '</span><span class="b" style="width:' + Math.round(v / tot * 220) + 'px"></span><b>' + Math.round(v * 100) + "%</b></div>";
+    box.innerHTML = '<div class="grid2"><div class="card"><b>Nota de cada transportadora</b>'
+      + '<p class="sub" style="margin:6px 0">Para cada pedido, as transportadoras que atendem o destino recebem uma nota; vence a maior.</p>'
+      + barra("Custo", p.custo) + barra("Prazo", p.prazo) + barra("Confiabilidade", p.confiabilidade)
+      + '<p class="sub" style="margin:8px 0 0">Cada fator é a razão contra o melhor candidato do pedido. A confiabilidade é assumida igual para todas (' + Math.round(r.confiabilidade_assumida * 100) + "%), então na prática decidem custo e prazo.</p></div>"
+      + '<div class="card"><b>Como funciona</b><ul class="sub" style="margin:8px 0 0;padding-left:18px;line-height:1.7">'
+      + "<li>O <b>custo</b> é o frete sem imposto, para comparar todas na mesma base.</li>"
+      + "<li>O <b>prazo</b> vem do estudo de prazos por cidade (ou da própria tabela da transportadora).</li>"
+      + "<li>Transportadoras com <b>cubagem</b> cobram o maior entre o peso real e o cubado das caixas.</li>"
+      + "<li>A <b>TGT</b> só entra para cliente Distribuidor (0,68% da NF); os <b>Correios</b> cotam só pela API.</li>"
+      + "<li>Um <b>bloqueio</b> feito aqui tira a transportadora da disputa naquele estado ou cidade.</li></ul></div></div>"
+      + '<div class="card" style="margin-top:16px;overflow-x:auto"><b>Transportadoras</b><table class="lt" style="margin-top:8px"><thead><tr><th>Nome</th><th>Código SAP</th><th>Cubagem</th><th>Estados</th><th>Garante cobertura</th></tr></thead><tbody>'
+      + r.transportadoras.map(t => { const x = (E.transportadoras.find(y => y.codigo === t.codigo) || {});
+        return "<tr><td>" + esc(t.nome) + "</td><td>" + esc(t.codigo) + "</td><td>" + (t.divisor_cubagem ? "volume (cm³) ÷ " + Math.round(t.divisor_cubagem) : "não cuba") + "</td><td>" + (x.ufs_naturais ? x.ufs_naturais.length : "—") + "</td><td>" + (x.garante_cobertura ? "sim (tabela)" : "não (opcional)") + "</td></tr>"; }).join("")
+      + "</tbody></table></div>";
+  }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; }
+}
+
+// ---------- Histórico ----------
+let histCache = [];
+async function carregarHistorico(){
+  const box = $("#hist-corpo");
+  try{
+    histCache = (await api("GET", "/v1/cobertura/historico")).historico;
+    box.innerHTML = histCache.length ? histCache.map((h, i) => '<div class="hist"><div class="q"><b>' + dataBR(h.quando) + "</b><span>" + esc(h.usuario) + "</span>"
+      + '<span style="margin-left:auto"><button class="btn" data-desfazer="' + i + '" type="button">Desfazer</button></span></div>'
+      + (h.motivo ? '<p class="m">“' + esc(h.motivo) + "”</p>" : "")
+      + '<div class="chips">' + h.mudancas.map(m => '<span class="chip ' + (m.depois === false ? "b" : "l") + '">' + esc(m.nome) + " · " + esc(m.rotulo) + ": " + rot(m.antes) + " → " + rot(m.depois) + "</span>").join("") + "</div></div>").join("")
+      : '<div class="vazio">Nenhuma alteração registrada ainda.</div>';
+  }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; }
+}
+$("#hist-corpo").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-desfazer]"); if(!b) return;
+  const h = histCache[+b.dataset.desfazer];
+  for(const m of h.mudancas){ const k = chave(m.transportadora, m.escopo, m.chave);
+    if(m.antes === null) des.delete(k); else des.set(k, { liberado: m.antes, motivo: "" }); }
+  trocarAba("cobertura"); desenhar(); agendar();
+  toast("Reversão preparada: confira e clique em Salvar.");
+});
+
+// ---------- abas e tema ----------
+function trocarAba(t){
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.t === t)));
+  document.querySelectorAll("section[data-s]").forEach(s => s.hidden = s.dataset.s !== t);
+  if(t === "regras") carregarRegras();
+  if(t === "historico") carregarHistorico();
+  try{ history.replaceState(null, "", "#" + t); }catch(_){}
+}
+$("#tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if(b) trocarAba(b.dataset.t); });
+function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
+$("#tema").onclick = () => { const n = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", n); try{ localStorage.setItem("portal_tema", n); }catch(_){} icone(); };
+icone();
+window.addEventListener("beforeunload", e => { if(pendentes()){ e.preventDefault(); e.returnValue = ""; } });
+document.addEventListener("keydown", e => { if(e.key === "Escape") document.querySelectorAll(".mdl").forEach(m => m.hidden = true); });
+
+// ---------- início ----------
+async function iniciar(u){
+  $("#eu").textContent = u && u.email ? u.email : "";
+  const ok = await carregar();
+  const h = location.hash.slice(1); if(["excel","regras","historico"].includes(h)) trocarAba(h);
+  return ok;
+}
+if(GATE){
+  PortalGate.pronto.then(u => {
+    if(!u) return;
+    if(!PortalGate.podeCusto()){ $("#semacesso").hidden = false; document.querySelectorAll("section[data-s],nav.tabs").forEach(x => x.hidden = true); return; }
+    iniciar(u);
+  });
+} else iniciar({ email: "servidor local" });
+})();
+</script>
+</body>
+</html>
