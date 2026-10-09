@@ -86,7 +86,7 @@ window.AuthUI = (function () {
       const n = new URLSearchParams(location.search).get("next") || "";
       if (/^\.\/[A-Za-z0-9_\-./?=&%#]*$/.test(n) && n.indexOf("..") < 0 && n.indexOf("//") < 0) return n;
     } catch (_) {}
-    return "./";
+    return "./painel.html";
   }
   const comNext = (pagina) => { const n = new URLSearchParams(location.search).get("next"); return n ? pagina + "?next=" + encodeURIComponent(n) : pagina; };
 

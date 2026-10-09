@@ -52,7 +52,7 @@
     // ---- Firebase Auth, e-mail + senha por pessoa (GitHub Pages) ----
     if (!(window.PortalGate && PortalGate.ativo())) {
       // fora do Pages (servidor interno/localhost) não há login: segue direto para o portal
-      location.replace("./");
+      location.replace("./painel.html");
     } else {
       AuthUI.olho($("#senha"));
       // preserva ?next= nos links das outras telas

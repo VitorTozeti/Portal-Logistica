@@ -31,6 +31,26 @@ window.PortalGate = (function () {
   const BOOTSTRAP = ["v.tozeti@pharmaesthetics.com.br", "m.milani@pharmaesthetics.com.br"];
   const PERFIS = ["logistica", "ti", "leitor"];
 
+  // FERRAMENTAS do painel. O TI tem todas, sempre; para os demais, `usuarios/{email}.ferramentas` (lista de ids)
+  // diz o que cada pessoa pode abrir. Documento antigo, sem o campo, vale como ["monitor"] (+ "custo" se
+  // `acessoCusto` estava ligado) — ninguém perde o que já tinha. O id "custo" também grava `acessoCusto`
+  // porque a API da Azure (rotas /v1/cobertura/*) lê esse campo para decidir quem pode editar.
+  const FERRAMENTAS = [
+    { id: "monitor", nome: "Monitor de NFs", icone: "📦", href: "./index.html",
+      desc: "Notas que subiram e as travadas, com o problema e há quanto tempo, e as ações por nota." },
+    { id: "custo", nome: "Custo de Frete", icone: "💲", href: "./custo.html",
+      desc: "Libere ou bloqueie estados e cidades de cada transportadora, por tela ou Excel." },
+  ];
+  const FERRAMENTA_TI = { id: "usuarios", nome: "Usuários e permissões", icone: "👥", href: "./usuarios.html",
+    desc: "Quem entra no portal, o perfil de cada pessoa e quais ferramentas ela pode abrir." };
+  const IDS = FERRAMENTAS.map((f) => f.id);
+  function ferramentasDe(perfil, x) {
+    if (perfil === "ti") return IDS.slice();
+    x = x || {};
+    if (Array.isArray(x.ferramentas)) return x.ferramentas.filter((i) => IDS.includes(i));
+    return x.acessoCusto === true ? ["monitor", "custo"] : ["monitor"];
+  }
+
   let auth = null, db = null, usuarioAtual = null, criando = false;
   if (ATIVO && SDK) {
     firebase.initializeApp(FIREBASE_CONFIG);
@@ -56,11 +76,11 @@ window.PortalGate = (function () {
       ]);
       if (d.exists && PERFIS.includes(d.data().perfil)) {
         const perfil = d.data().perfil;
-        // Custo de Frete: o TI sempre pode; os demais só com o campo `acessoCusto` ligado pelo TI
-        return { email, perfil, doc: true, acessoCusto: perfil === "ti" || d.data().acessoCusto === true };
+        const ferramentas = ferramentasDe(perfil, d.data());
+        return { email, perfil, doc: true, ferramentas, acessoCusto: ferramentas.includes("custo") };
       }
     } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
-    return BOOTSTRAP.includes(email) ? { email, perfil: "ti", acessoCusto: true } : null;
+    return BOOTSTRAP.includes(email) ? { email, perfil: "ti", ferramentas: IDS.slice(), acessoCusto: true } : null;
   }
 
 
@@ -85,6 +105,11 @@ window.PortalGate = (function () {
     perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
     podeEditar() { return !!usuarioAtual && ["logistica", "ti"].includes(usuarioAtual.perfil); },
     podeCusto() { return !!usuarioAtual && usuarioAtual.acessoCusto === true; },
+    podeFerramenta(id) { return !!usuarioAtual && (usuarioAtual.ferramentas || []).includes(id); },
+    // catálogo para o painel e para a tela de permissões
+    ferramentas() { return FERRAMENTAS.slice(); },
+    ferramentaTI() { return FERRAMENTA_TI; },
+    ferramentasDe,
     // ID token para a API da Azure (rotas /v1/cobertura/*). `forcar` renova (ex.: depois de confirmar o e-mail)
     async idToken(forcar) {
       if (!auth || !auth.currentUser) throw new Error("sem sessão");
@@ -139,16 +164,26 @@ window.PortalGate = (function () {
     async listarUsuarios() {
       const q = await db.collection("usuarios").get();
       const l = []; q.forEach((d) => { const x = d.data();
-        l.push({ email: d.id, perfil: x.perfil, acessoCusto: x.acessoCusto === true, ultimoAcesso: x.ultimoAcesso && x.ultimoAcesso.toMillis ? x.ultimoAcesso.toMillis() : 0 }); });
+        l.push({ email: d.id, perfil: x.perfil, ferramentas: ferramentasDe(x.perfil, x), ultimoAcesso: x.ultimoAcesso && x.ultimoAcesso.toMillis ? x.ultimoAcesso.toMillis() : 0 }); });
       return l.sort((x, y) => x.email.localeCompare(y.email));
     },
     async salvarUsuario(email, perfil) {
       if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
       await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ perfil }, { merge: true });
     },
-    // liga/desliga o acesso ao Custo de Frete de uma pessoa (o TI tem sempre; o campo vale para os demais perfis)
-    async salvarAcessoCusto(email, ligado) {
-      await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ acessoCusto: !!ligado }, { merge: true });
+    // define as ferramentas de UMA pessoa (lista de ids). Mantém `acessoCusto` em sincronia (a API da Azure lê esse campo).
+    async salvarFerramentas(email, lista) {
+      const f = (lista || []).filter((i) => IDS.includes(i));
+      await db.collection("usuarios").doc((email || "").trim().toLowerCase()).set({ ferramentas: f, acessoCusto: f.includes("custo") }, { merge: true });
+    },
+    // várias pessoas de uma vez: itens = [{email, ferramentas}] (uma gravação em lote)
+    async salvarFerramentasVarios(itens) {
+      const b = db.batch();
+      itens.forEach((it) => {
+        const f = (it.ferramentas || []).filter((i) => IDS.includes(i));
+        b.set(db.collection("usuarios").doc(it.email.trim().toLowerCase()), { ferramentas: f, acessoCusto: f.includes("custo") }, { merge: true });
+      });
+      await b.commit();
     },
     // cadastra vários e-mails de uma vez (uma gravação em lote)
     async salvarVarios(emails, perfil) {
