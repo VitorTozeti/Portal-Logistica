@@ -9,7 +9,7 @@ rules_version = '2';
 // Custo de Frete: campo booleano `acessoCusto` em usuarios/{email} (o TI sempre tem); a API da Azure lê esse
 // documento com o token da própria pessoa para decidir quem pode editar a cobertura das transportadoras.
 // Só o perfil "ti" lê acoes_log (quem mexeu) e gerencia usuarios/ (tela "Usuários" do site).
-// Sem documento em usuarios/ = SEM acesso (exceto os administradores iniciais em boot()).
+// Sem documento em usuarios/ = SEM acesso (exceto os administradores iniciais em boot(), que são SEMPRE ti, mesmo com documento).
 service cloud.firestore {
   match /databases/{db}/documents {
 
@@ -18,9 +18,10 @@ service cloud.firestore {
     // administradores iniciais (entram como ti sem documento) — igual a BOOTSTRAP em portal-auth.js
     function boot() { return meuEmail() in ['v.tozeti@pharmaesthetics.com.br', 'm.milani@pharmaesthetics.com.br']; }
     function perfil() {
-      return exists(/databases/$(db)/documents/usuarios/$(meuEmail()))
+      return boot() ? 'ti'
+        : exists(/databases/$(db)/documents/usuarios/$(meuEmail()))
         ? get(/databases/$(db)/documents/usuarios/$(meuEmail())).data.perfil
-        : (boot() ? 'ti' : 'nenhum');
+        : 'nenhum';
     }
     function membro() { return logado() && perfil() in ['logistica', 'ti', 'leitor']; }
     function editor() { return logado() && perfil() in ['logistica', 'ti']; }

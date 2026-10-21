@@ -68,6 +68,8 @@ window.PortalGate = (function () {
   // perfil da pessoa, ou null se o e-mail NÃO está autorizado (sem documento em `usuarios/`)
   async function carregarPerfil(user) {
     const email = (user.email || "").toLowerCase();
+    // administradores iniciais são SEMPRE ti com tudo liberado, mesmo que exista um documento com perfil menor
+    if (BOOTSTRAP.includes(email)) return { email, perfil: "ti", ferramentas: IDS.slice(), acessoCusto: true };
     try {
       // teto de 8 s: com o Firestore ainda não criado/sem rede o get() ficaria pendurado e o login "travaria"
       const d = await Promise.race([
@@ -80,7 +82,7 @@ window.PortalGate = (function () {
         return { email, perfil, doc: true, ferramentas, acessoCusto: ferramentas.includes("custo") };
       }
     } catch (_) { /* sem permissão/rede → trata como não autorizado */ }
-    return BOOTSTRAP.includes(email) ? { email, perfil: "ti", ferramentas: IDS.slice(), acessoCusto: true } : null;
+    return null;
   }
 
 
