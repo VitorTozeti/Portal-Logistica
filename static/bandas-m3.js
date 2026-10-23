@@ -129,7 +129,21 @@ let montado = false;
 function montar(raiz, ctx){
   if(montado) return;
   montado = true;
-  const { api, toast, msgErro } = ctx;
+  const { api, toast } = ctx;
+  // a Azure tem dois formatos de erro: {"erro": "..."} (rotas do Custo) e {"error": {"message"}} (limite de taxa etc.)
+  const msgErro = e => {
+    const c = (e && e.corpo) || {};
+    if(e && e.status === 429) return "A API recusou por excesso de chamadas seguidas (limite de 5 por segundo). Espere alguns segundos e tente de novo.";
+    return c.erro || (c.error && c.error.message) || (e && e.status ? "A API respondeu " + e.status + "." : "") || ctx.msgErro(e);
+  };
+  const espera = ms => new Promise(r => setTimeout(r, ms));
+  // GET com nova tentativa quando a API devolve 429 (limite de taxa por IP)
+  async function apiGet(caminho){
+    for(let t = 0; ; t++){
+      try{ return await api("GET", caminho); }
+      catch(e){ if(e && e.status === 429 && t < 4){ await espera(1200 * (t + 1)); continue; } throw e; }
+    }
+  }
   if(!document.getElementById("bm-css")){ const st = document.createElement("style"); st.id = "bm-css"; st.textContent = CSS; document.head.appendChild(st); }
   const $ = s => raiz.querySelector(s);
 
@@ -205,7 +219,7 @@ function montar(raiz, ctx){
 
   // ---------- carga ----------
   async function carregarTudo(){
-    est = await api("GET", "/v1/cobertura/banda");
+    est = await apiGet("/v1/cobertura/banda");
     base = new Map(); for(const r of est.regras) base.set(chave(r.uf, r.segmento), r.banda);
     des = new Map();
     const sel = $("#bm-uf");
@@ -214,10 +228,21 @@ function montar(raiz, ctx){
       sel.onchange = () => { uf = sel.value; desenharUF(); desenharGrade(); };
     }
     sel.value = uf;
-    const fila = est.ufs.filter(u => !dados[u]); let feitos = est.ufs.length - fila.length;
-    const passo = async () => { while(fila.length){ const u = fila.shift(); dados[u] = await api("GET", "/v1/cobertura/banda/impacto?uf=" + encodeURIComponent(u));
-      feitos++; $("#bm-carreg").textContent = feitos < est.ufs.length ? "carregando estados… " + feitos + "/" + est.ufs.length : ""; } };
-    await Promise.all(Array.from({ length: 6 }, passo));
+    // as 27 UFs numa chamada só (27 chamadas estourariam o limite de 5 por segundo da API)
+    $("#bm-carreg").textContent = "carregando os 27 estados…";
+    try{
+      dados = (await apiGet("/v1/cobertura/banda/impacto-todos")).ufs;
+    }catch(e){
+      if(!(e && e.status === 404)) throw e;
+      // API antiga (sem a rota única): uma UF por vez, com pausa, para não passar do limite
+      dados = {};
+      for(const [i, u] of est.ufs.entries()){
+        dados[u] = await apiGet("/v1/cobertura/banda/impacto?uf=" + encodeURIComponent(u));
+        $("#bm-carreg").textContent = "carregando estados… " + (i + 1) + "/" + est.ufs.length;
+        await espera(260);
+      }
+    }
+    $("#bm-carreg").textContent = "";
     atualizarTudo();
   }
 
