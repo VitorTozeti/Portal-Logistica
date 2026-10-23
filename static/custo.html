@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth.js?v=20261021"></script>
+<script src="./portal-auth.js?v=20261023"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>
   // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
@@ -188,7 +188,7 @@
 </head>
 <body>
 <header>
-  <a class="volta" href="./painel.html">← Painel</a>
+  <a class="volta" href="./">← Painel</a>
   <b>Custo de Frete</b>
   <span class="esp"></span>
   <span class="eu" id="eu"></span>
@@ -320,15 +320,8 @@ async function api(metodo, caminho, corpo){
       corpo ? {"Content-Type": "application/json"} : {}), body: corpo ? JSON.stringify(corpo) : undefined });
   }catch(e){ throw { status: 0, corpo: { erro: "Sem conexão com o servidor. Tente de novo." } }; }
   let j = {}; try{ j = await r.json(); }catch(_){}
-  if(!r.ok){ if(r.status === 403 && /e-mail/i.test(j.erro || "")) avisoEmail(); throw { status: r.status, corpo: j }; }
+  if(!r.ok) throw { status: r.status, corpo: j };
   return j;
-}
-function avisoEmail(){
-  aviso('Confirme o seu e-mail para editar a cobertura. Enviamos um link no cadastro. '
-    + '<button class="btn" id="re-env" type="button">Reenviar link</button> <button class="btn" id="re-ok" type="button">Já confirmei</button>');
-  const env = $("#re-env"), ok = $("#re-ok");
-  if(env) env.onclick = async () => { try{ await PortalGate.reenviarConfirmacao(); toast("Link enviado para o seu e-mail."); }catch(_){ toast("Não foi possível enviar agora.", {erro:true}); } };
-  if(ok) ok.onclick = async () => { try{ await PortalGate.idToken(true); aviso(""); await carregar(); }catch(_){ toast("Ainda não confirmado.", {erro:true}); } };
 }
 const msgErro = e => (e && e.corpo && e.corpo.erro) || "Algo deu errado. Tente de novo.";
 
