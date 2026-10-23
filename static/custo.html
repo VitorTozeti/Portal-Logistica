@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth.js?v=20261023"></script>
-<script src="./bandas-m3.js?v=20261023n"></script>
+<script src="./bandas-m3.js?v=20261023p"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>
   // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
@@ -41,7 +41,7 @@
   *{box-sizing:border-box}
   html,body{overflow-x:hidden;scrollbar-width:none}
   ::-webkit-scrollbar{width:0;height:0}
-  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;
+  body{margin:0;font:16px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;
     display:flex;flex-direction:column}
   html.gate-pend body > *{visibility:hidden}
   html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
@@ -49,56 +49,56 @@
   @keyframes gira{to{transform:rotate(360deg)}}
   header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand)}
   header b{font-size:16px;color:var(--brand)}
-  header a.volta{color:var(--ink);text-decoration:none;font-size:13px;font-weight:600;opacity:.85}
+  header a.volta{color:var(--ink);text-decoration:none;font-size:14.5px;font-weight:600;opacity:.85}
   header a.volta:hover{opacity:1;color:var(--brand)}
   .esp{margin-left:auto}
   .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);
     border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
   .tema-btn:hover{background:color-mix(in srgb,var(--brand) 14%,transparent)}
-  .eu{font-size:12.5px;color:var(--soft);max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eu{font-size:14px;color:var(--soft);max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   button,select,input,textarea{font:inherit;color:var(--ink)}
-  .btn{font-size:13.5px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:8px 14px;cursor:pointer}
+  .btn{font-size:15px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:8px 14px;cursor:pointer}
   .btn:hover:not(:disabled){background:var(--line)}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.pri{background:var(--brand);color:var(--p1);border-color:var(--brand)}
   .btn.pri:hover:not(:disabled){filter:brightness(1.1);background:var(--brand)}
   .btn:focus-visible,.cel:focus-visible,.tab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
   nav.tabs{display:flex;gap:4px;padding:0 20px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
-  .tab{background:transparent;border:0;border-bottom:3px solid transparent;padding:12px 14px;font-weight:700;font-size:14px;
+  .tab{background:transparent;border:0;border-bottom:3px solid transparent;padding:12px 14px;font-weight:700;font-size:15px;
     color:var(--soft);cursor:pointer;white-space:nowrap}
   .tab[aria-selected="true"]{color:var(--brand);border-bottom-color:var(--brand)}
   main{width:100%;max-width:1440px;margin:0 auto;padding:22px 24px 120px;flex:1}
   section[hidden]{display:none}
-  h2{font-size:17px;margin:0 0 4px} .sub{margin:0 0 16px;color:var(--soft);font-size:13.5px;line-height:1.5}
+  h2{font-size:17px;margin:0 0 4px} .sub{margin:0 0 16px;color:var(--soft);font-size:15px;line-height:1.5}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-  .legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--soft);margin:0 0 12px}
+  .legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:14px;color:var(--soft);margin:0 0 12px}
   .legenda span{display:inline-flex;align-items:center;gap:6px}
-  .tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 8px;margin-left:6px;vertical-align:1px;
+  .tag{display:inline-block;font-size:12px;font-weight:700;border-radius:20px;padding:1px 8px;margin-left:6px;vertical-align:1px;
     background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
   .tag.op{background:transparent;border:1px solid var(--line);color:var(--soft)}
   .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 0}
   .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:2px solid var(--brand);padding:12px 20px;
     display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .bar[hidden]{display:none}
-  .bar .st{flex:1;min-width:220px;font-size:13.5px;line-height:1.45}
+  .bar .st{flex:1;min-width:220px;font-size:15px;line-height:1.45}
   .bar .st b{color:var(--brand)} .bar .st .r{color:var(--bl)}
-  .bar .st ul{margin:6px 0 0;padding-left:18px;color:var(--bl);font-size:12.5px}
-  .aviso{margin:0 0 14px;padding:11px 15px;border-radius:10px;font-size:13.5px;line-height:1.5;
+  .bar .st ul{margin:6px 0 0;padding-left:18px;color:var(--bl);font-size:14px}
+  .aviso{margin:0 0 14px;padding:11px 15px;border-radius:10px;font-size:15px;line-height:1.5;
     background:color-mix(in srgb,var(--alerta) 16%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 60%,transparent)}
   .aviso[hidden]{display:none}
   .vazio{padding:28px;text-align:center;color:var(--soft)}
   .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
-  .peso{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13.5px}
+  .peso{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:15px}
   .peso .b{height:10px;border-radius:6px;background:var(--brand)} .peso span:first-child{width:120px}
-  table.lt{width:100%;border-collapse:collapse;font-size:13px}
-  .lt th,.lt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)} .lt th{color:var(--soft);font-size:12px}
+  table.lt{width:100%;border-collapse:collapse;font-size:14.5px}
+  .lt th,.lt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)} .lt th{color:var(--soft);font-size:13.5px}
   .drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--soft)}
   .drop.over,.drop:hover{border-color:var(--brand);color:var(--ink)}
   .hist{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin:0 0 10px;background:var(--card)}
-  .hist .q{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px}
-  .hist .q b{font-size:13.5px} .hist .m{margin:6px 0 0;font-size:12.5px;color:var(--soft)}
+  .hist .q{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:14.5px}
+  .hist .q b{font-size:15px} .hist .m{margin:6px 0 0;font-size:14px;color:var(--soft)}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
-  .chip{font-size:12px;border:1px solid var(--line);border-radius:20px;padding:2px 10px}
+  .chip{font-size:13.5px;border:1px solid var(--line);border-radius:20px;padding:2px 10px}
   .chip.l{border-color:var(--brand);color:var(--brand)} .chip.b{border-color:var(--bl);color:var(--bl)}
   .mdl{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
   .mdl[hidden]{display:none}
@@ -107,12 +107,12 @@
   .box input,.box select,.box textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-top:6px}
   .acoes{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
   .linhas{margin:12px 0 0;max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
-  .lin{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
-  .lin:last-child{border-bottom:0} .lin small{color:var(--soft);display:block;font-size:11.5px}
-  .lin .btn{padding:5px 10px;font-size:12.5px}
+  .lin{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-size:15px}
+  .lin:last-child{border-bottom:0} .lin small{color:var(--soft);display:block;font-size:13px}
+  .lin .btn{padding:5px 10px;font-size:14px}
   .dois{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #toasts{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:80;display:grid;gap:8px;width:min(92vw,440px)}
-  .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+  .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:15px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
   .toast.erro{border-color:var(--alerta)}
   .semacesso{max-width:520px;margin:60px auto;text-align:center}
   @media (max-width:640px){main{padding:16px 12px 150px} header{padding:12px 14px} .eu{display:none} .dois{grid-template-columns:1fr}}
@@ -120,10 +120,10 @@
      Vocabulário: claro = segue o estado · cheio com marcador = exceção da cidade · listrado = estado com exceções.
      Tracejado = alteração ainda não salva. */
   .st{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 4px;border-radius:8px;border:1px solid transparent;
-    font-size:12.5px;font-weight:800;position:relative;cursor:pointer;background:transparent;line-height:1;color:var(--ink)}
+    font-size:14px;font-weight:800;position:relative;cursor:pointer;background:transparent;line-height:1;color:var(--ink)}
   /* verde = atende, vermelho = bloqueada (mesma lógica do contador da lista de estados) */
   :root, :root[data-theme="dark"]{ --at:#34d399; --bq:#f87171; }
-  :root[data-theme="light"]{ --at:#059669; --bq:#dc2626; }
+  :root[data-theme="light"]{ --at:#047857; --bq:#b91c1c; }
   .st.lh,.st.l{background:color-mix(in srgb,var(--at) 15%,transparent);color:var(--at)}
   .st.bh,.st.b{background:color-mix(in srgb,var(--bq) 15%,transparent);color:var(--bq)}
   .st.l,.st.b{border-color:color-mix(in srgb,currentColor 55%,transparent)}
@@ -137,22 +137,23 @@
   .st:not(.na):hover{transform:scale(1.07)}
   .st.mod{outline:2px dashed var(--ink);outline-offset:2px}
   .st:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .saude{display:inline-block;font-size:11px;font-weight:800;border-radius:20px;padding:2px 8px;white-space:nowrap}
-  .saude.ok{background:color-mix(in srgb,#22c55e 16%,transparent);color:#16a34a}
+  .saude{display:inline-block;font-size:12.5px;font-weight:800;border-radius:20px;padding:2px 8px;white-space:nowrap}
+  .saude.ok{background:color-mix(in srgb,var(--at) 18%,transparent);color:var(--at)}
   :root[data-theme="dark"] .saude.ok{color:#4ade80}
   .saude.fragil{background:color-mix(in srgb,var(--bl) 18%,transparent);color:var(--bl)}
-  .saude.zero{background:color-mix(in srgb,#ef4444 16%,transparent);color:#ef4444}
+  .saude.zero{background:color-mix(in srgb,var(--bq) 16%,transparent);color:var(--bq)}
+  :root[data-theme="light"] .saude.fragil,:root[data-theme="light"] .bar .st .r{color:#92400e}
   .exp{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}
   .ufs{border:1px solid var(--line);border-radius:14px;background:var(--card);max-height:calc(100dvh - 230px);min-height:320px;overflow:auto;position:sticky;top:12px}
   .ufs{padding:4px 6px 8px}
-  .ufs h4{margin:0 -6px;padding:12px 16px 6px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);position:sticky;top:0;background:var(--card);z-index:1}
+  .ufs h4{margin:0 -6px;padding:12px 16px 6px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);position:sticky;top:0;background:var(--card);z-index:1}
   .ufb{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;border:0;border-radius:10px;background:none;padding:6px 10px;margin:1px 0;cursor:pointer;color:var(--ink);font-family:inherit;transition:background .12s}
   .ufb:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
   .ufb:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
-  .ufb .sg{flex:none;width:32px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;letter-spacing:.03em;background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--soft)}
-  .ufb .nm{flex:1;min-width:0;font-size:13.5px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+  .ufb .sg{flex:none;width:32px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:12.5px;font-weight:800;letter-spacing:.03em;background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--soft)}
+  .ufb .nm{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
   .ufb .mm{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bl);box-shadow:0 0 0 3px color-mix(in srgb,var(--bl) 25%,transparent)}
-  .ufb .ex{flex:none;font-size:10.5px;font-weight:800;border-radius:20px;padding:2px 7px;background:color-mix(in srgb,var(--bl) 16%,transparent);color:var(--bl)}
+  .ufb .ex{flex:none;font-size:12px;font-weight:800;border-radius:20px;padding:2px 7px;background:color-mix(in srgb,var(--bl) 16%,transparent);color:var(--bl)}
   .ufb .saude{flex:none;min-width:24px;text-align:center}
   .ufb[aria-current="true"]{background:color-mix(in srgb,var(--brand) 16%,transparent)}
   .ufb[aria-current="true"] .sg{background:var(--brand);color:var(--card)}
@@ -160,31 +161,31 @@
   .painel-uf{display:grid;gap:12px;min-width:0}
   .cab-uf{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
   .cab-uf h3{margin:0;font-size:20px}
-  .cab-uf .cont{font-size:12.5px;color:var(--soft)}
+  .cab-uf .cont{font-size:14px;color:var(--soft)}
   .linha-estado{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
-  .linha-estado .rt{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-right:6px}
-  .te{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:3px 4px 3px 12px;font-size:12.5px;font-weight:600}
+  .linha-estado .rt{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-right:6px}
+  .te{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:3px 4px 3px 12px;font-size:14px;font-weight:600}
   .ferr{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
   .ferr input[type=search]{flex:1;min-width:200px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
-  .chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap;cursor:pointer}
-  .massa{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--brand) 12%,transparent);font-size:13px}
+  .chk{display:inline-flex;gap:6px;align-items:center;font-size:14.5px;white-space:nowrap;cursor:pointer}
+  .massa{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--brand) 12%,transparent);font-size:14.5px}
   .massa b{color:var(--brand)}
   .massa select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
   .tab-cid{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
-  table.dt{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  table.dt{border-collapse:separate;border-spacing:0;width:100%;font-size:14.5px;font-variant-numeric:tabular-nums}
   .dt th,.dt td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   .dt tbody tr:last-child td{border-bottom:0}
-  .dt thead th{font-size:11.5px;color:var(--soft);font-weight:700;position:sticky;top:0;background:var(--card);z-index:1}
+  .dt thead th{font-size:13px;color:var(--soft);font-weight:700;position:sticky;top:0;background:var(--card);z-index:1}
   .dt th.d,.dt td.d{text-align:left;white-space:normal;min-width:170px}
   .dt td.ck,.dt th.ck{width:34px}
   .dt tr.sel td{background:color-mix(in srgb,var(--brand) 8%,transparent)}
-  .dt .ib{font-size:11px;color:var(--soft);margin-left:6px}
+  .dt .ib{font-size:12.5px;color:var(--soft);margin-left:6px}
   .dt input[type=checkbox],.chk input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
-  .lnk{background:none;border:0;color:var(--brand);font-weight:700;cursor:pointer;padding:0;font-size:13px}
+  .lnk{background:none;border:0;color:var(--brand);font-weight:700;cursor:pointer;padding:0;font-size:14.5px}
   .lnk:hover{text-decoration:underline}
-  .uf-mob{display:none;width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700;font-size:15px}
+  .uf-mob{display:none;width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700;font-size:16px}
   @media (max-width:860px){.exp{grid-template-columns:minmax(0,1fr)} .ufs{display:none} .uf-mob{display:block}
-    .legenda{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;font-size:11.5px}}
+    .legenda{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -212,7 +213,7 @@
 
   <section id="s-cobertura" data-s="cobertura">
     <h2>Quem atende onde</h2>
-    <p class="sub">Escolha um estado. A linha “Estado inteiro” vale para o estado todo; cada cidade segue o estado até ganhar uma exceção (clique na célula da cidade). Nada vale até você salvar, e nenhuma mudança pode deixar estado ou cidade sem transportadora de tabela.</p>
+    <p class="sub">Escolha um estado. A linha “Estado inteiro” vale para o estado todo; cada cidade segue o estado até ganhar uma exceção (clique na célula da cidade). Nada vale até você salvar, e nenhuma mudança pode deixar estado ou cidade sem transportadora (se sobrar só os Correios, grava com aviso).</p>
     <div class="legenda" aria-label="Legenda">
       <span><span class="st lh" style="cursor:default">✓</span> atende (segue o estado)</span>
       <span><span class="st bh" style="cursor:default">✕</span> bloqueada (segue o estado)</span>
@@ -412,6 +413,10 @@ function cidEf(c, ib){
   const r = des.get(chave(c, "IBGE", ib));
   return r ? {lib: r.liberado, origem: "excecao"} : {lib: ufLib(c, uf), origem: "estado"};
 }
+const COR = "F0002251";                 // Correios: cotam por API ao vivo, não contam como "de tabela"
+const ufAtendida = uf => garantUF(uf) > 0 || ufLib(COR, uf);
+const cidAtendida = ib => garantCid(ib) > 0 || cidEf(COR, ib).lib;
+const soCorreiosUF = uf => garantUF(uf) === 0 && ufLib(COR, uf);
 const garantUF = uf => garantidoras().filter(t => ufLib(t.codigo, uf)).length;
 const garantCid = ib => garantidoras().filter(t => cidEf(t.codigo, ib).lib).length;
 function excDe(c, uf){ const r = []; for(const k of des.keys()){ const [kc, e, ch] = k.split("|"); if(kc === c && e === "IBGE" && ufDe(ch) === uf) r.push(ch); } return r; }
@@ -421,21 +426,26 @@ function classeUF(c, uf){ if(!nat(c, uf)) return "na"; const lib = ufLib(c, uf),
 function classeCid(c, ib){ const e = cidEf(c, ib); if(e.origem === "natureza") return "na"; return e.origem === "excecao" ? (e.lib ? "le" : "be") : (e.lib ? "lh" : "bh"); }
 const ICONE = {na: "–", l: "✓", b: "✕", p: "◐", pb: "◐", lh: "✓", bh: "✕", le: "✓", be: "✕"};
 const ROTULO = {na: "não atende pela tabela", l: "atende o estado", b: "bloqueada no estado", p: "atende o estado, com exceções em cidades", pb: "bloqueada no estado, com exceções em cidades", lh: "atende (segue o estado)", bh: "bloqueada (segue o estado)", le: "exceção da cidade: atende", be: "exceção da cidade: bloqueada"};
-function saude(n, curto){ const c = n === 0 ? "zero" : n === 1 ? "fragil" : "ok"; return '<span class="saude ' + c + '" title="' + n + ' transportadora(s) de tabela">' + (curto ? n : (n === 0 ? "sem cobertura" : n + " de tabela")) + "</span>"; }
+function saude(n, curto, cor){
+  if(n === 0 && cor) return '<span class="saude fragil" title="nenhuma de tabela; só os Correios (API ao vivo) atendem. Se a API falhar, cai na Acerta.">' + (curto ? "Correios" : "só Correios") + "</span>";
+  return saudeN(n, curto);
+}
+function saudeN(n, curto){ const c = n === 0 ? "zero" : n === 1 ? "fragil" : "ok"; return '<span class="saude ' + c + '" title="' + n + ' transportadora(s) de tabela">' + (curto ? n : (n === 0 ? "sem cobertura" : n + " de tabela")) + "</span>"; }
 const copiaDes = () => new Map([...des].map(([k, v]) => [k, Object.assign({}, v)]));
 // cidades com exceção (de qualquer transportadora) que ficariam sem nenhuma de tabela
-function cidadesDescobertas(){ const r = [], vistos = new Set(); for(const k of des.keys()){ const [, e, ch] = k.split("|"); if(e !== "IBGE" || vistos.has(ch)) continue; vistos.add(ch); if(garantCid(ch) === 0) r.push(ch); } return r; }
+function cidadesDescobertas(){ const r = [], vistos = new Set(); for(const k of des.keys()){ const [, e, ch] = k.split("|"); if(e !== "IBGE" || vistos.has(ch)) continue; vistos.add(ch); if(!cidAtendida(ch)) r.push(ch); } return r; }
 const nomeCid = ib => { const m = (munis[ufDe(ib)] || []).find(x => x.ibge === ib); return m ? titulo(m.cidade) : ib; };
-const ehGarantidora = c => !!(tr().find(t => t.codigo === c) || {}).garante_cobertura;
+const ehGarantidora = c => c === COR || !!(tr().find(t => t.codigo === c) || {}).garante_cobertura;
 
 function setUF(c, uf, lib){
   if(!nat(c, uf) || ufLib(c, uf) === lib) return;
   const antes = copiaDes();
   if(lib) des.delete(chave(c, "UF", uf)); else des.set(chave(c, "UF", uf), {liberado: false, motivo: ""});
   for(const ib of excDe(c, uf)) if(des.get(chave(c, "IBGE", ib)).liberado === ufLib(c, uf)) des.delete(chave(c, "IBGE", ib));
-  if(ehGarantidora(c) && garantUF(uf) === 0){ des = antes; toast("Não dá: " + NOME_UF[uf] + " ficaria sem nenhuma transportadora de tabela.", {erro: true}); return; }
+  if(ehGarantidora(c) && !ufAtendida(uf)){ des = antes; toast("Não dá: " + NOME_UF[uf] + " ficaria sem nenhuma transportadora (nem de tabela, nem os Correios).", {erro: true}); return; }
   const sem = cidadesDescobertas();
-  if(sem.length){ des = antes; toast("Não dá: " + sem.slice(0, 3).map(nomeCid).join(", ") + " ficaria sem transportadora de tabela.", {erro: true}); return; }
+  if(sem.length){ des = antes; toast("Não dá: " + sem.slice(0, 3).map(nomeCid).join(", ") + " ficaria sem transportadora.", {erro: true}); return; }
+  if(!lib && soCorreiosUF(uf)) toast("Atenção: em " + NOME_UF[uf] + " só os Correios ficam atendendo. Eles cotam pela API ao vivo; se a API falhar ou o pedido vier sem CEP, a escolha cai na Acerta, mesmo bloqueada.", {ms: 12000});
   render(); agendar();
 }
 // modo: "seguir" | "lib" | "bl"
@@ -448,7 +458,7 @@ function setCids(c, ibs, modo){
       const antes = copiaDes(), lib = modo === "lib";
       if(lib) des.delete(chave(c, "UF", uf)); else des.set(chave(c, "UF", uf), {liberado: false, motivo: ""});
       for(const ib of excDe(c, uf)) des.delete(chave(c, "IBGE", ib));
-      if(ehGarantidora(c) && (garantUF(uf) === 0 || cidadesDescobertas().length)){ des = antes; recusadas.push(NOME_UF[uf] + " (estado inteiro)"); }
+      if(ehGarantidora(c) && (!ufAtendida(uf) || cidadesDescobertas().length)){ des = antes; recusadas.push(NOME_UF[uf] + " (estado inteiro)"); }
       else viraram.push(NOME_UF[uf] + " (" + l.length + " cidades)");
       const s = new Set(l); ibs = ibs.filter(ib => !s.has(ib));
     }
@@ -458,13 +468,13 @@ function setCids(c, ibs, modo){
     const k = chave(c, "IBGE", ib), antes = des.has(k) ? des.get(k).liberado : undefined;
     if(modo === "seguir") des.delete(k);
     else { const lib = modo === "lib"; if(lib === ufLib(c, uf)) des.delete(k); else des.set(k, {liberado: lib, motivo: ""}); }
-    if(ehGarantidora(c) && garantCid(ib) === 0){ if(antes === undefined) des.delete(k); else des.set(k, {liberado: antes, motivo: ""}); recusadas.push(nomeCid(ib)); }
+    if(ehGarantidora(c) && !cidAtendida(ib)){ if(antes === undefined) des.delete(k); else des.set(k, {liberado: antes, motivo: ""}); recusadas.push(nomeCid(ib)); }
     else if(antes !== (des.has(k) ? des.get(k).liberado : undefined)) feitas++;
   }
   const partes = [];
   if(viraram.length) partes.push("Virou regra do estado inteiro: " + titulo(nomeDe(c)) + (modo === "lib" ? " atende " : " bloqueada em ") + viraram.join(", ") + ".");
   if(feitas && (ibs.length > 1 || viraram.length)) partes.push(feitas + " cidade(s) alterada(s).");
-  if(recusadas.length) partes.push(recusadas.length + " recusada(s) porque ficariam sem transportadora de tabela: " + recusadas.slice(0, 4).join(", ") + (recusadas.length > 4 ? "…" : "") + ".");
+  if(recusadas.length) partes.push(recusadas.length + " recusada(s) porque ficariam sem nenhuma transportadora: " + recusadas.slice(0, 4).join(", ") + (recusadas.length > 4 ? "…" : "") + ".");
   if(partes.length) toast(partes.join(" "), recusadas.length ? {erro: true, ms: 8000} : undefined);
   render(); agendar();
 }
@@ -480,7 +490,7 @@ function renderUFs(){
       h += '<button class="ufb" role="option" data-uf="' + u + '" aria-current="' + (u === ufSel) + '"><span class="sg">' + u + '</span><span class="nm">' + NOME_UF[u] + "</span>"
         + (ufTemPendencia(u) ? '<span class="mm" title="alterações ainda não salvas"></span>' : "")
         + (ex ? '<span class="ex" title="' + ex + " cidade" + (ex > 1 ? "s" : "") + ' com exceção">' + ex + " exc.</span>" : "")
-        + saude(garantUF(u), true) + "</button>";
+        + saude(garantUF(u), true, ufLib(COR, u)) + "</button>";
     }
   }
   $("#ufs").innerHTML = h;
@@ -501,7 +511,7 @@ async function renderPainel(){
   const todas = munis[uf], lista = filtradas(), vis = lista.slice(0, limCid);
   let h = '<select class="uf-mob" id="uf-mob" aria-label="Estado">' + REGIOES.map(([rn, l]) => '<optgroup label="' + rn + '">' + l.map(u => { const n = garantUF(u), ex = excUF(u).size;
     return '<option value="' + u + '"' + (u === uf ? " selected" : "") + ">" + NOME_UF[u] + " · " + n + " de tabela" + (ex ? " · " + ex + " c/ exceção" : "") + "</option>"; }).join("") + "</optgroup>").join("") + "</select>";
-  h += '<div class="cab-uf"><h3>' + NOME_UF[uf] + "</h3>" + saude(garantUF(uf)) + '<span class="cont">' + todas.length + " cidades · " + excUF(uf).size + " com exceção</span></div>";
+  h += '<div class="cab-uf"><h3>' + NOME_UF[uf] + "</h3>" + saude(garantUF(uf), false, ufLib(COR, uf)) + '<span class="cont">' + todas.length + " cidades · " + excUF(uf).size + " com exceção</span></div>";
   h += '<div class="linha-estado"><span class="rt">Estado inteiro</span>' + tr().map(t => { const c = classeUF(t.codigo, uf), mod = mudou(chave(t.codigo, "UF", uf));
     return '<span class="te">' + esc(nomeT(t)) + ' <button type="button" class="st ' + c + (mod ? " mod" : "") + '" data-ue="' + t.codigo + '" title="' + esc(t.nome) + " · " + NOME_UF[uf] + ": " + ROTULO[c] + (c === "na" ? "" : ". Clique para " + (ufLib(t.codigo, uf) ? "bloquear" : "liberar") + " o estado") + '"' + (c === "na" ? " disabled" : "") + ">" + ICONE[c] + "</button></span>"; }).join("") + "</div>";
   h += '<div class="ferr"><input id="q-cid" type="search" placeholder="Buscar cidade em ' + NOME_UF[uf] + ' (nome ou código IBGE)…" value="' + esc(qCid) + '" aria-label="Buscar cidade"><label class="chk"><input type="checkbox" id="so-exc"' + (soExc ? " checked" : "") + "> só cidades com exceção</label></div>";
@@ -512,7 +522,7 @@ async function renderPainel(){
     return '<tr class="' + (sel ? "sel" : "") + '"><td class="ck"><input type="checkbox" data-ck="' + ib + '"' + (sel ? " checked" : "") + ' aria-label="Selecionar ' + esc(titulo(m.cidade)) + '"></td><td class="d">' + esc(titulo(m.cidade)) + '<span class="ib">' + ib + "</span></td>"
       + tr().map(t => { const c = classeCid(t.codigo, ib), mod = mudou(chave(t.codigo, "IBGE", ib));
         return '<td><button type="button" class="st ' + c + (mod ? " mod" : "") + '" data-cc="' + t.codigo + "|" + ib + '" title="' + esc(t.nome) + " em " + esc(titulo(m.cidade)) + ": " + ROTULO[c] + '"' + (c === "na" ? " disabled" : "") + ">" + ICONE[c] + "</button></td>"; }).join("")
-      + "<td>" + saude(garantCid(ib), true) + "</td></tr>"; }).join("");
+      + "<td>" + saude(garantCid(ib), true, cidEf(COR, ib).lib) + "</td></tr>"; }).join("");
   h += "</tbody></table></div>";
   if(!vis.length) h += '<div class="vazio">Nenhuma cidade encontrada.</div>';
   if(lista.length > vis.length || lista.length > 1) h += '<div class="tools" style="margin:0">' + (lista.length > vis.length ? '<button class="btn" type="button" id="b-mais">Mostrar mais (' + (lista.length - vis.length) + " restantes)</button>" : "")
@@ -566,7 +576,7 @@ $("#b-exportar").onclick = async () => {
       ["Cobertura: uma linha por transportadora, uma coluna por estado. Escreva Sim (atende) ou Não (bloqueada). “—” = a transportadora não atende esse estado por natureza; deixe como está."],
       ["Cidades: só as EXCEÇÕES. IBGE = código de 7 dígitos; Liberado = Sim/Não para aquela cidade, contrariando a regra do estado. Para apagar uma exceção, apague a linha."],
       ["Ao importar, a planilha vale como o estado completo: o que não estiver nela volta ao padrão (liberado)."],
-      ["A importação mostra o que vai mudar antes de aplicar e recusa qualquer regra que deixe um estado ou cidade sem transportadora de tabela (Acerta, VIP, Sul Cargo, Quality)."],
+      ["A importação mostra o que vai mudar antes de aplicar e recusa qualquer regra que deixe um estado ou cidade sem nenhuma transportadora. Se sobrarem só os Correios (API ao vivo), aplica com aviso de risco."],
       ["Gerada em " + dataBR(new Date()) + " · versão das regras " + E.versao]];
     const wl = XLSX.utils.aoa_to_sheet(ler); wl["!cols"] = [{wch:120}];
     XLSX.utils.book_append_sheet(wb, wl, "Leia-me");
