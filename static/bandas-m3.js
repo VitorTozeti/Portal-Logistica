@@ -159,8 +159,11 @@ function montar(raiz, ctx){
 
   async function desenhar(){
     desenharLista();
-    const aq = est.modo_sem_banda === "ponderada"
-      ? "Atenção: a reserva <b>ESCOLHA_SEM_BANDA=ponderada</b> está ligada na Azure — regra sem banda salva usa o método antigo, não a recomendada. " : "";
+    const pa = est.prazo_ajuste || {};
+    const dataBr = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? m[3] + "/" + m[2] + "/" + m[1] : ""; };
+    const aq = (est.modo_sem_banda === "ponderada"
+      ? "Atenção: a reserva <b>ESCOLHA_SEM_BANDA=ponderada</b> está ligada na Azure — regra sem banda salva usa o método antigo, não a recomendada. " : "") +
+      (pa.erro ? "O <b>ajuste de prazo</b> não está carregado na Azure (" + esc(pa.erro) + "): o M3 compara só o prazo prometido, sem o desvio medido no OTIF. " : "");
     let d;
     try{ d = await impacto(uf); }
     catch(e){ aviso(aq); $("#bm-painel").innerHTML = '<div class="aviso">Não consegui carregar ' + esc(nomeUF(uf)) + ". " + esc(msgErro(e)) + "</div>"; return; }
@@ -171,6 +174,8 @@ function montar(raiz, ctx){
     h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + '</h3><span class="bm-info">' + (d.fonte === "recalculo" ? "Números recalculados com a cobertura atual (bloqueios já considerados)." : "Números da planilha de 23/10 (jan–set/2026, calculada sem bloqueios).") + "</span></div>";
     if(bloq.length) h += '<div class="bm-chips"><span>Bloqueios da Cobertura em ' + esc(nomeUF(uf)) + ':</span>' +
       bloq.map(b => '<span class="bm-chip" title="Bloqueada em ' + esc(b.onde) + '">✕ ' + esc(b.curto) + " · " + esc(b.onde === uf ? "estado inteiro" : b.onde) + "</span>").join("") + "</div>";
+    if(!pa.erro && pa.fonte) h += '<p class="bm-mudo bm-fonte" title="' + esc(pa.fonte) + '">Prazo esperado do M3 = prazo prometido da cidade + desvio medido nas entregas reais do Power BI do OTIF · ' +
+      esc((pa.fonte.match(/(\d[\d.]*) NFs/) || [])[1] ? (pa.fonte.match(/(\d[\d.]*) NFs/))[1].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " entregas" : "") + (pa.gerado_em ? " · atualizado em " + dataBr(pa.gerado_em) : "") + "</p>";
     h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc, bloq)).join("");
     $("#bm-painel").innerHTML = h;
     const mob = $("#bm-mob"); if(mob) mob.onchange = () => { uf = mob.value; desenhar(); };
