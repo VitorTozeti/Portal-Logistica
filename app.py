@@ -2,7 +2,7 @@
 app.py — o servidor do Portal da Logística (versão básica, B4You).
 
 Expõe:
-  GET /            -> o front (static/index.html)
+  GET /            -> o front (static/index.html = Painel de ferramentas; Monitor em static/monitor.html)
   GET /stream      -> a LIVE CONNECTION (SSE): empurra o estado das NFs em tempo real
   GET /api/nfs     -> foto atual (snapshot) — usado por quem não quer stream
 

@@ -10,13 +10,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth.js?v=20261021"></script>
+<script src="./portal-auth.js?v=20261023"></script>
 <script>
   if (window.PortalGate && PortalGate.ativo()) {
     document.documentElement.classList.add("gate-pend");
     PortalGate.pronto.then(function (u) {
       if (!u) location.replace("./login.html?next=" + encodeURIComponent("./usuarios.html"));
-      else if (u.perfil !== "ti") location.replace("./painel.html");     // só o TI administra pessoas
+      else if (u.perfil !== "ti") location.replace("./");     // só o TI administra pessoas
       else document.documentElement.classList.remove("gate-pend");
     });
   }
@@ -87,7 +87,7 @@
 </head>
 <body>
 <header>
-  <a href="./painel.html">← Painel</a>
+  <a href="./">← Painel</a>
   <b>Usuários e permissões</b>
   <span class="esp"></span>
   <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>

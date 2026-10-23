@@ -2,7 +2,7 @@
 window.AuthUI = (function () {
   const $ = (s) => document.querySelector(s);
 
-  // ---- tema (mesma chave do index.html) ----
+  // ---- tema (mesma chave do monitor.html) ----
   function tema() {
     let t = "dark";
     try { t = localStorage.getItem("portal_tema") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); } catch (_) {}
@@ -86,7 +86,7 @@ window.AuthUI = (function () {
       const n = new URLSearchParams(location.search).get("next") || "";
       if (/^\.\/[A-Za-z0-9_\-./?=&%#]*$/.test(n) && n.indexOf("..") < 0 && n.indexOf("//") < 0) return n;
     } catch (_) {}
-    return "./painel.html";
+    return "./";
   }
   const comNext = (pagina) => { const n = new URLSearchParams(location.search).get("next"); return n ? pagina + "?next=" + encodeURIComponent(n) : pagina; };
 

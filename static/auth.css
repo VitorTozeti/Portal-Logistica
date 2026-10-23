@@ -1,5 +1,5 @@
 /* auth.css — visual ÚNICO das telas de acesso (login, cadastro, esqueci a senha).
-   Mesma paleta do index.html (escuro/claro); o tema vem de localStorage "portal_tema". */
+   Mesma paleta do monitor.html (escuro/claro); o tema vem de localStorage "portal_tema". */
 :root, :root[data-theme="dark"]{
   --p1:#0e0d0d; --p2:#242424; --p3:#005b6b; --p4:#31cceb; --p5:#ffffff;
   --muted:#a9b4b8; --err:#ff8a80; --ok:#7be3a5; --field:#171717;

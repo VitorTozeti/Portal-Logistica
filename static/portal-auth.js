@@ -36,7 +36,7 @@ window.PortalGate = (function () {
   // `acessoCusto` estava ligado) — ninguém perde o que já tinha. O id "custo" também grava `acessoCusto`
   // porque a API da Azure (rotas /v1/cobertura/*) lê esse campo para decidir quem pode editar.
   const FERRAMENTAS = [
-    { id: "monitor", nome: "Monitor de NFs", icone: "📦", href: "./index.html",
+    { id: "monitor", nome: "Monitor de NFs", icone: "📦", href: "./monitor.html",
       desc: "Notas que subiram e as travadas, com o problema e há quanto tempo, e as ações por nota." },
     { id: "custo", nome: "Custo de Frete", icone: "💲", href: "./custo.html",
       desc: "Libere ou bloqueie estados e cidades de cada transportadora, por tela ou Excel." },
@@ -112,14 +112,12 @@ window.PortalGate = (function () {
     ferramentas() { return FERRAMENTAS.slice(); },
     ferramentaTI() { return FERRAMENTA_TI; },
     ferramentasDe,
-    // ID token para a API da Azure (rotas /v1/cobertura/*). `forcar` renova (ex.: depois de confirmar o e-mail)
+    // ID token para a API da Azure (rotas /v1/cobertura/*). `forcar` renova o token
     async idToken(forcar) {
       if (!auth || !auth.currentUser) throw new Error("sem sessão");
       if (forcar) await auth.currentUser.reload();
       return auth.currentUser.getIdToken(!!forcar);
     },
-    emailConfirmado() { return !!(auth && auth.currentUser && auth.currentUser.emailVerified); },
-    async reenviarConfirmacao() { if (!auth || !auth.currentUser) throw new Error("sem sessão"); await auth.currentUser.sendEmailVerification(); },
 
     async entrar(email, senha, lembrar) {
       if (!SDK) throw new Error("SDK do Firebase não carregou");
@@ -143,8 +141,6 @@ window.PortalGate = (function () {
         const cred = await auth.createUserWithEmailAndPassword((email || "").trim().toLowerCase(), senha || "");
         const p = await carregarPerfil(cred.user);
         if (!p) { await cred.user.delete(); throw new Error("sem-acesso"); }
-        // a API do Custo de Frete só aceita e-mail confirmado: manda o link de confirmação (não bloqueia o cadastro)
-        try { await cred.user.sendEmailVerification(); } catch (_) {}
         await cred.user.getIdToken();      // garante a sessão gravada antes de redirecionar
         usuarioAtual = p;
         return p;
