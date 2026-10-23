@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth.js?v=20261023"></script>
-<script src="./bandas-m3.js?v=20261023d"></script>
+<script src="./bandas-m3.js?v=20261023g"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>
   // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
@@ -185,7 +185,6 @@
   .uf-mob{display:none;width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700;font-size:15px}
   @media (max-width:860px){.exp{grid-template-columns:minmax(0,1fr)} .ufs{display:none} .uf-mob{display:block}
     .legenda{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;font-size:11.5px}}
-  .bm-sep{margin:26px 0 14px;padding-top:18px;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -253,10 +252,8 @@
 
   <section id="s-regras" data-s="regras" hidden>
     <h2>Regras da escolha</h2>
-    <p class="sub">É assim que a API decide a transportadora de cada pedido do SAP. Primeiro a <b>banda do M3</b> (editável: clique na linha para escolher); depois a <b>Ponderada</b>, que vale onde não há banda (somente leitura).</p>
+    <p class="sub">Como a API escolhe a transportadora de cada pedido do SAP: pelo <b>método M3</b>, com a banda de cada regra. Escolha o estado.</p>
     <div id="bm-raiz"><div class="vazio">carregando…</div></div>
-    <h3 class="bm-sep">Ponderada <span class="tag op">usada quando o estado não tem banda</span></h3>
-    <div id="regras-corpo"><div class="vazio">carregando…</div></div>
   </section>
 
   <section id="s-historico" data-s="historico" hidden>
@@ -648,27 +645,6 @@ drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) im
 window.__custoTeste = { lerPlanilha: (b) => lerPlanilha(b), importar };
 
 // ---------- Regras ----------
-async function carregarRegras(){
-  const box = $("#regras-corpo");
-  try{
-    const r = await api("GET", "/v1/cobertura/regras-escolha"), p = r.pesos, tot = p.custo + p.prazo + p.confiabilidade;
-    const barra = (n, v) => '<div class="peso"><span>' + n + '</span><span class="b" style="width:' + Math.round(v / tot * 220) + 'px"></span><b>' + Math.round(v * 100) + "%</b></div>";
-    box.innerHTML = '<div class="grid2"><div class="card"><b>Nota de cada transportadora</b>'
-      + '<p class="sub" style="margin:6px 0">Para cada pedido, as transportadoras que atendem o destino recebem uma nota; vence a maior.</p>'
-      + barra("Custo", p.custo) + barra("Prazo", p.prazo) + barra("Confiabilidade", p.confiabilidade)
-      + '<p class="sub" style="margin:8px 0 0">Cada fator é a razão contra o melhor candidato do pedido. A confiabilidade é assumida igual para todas (' + Math.round(r.confiabilidade_assumida * 100) + "%), então na prática decidem custo e prazo.</p></div>"
-      + '<div class="card"><b>Como funciona</b><ul class="sub" style="margin:8px 0 0;padding-left:18px;line-height:1.7">'
-      + "<li>O <b>custo</b> é o frete sem imposto, para comparar todas na mesma base.</li>"
-      + "<li>O <b>prazo</b> vem do estudo de prazos por cidade (ou da própria tabela da transportadora).</li>"
-      + "<li>Transportadoras com <b>cubagem</b> cobram o maior entre o peso real e o cubado das caixas.</li>"
-      + "<li>A <b>TGT</b> só entra para cliente Distribuidor (0,68% da NF); os <b>Correios</b> cotam só pela API.</li>"
-      + "<li>Um <b>bloqueio</b> feito aqui tira a transportadora da disputa naquele estado ou cidade.</li></ul></div></div>"
-      + '<div class="card" style="margin-top:16px;overflow-x:auto"><b>Transportadoras</b><table class="lt" style="margin-top:8px"><thead><tr><th>Nome</th><th>Código SAP</th><th>Cubagem</th><th>Estados</th><th>Garante cobertura</th></tr></thead><tbody>'
-      + r.transportadoras.map(t => { const x = (E.transportadoras.find(y => y.codigo === t.codigo) || {});
-        return "<tr><td>" + esc(t.nome) + "</td><td>" + esc(t.codigo) + "</td><td>" + (t.divisor_cubagem ? "volume (cm³) ÷ " + Math.round(t.divisor_cubagem) : "não cuba") + "</td><td>" + (x.ufs_naturais ? x.ufs_naturais.length : "—") + "</td><td>" + (x.garante_cobertura ? "sim (tabela)" : "não (opcional)") + "</td></tr>"; }).join("")
-      + "</tbody></table></div>";
-  }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; }
-}
 
 // ---------- Histórico ----------
 let histCache = [];
@@ -696,7 +672,7 @@ $("#hist-corpo").addEventListener("click", ev => {
 function trocarAba(t){
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.t === t)));
   document.querySelectorAll("section[data-s]").forEach(s => s.hidden = s.dataset.s !== t);
-  if(t === "regras"){ carregarRegras(); if(window.BandasM3) BandasM3.montar($("#bm-raiz"), { api, toast, msgErro }); }
+  if(t === "regras" && window.BandasM3) BandasM3.montar($("#bm-raiz"), { api, toast, msgErro, regioes: REGIOES, nomeUF: NOME_UF });
   if(t === "historico") carregarHistorico();
   try{ history.replaceState(null, "", "#" + t); }catch(_){}
 }
