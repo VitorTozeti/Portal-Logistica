@@ -16,6 +16,7 @@ const fmtR = v => (v < 0 ? "−" : "") + "R$ " + nf(Math.abs(v), 0);
 const fmtP = v => nf(v * 100, 1) + "%";
 const fmtD = v => (v > 1e-9 ? "+" : v < -1e-9 ? "−" : "") + nf(Math.abs(v), 2) + " d";
 const fmtB = b => nf(b, 1);
+const CAPITAIS = {"AC":"1200401","AL":"2704302","AM":"1302603","AP":"1600303","BA":"2927408","CE":"2304400","DF":"5300108","ES":"3205309","GO":"5208707","MA":"2111300","MG":"3106200","MS":"5002704","MT":"5103403","PA":"1501402","PB":"2507507","PE":"2611606","PI":"2211001","PR":"4106902","RJ":"3304557","RN":"2408102","RO":"1100205","RR":"1400100","RS":"4314902","SC":"4205407","SE":"2800308","SP":"3550308","TO":"1721000"};
 const igual = (a, b) => a != null && b != null && Math.abs(a - b) < 1e-9;
 
 const CSS = `
@@ -69,6 +70,18 @@ const CSS = `
 .bm-bar[hidden]{display:none}
 .bm-st{flex:1;min-width:220px;font-size:13.5px;line-height:1.45} .bm-r{color:var(--bl)}
 .bm-bar input{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:260px}
+.bm-sim .bm-form{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:10px 0}
+.bm-sim label.bm-f{display:grid;gap:3px;font-size:12px;color:var(--soft)}
+.bm-sim select,.bm-sim input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13.5px;color:var(--ink);min-inline-size:0}
+.bm-sim .bm-ck{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--ink);padding-bottom:8px}
+.bm-simres{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:10px}
+.bm-simres h5{margin:0 0 4px;font-size:13.5px}
+.bm-simres .bm-tab{margin:4px 0}
+.bm-simres .bm-tab table{min-inline-size:0}
+.bm-simres tr.bm-sel{background:color-mix(in srgb,var(--bm-verde) 20%,transparent);box-shadow:inset 4px 0 0 var(--bm-verde)}
+.bm-simres tr.bm-fora td{color:var(--soft)}
+.bm-simres tr.bm-fora td:first-child{text-decoration:line-through}
+.bm-simres .bm-resumo{grid-column:1/-1;padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:13.5px;line-height:1.5}
 @media (prefers-reduced-motion:no-preference){.bm-tab tbody tr{transition:background .15s}}
 @media (max-width:640px){.bm-bar input{min-width:0;flex:1}}
 `;
@@ -177,7 +190,17 @@ function montar(raiz, ctx){
     if(!pa.erro && pa.fonte) h += '<p class="bm-mudo bm-fonte" title="' + esc(pa.fonte) + '">Prazo esperado do M3 = prazo prometido da cidade + desvio medido nas entregas reais do Power BI do OTIF · ' +
       esc((pa.fonte.match(/(\d[\d.]*) NFs/) || [])[1] ? (pa.fonte.match(/(\d[\d.]*) NFs/))[1].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " entregas" : "") + (pa.gerado_em ? " · atualizado em " + dataBr(pa.gerado_em) : "") + "</p>";
     h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc, bloq)).join("");
+    h += '<section class="bm-card bm-sim"><h4>Simular um pedido neste estado</h4>' +
+      '<p class="bm-mudo">Roda o motor da Azure para um pedido de verdade, <b>sem</b> os bloqueios e <b>com</b> os bloqueios atuais da Cobertura, usando a banda <b>já salva</b> (alterações ainda não salvas não entram). ' +
+      'Mostra o custo e o prazo esperado de cada transportadora, quem a regra escolhe e quanto muda.</p>' +
+      '<div class="bm-form"><label class="bm-f">Cidade<select id="bm-sc" aria-label="Cidade do pedido"><option value="' + CAPITAIS[uf] + '">Capital</option></select></label>' +
+      '<label class="bm-f">Peso (kg)<input type="number" id="bm-sp" min="0.1" max="2000" step="0.1" value="12" style="inline-size:90px"></label>' +
+      '<label class="bm-f">Valor da NF (R$)<input type="number" id="bm-sv" min="0" step="100" value="2500" style="inline-size:120px"></label>' +
+      '<label class="bm-ck"><input type="checkbox" id="bm-sd"> Cliente distribuidor</label>' +
+      '<button type="button" class="btn pri" id="bm-sgo">Simular</button></div>' +
+      '<div id="bm-sres" aria-live="polite"></div></section>';
     $("#bm-painel").innerHTML = h;
+    prepararSim();
     const mob = $("#bm-mob"); if(mob) mob.onchange = () => { uf = mob.value; desenhar(); };
     for(const [s] of SEG){
       raiz.querySelectorAll('input[name="bm-' + s + '"]').forEach(r => r.onchange = () => escolher(s, r.value === "" ? null : Number(r.value)));
@@ -189,6 +212,52 @@ function montar(raiz, ctx){
       });
     }
     barra();
+  }
+  // ---- simulador de pedido (sem x com bloqueios) ----
+  const munis = {};
+  const tit = t => String(t).toLowerCase().replace(/(^|[\s-])\S/g, c => c.toUpperCase());
+  async function prepararSim(){
+    const u = uf, sel = $("#bm-sc"), go = $("#bm-sgo");
+    if(!sel || !go) return;
+    go.onclick = () => simular();
+    try{
+      if(!munis[u]) munis[u] = (await apiGet("/v1/cobertura/municipios?uf=" + encodeURIComponent(u))).municipios;
+    }catch(e){ return; }                      // sem a lista, só a capital fica disponível
+    if(u !== uf || !$("#bm-sc")) return;
+    const cap = CAPITAIS[u];
+    sel.innerHTML = munis[u].map(m => '<option value="' + m.ibge + '"' + (m.ibge === cap ? " selected" : "") + ">" + esc(tit(m.cidade)) + (m.ibge === cap ? " (capital)" : "") + "</option>").join("");
+  }
+  const dias = v => v == null ? "—" : nf(v, 2) + " d";
+  function tabSim(c){
+    if(c.erro) return '<p class="bm-mudo">' + esc(c.erro) + "</p>";
+    let h = '<div class="bm-tab"><table><thead><tr><th>Transportadora</th><th>Frete</th><th>Prazo esperado</th><th></th></tr></thead><tbody>';
+    for(const l of c.candidatas){
+      const nota = l.escolhida ? "✓ escolhida" : (!l.na_disputa ? "bloqueada" : (l.elegivel ? "na banda" : "fora da banda"));
+      h += '<tr class="' + (l.escolhida ? "bm-sel" : "") + (l.na_disputa ? "" : " bm-fora") + '"><td>' + esc(l.nome) + "</td><td>R$ " + nf(l.preco, 2) + "</td><td>" + dias(l.prazo_esperado) + "</td><td>" + nota + "</td></tr>";
+    }
+    return h + "</tbody></table></div>" + (c.limite_prazo != null ? '<p class="bm-mudo">Banda +' + fmtB(c.banda) + " d: aceita até " + dias(c.limite_prazo) + ".</p>" : "");
+  }
+  async function simular(){
+    const caixa = $("#bm-sres"), go = $("#bm-sgo");
+    const corpo = { uf, ibge: $("#bm-sc").value, peso: Number($("#bm-sp").value), valor_nf: Number($("#bm-sv").value), distribuidor: $("#bm-sd").checked };
+    if(!(corpo.peso > 0) || !(corpo.valor_nf >= 0)){ caixa.innerHTML = '<div class="aviso">Informe peso maior que 0 e valor da NF.</div>'; return; }
+    go.disabled = true; caixa.innerHTML = '<p class="bm-mudo">simulando…</p>';
+    let r;
+    try{ r = await api("POST", "/v1/cobertura/banda/simular", corpo); }
+    catch(e){ caixa.innerHTML = '<div class="aviso">' + esc(msgErro(e)) + "</div>"; go.disabled = false; return; }
+    go.disabled = false;
+    const sem = r.cenarios.sem, com = r.cenarios.com, df = r.diferenca;
+    const seg = { CAPITAL: "Capital", INTERIOR: "Interior", DISTRIBUIDOR: "Distribuidor" }[r.regra] || r.regra;
+    const sinal = v => (v >= 0 ? "+" : "−");
+    let res;
+    if(!df) res = "Não foi possível comparar: algum cenário não achou transportadora.";
+    else if(!r.bloqueadas.length) res = "Nenhuma transportadora está bloqueada para <b>" + esc(tit(r.cidade)) + "</b>: os dois cenários são iguais (" + esc(com.escolhida.nome) + ").";
+    else if(!df.mudou) res = "O bloqueio de <b>" + esc(r.bloqueadas.join(", ")) + "</b> não muda a escolha: continua <b>" + esc(com.escolhida.nome) + "</b>.";
+    else res = "Com o bloqueio de <b>" + esc(r.bloqueadas.join(", ")) + "</b>, a escolha passa de <b>" + esc(sem.escolhida.nome) + "</b> para <b>" + esc(com.escolhida.nome) + "</b>: " +
+      'frete <b class="' + (df.custo > 0 ? "bm-neg" : "bm-pos") + '">' + sinal(df.custo) + "R$ " + nf(Math.abs(df.custo), 2) + "</b> (" + sinal(df.custo) + fmtP(Math.abs(df.custo_pct)) + "), " +
+      "prazo esperado " + (df.prazo == null ? "—" : "<b>" + sinal(df.prazo) + nf(Math.abs(df.prazo), 2) + " d</b>") + ".";
+    caixa.innerHTML = '<p class="bm-mudo">' + esc(tit(r.cidade)) + " · regra <b>" + esc(seg) + "</b> · banda +" + fmtB(com.banda || 0) + " d · " + nf(r.pedido.peso, 1) + " kg · NF R$ " + nf(r.pedido.valor_nf, 0) + '</p><div class="bm-simres">' +
+      "<div><h5>Sem bloqueios</h5>" + tabSim(sem) + "</div><div><h5>Com os bloqueios atuais</h5>" + tabSim(com) + '</div><div class="bm-resumo">' + res + "</div></div>";
   }
   $("#bm-q").oninput = e => { q = e.target.value; desenharLista(); };
   function escolher(s, b){
