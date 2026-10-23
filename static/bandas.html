@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bandas do M3 — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./portal-auth.js?v=20261023"></script>
+<script>
+  // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
+  if (window.PortalGate && PortalGate.ativo()) {
+    document.documentElement.classList.add("gate-pend");
+    PortalGate.pronto.then(function (u) {
+      if (!u) location.replace("./login.html?next=" + encodeURIComponent("./bandas.html"));
+      else document.documentElement.classList.remove("gate-pend");
+    });
+  }
+</script>
+<script>
+  (function(){
+    try{ var t = localStorage.getItem("portal_tema");
+      if(!t){ t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(_){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
+<style>
+  :root, :root[data-theme="dark"]{ --p1:#0e0d0d; --p2:#242424; --p3:#005b6b; --p4:#31cceb; --p5:#ffffff; }
+  :root[data-theme="light"]{ --p1:#eff3f9; --p2:#ffffff; --p3:#cbd5e1; --p4:#1d4ed8; --p5:#0f172a; }
+  :root{ --bg:var(--p1); --card:var(--p2); --ink:var(--p5); --line:var(--p3); --brand:var(--p4); --alerta:#f4a72c;
+    --soft:color-mix(in srgb,var(--p5) 62%,transparent); --ok:#34d399; --ruim:#f87171; }
+  :root[data-theme="light"]{ --ok:#059669; --ruim:#dc2626; }
+  *{box-sizing:border-box}
+  html,body{overflow-x:hidden;scrollbar-width:none}
+  body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh}
+  html.gate-pend body > *{visibility:hidden}
+  html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand)}
+  header b{font-size:16px;color:var(--brand)}
+  header a{color:var(--ink);text-decoration:none;font-size:13px;font-weight:600;opacity:.85}
+  header a:hover{opacity:1;color:var(--brand)}
+  .esp{margin-left:auto}
+  .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);
+    border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
+  button,select,input,textarea{font:inherit;color:var(--ink)}
+  .btn{font-size:13.5px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:8px 14px;cursor:pointer}
+  .btn:hover:not(:disabled){background:var(--line)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.pri{background:var(--brand);color:var(--p1);border-color:var(--brand)}
+  .btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  main{max-width:1200px;margin:0 auto;padding:22px 20px 120px}
+  h2{font-size:17px;margin:0 0 4px} .sub{margin:0 0 16px;color:var(--soft);font-size:13.5px;line-height:1.5}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 16px}
+  .card h3{margin:0 0 4px;font-size:15px;color:var(--brand)}
+  .aviso{margin:0 0 14px;padding:11px 15px;border-radius:10px;font-size:13.5px;line-height:1.5;
+    background:color-mix(in srgb,var(--alerta) 16%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 60%,transparent)}
+  .aviso[hidden]{display:none}
+  .uf{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+  .uf select{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:160px}
+  .escolha{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+  .escolha select{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+  .muted{color:var(--soft);font-size:12.5px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:2px 9px;
+    background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
+  .tag.ruim{background:color-mix(in srgb,var(--ruim) 18%,transparent);color:var(--ruim)}
+  .tabela-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0 0}
+  table.lt{width:100%;border-collapse:collapse;font-size:12.5px;min-width:620px}
+  .lt th,.lt td{text-align:right;padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .lt th{color:var(--soft);font-weight:600;font-size:11.5px}
+  .lt td:first-child,.lt th:first-child{text-align:left}
+  .lt tr.sel{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+  .lt tr.estrela td:first-child::after{content:" ★";color:var(--alerta)}
+  .pos{color:var(--ok)} .neg{color:var(--ruim)}
+  .mix{font-size:11.5px;color:var(--soft);text-align:left !important;white-space:normal;min-width:150px}
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:2px solid var(--brand);padding:12px 20px;
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .bar[hidden]{display:none}
+  .bar .st{flex:1;min-width:220px;font-size:13.5px;line-height:1.45}
+  .bar .st .r{color:var(--alerta)}
+  .bar input{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:260px}
+  #toasts{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:80;display:grid;gap:8px;width:min(92vw,440px)}
+  .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:13.5px}
+  .toast.erro{border-color:var(--alerta)}
+  .semacesso{max-width:520px;margin:60px auto;text-align:center}
+  .semacesso[hidden],.conteudo[hidden]{display:none}
+  @media (max-width:640px){main{padding:16px 14px 180px} header{padding:12px 14px}}
+</style>
+</head>
+<body>
+<header>
+  <a href="./custo.html">← Custo de Frete</a>
+  <b>Bandas do M3</b>
+  <span class="esp"></span>
+  <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
+</header>
+
+<main>
+  <div class="semacesso" id="semacesso" hidden>
+    <h2>Você não tem acesso ao Custo de Frete</h2>
+    <p class="sub">Peça ao TI para liberar o seu e-mail em Usuários.</p>
+    <a class="btn" href="./">Voltar ao portal</a>
+  </div>
+
+  <div class="conteudo" id="conteudo" hidden>
+    <h2>Banda de cada estado</h2>
+    <p class="sub">Para cada estado há três regras: <b>Capital</b> (pedido para a capital), <b>Interior</b> (demais cidades) e
+      <b>Distribuidor</b> (cliente distribuidor, em qualquer cidade). A banda diz até quantos dias úteis a mais que a transportadora
+      mais rápida a escolha pode aceitar, em troca de frete mais barato. Sem banda cadastrada, vale o método atual (Ponderada).</p>
+
+    <div class="aviso" id="aviso" hidden></div>
+
+    <div class="uf">
+      <label for="uf-sel"><b>Estado</b></label>
+      <select id="uf-sel"></select>
+      <span class="muted" id="uf-info"></span>
+    </div>
+
+    <div id="regras"></div>
+  </div>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <div class="st" id="bar-st"></div>
+  <input type="text" id="motivo" placeholder="Motivo da alteração (obrigatório, mín. 10 letras)" aria-label="Motivo">
+  <button type="button" class="btn" id="b-desfazer">Desfazer</button>
+  <button type="button" class="btn pri" id="b-salvar" disabled>Salvar</button>
+</div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const AZURE = "https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io";
+const GATE = window.PortalGate && PortalGate.ativo();
+const API = (!GATE && new URLSearchParams(location.search).get("api")) || AZURE;
+const SEG = [["CAPITAL", "Capital", "a capital do estado"], ["INTERIOR", "Interior", "demais cidades do estado"],
+             ["DISTRIBUIDOR", "Distribuidor", "cliente distribuidor, qualquer cidade"]];
+const fmtR = v => (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", {minimumFractionDigits: 0, maximumFractionDigits: 0});
+const fmtP = v => (v * 100).toLocaleString("pt-BR", {minimumFractionDigits: 1, maximumFractionDigits: 1}) + "%";
+const fmtD = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " d";
+const fmtB = b => b.toLocaleString("pt-BR", {minimumFractionDigits: 1, maximumFractionDigits: 1});
+
+let est = null;                 // estado do servidor (versao, ufs, regras, bandas)
+let base = new Map();           // "UF|SEG" -> banda salva (ou null)
+let des = new Map();            // "UF|SEG" -> banda desejada (edições ainda não salvas)
+let uf = "SP";
+const cache = {};               // "UF" -> quadro de impacto
+
+// ---------- toast / aviso / erro ----------
+function toast(msg, o){ const t = document.createElement("div"); t.className = "toast" + (o && o.erro ? " erro" : ""); t.textContent = msg;
+  $("#toasts").appendChild(t); setTimeout(() => t.remove(), 4200); }
+function aviso(html){ const a = $("#aviso"); a.hidden = !html; a.innerHTML = html || ""; }
+function msgErro(e){ return (e && e.corpo && e.corpo.erro) || (e && e.message) || "Não foi possível falar com o servidor agora."; }
+
+// ---------- API (mesmo padrão do Custo de Frete) ----------
+async function token(){ return GATE ? PortalGate.idToken() : "dev"; }
+async function api(metodo, caminho, corpo){
+  let r;
+  try{
+    r = await fetch(API + caminho, { method: metodo, headers: Object.assign({ "Authorization": "Bearer " + await token() },
+      corpo ? {"Content-Type": "application/json"} : {}), body: corpo ? JSON.stringify(corpo) : undefined });
+  }catch(e){ throw { status: 0, corpo: { erro: "Sem conexão com o servidor. Tente de novo." } }; }
+  let j = {}; try{ j = await r.json(); }catch(_){}
+  if(!r.ok) throw { status: r.status, corpo: j };
+  return j;
+}
+
+// ---------- estado ----------
+const chave = (u, s) => u + "|" + s;
+function salvo(u, s){ const b = base.get(chave(u, s)); return b === undefined ? null : b; }
+function desejado(u, s){ const k = chave(u, s); return des.has(k) ? des.get(k) : salvo(u, s); }
+function pendentes(){ return [...des.keys()].filter(k => (des.get(k) ?? null) !== (base.get(k) ?? null)); }
+function itens(){
+  // estado DESEJADO completo: tudo que está salvo, com as edições por cima
+  const out = [];
+  for(const u of est.ufs) for(const [s] of SEG){
+    const b = desejado(u, s); if(b !== null && b !== undefined) out.push({ uf: u, segmento: s, banda: b, motivo: "" });
+  }
+  return out;
+}
+
+async function carregarEstado(){
+  est = await api("GET", "/v1/cobertura/banda");
+  base = new Map();
+  for(const r of est.regras) base.set(chave(r.uf, r.segmento), r.banda);
+  des = new Map();
+  preencherUFs();
+  await desenhar();
+}
+function preencherUFs(){
+  const sel = $("#uf-sel");
+  if(!sel.options.length){
+    sel.innerHTML = est.ufs.map(u => '<option value="' + u + '">' + u + "</option>").join("");
+    sel.onchange = () => { uf = sel.value; desenhar(); };
+  }
+  sel.value = uf;
+}
+
+async function impacto(u){
+  if(!cache[u]) cache[u] = await api("GET", "/v1/cobertura/banda/impacto?uf=" + encodeURIComponent(u));
+  return cache[u];
+}
+
+async function desenhar(){
+  const q = await impacto(uf);
+  $("#uf-info").textContent = q.fonte === "recalculo"
+    ? "Números recalculados com a cobertura atual do Portal."
+    : "Números da planilha de 23/10 (sem bloqueios).";
+  const avisos = [];
+  if(q.desatualizado) avisos.push("Há bloqueio de transportadora em " + uf + ", e a planilha não considera bloqueio. Os números abaixo podem estar desatualizados.");
+  aviso(avisos.join(" "));
+  const cards = SEG.map(([s, nome, desc]) => cardRegra(q, s, nome, desc)).join("");
+  $("#regras").innerHTML = cards || '<div class="card muted">Sem pedidos desta UF na base. Nenhuma banda sugerida.</div>';
+  for(const [s] of SEG) ligar(q, s);
+  barra();
+  $("#conteudo").hidden = false;
+}
+
+function cardRegra(q, s, nome, desc){
+  const quadro = q.segmentos[s];
+  const d = desejado(uf, s);
+  const sugestao = quadro && quadro.sugestao;
+  let h = '<section class="card" data-s="' + s + '"><h3>' + nome + ' <span class="muted">· ' + esc(desc) + '</span></h3>';
+  if(!quadro){
+    h += '<p class="muted">Sem pedidos desta regra em ' + uf + ' na base. Não há como medir o impacto de uma banda aqui.</p>';
+  }else{
+    const h0 = quadro.hoje;
+    h += '<p class="muted">Hoje: ' + h0.pedidos + ' pedidos · frete ' + fmtR(h0.frete) + ' · prazo realizado ' +
+         fmtB(h0.prazo_real) + ' d úteis · ' + (quadro.poucos ? '<span class="tag ruim">poucos pedidos: use com cautela</span>' : "") + '</p>';
+    h += '<div class="escolha"><label><b>Banda escolhida</b> ';
+    h += '<select data-banda="' + s + '"><option value="">Sem banda (método atual)</option>' +
+         quadro.bandas.map(b => '<option value="' + b.banda + '"' + (d !== null && d !== undefined && Math.abs(d - b.banda) < 1e-9 ? " selected" : "") + ">+" + fmtB(b.banda) + " d</option>").join("") +
+         "</select></label>";
+    if(sugestao !== null && sugestao !== undefined) h += ' <button type="button" class="btn" data-usar="' + s + '" data-v="' + sugestao + '">Usar ★ +' + fmtB(sugestao) + ' d</button>';
+    h += "</div>";
+    h += '<div class="tabela-wrap"><table class="lt"><thead><tr><th>Banda</th><th>Economia</th><th>R$ (9 meses)</th><th>Prazo médio</th><th>Δ prazo vs hoje</th><th>Prazo prometido</th><th>Mix de transportadoras</th></tr></thead><tbody>';
+    for(const b of quadro.bandas){
+      const sel = d !== null && d !== undefined && Math.abs(d - b.banda) < 1e-9;
+      const est_ = sugestao !== null && sugestao !== undefined && Math.abs(sugestao - b.banda) < 1e-9;
+      const mix = Object.entries(b.mix).filter(([, v]) => v >= 0.005).sort((a, c) => c[1] - a[1])
+                    .map(([t, v]) => esc(t) + " " + fmtP(v)).join(" · ");
+      h += '<tr class="' + (sel ? "sel " : "") + (est_ ? "estrela" : "") + '"><td>+' + fmtB(b.banda) + ' d</td>' +
+           '<td class="' + (b.economia_rs >= 0 ? "pos" : "neg") + '">' + fmtP(b.economia_pct) + '</td>' +
+           '<td class="' + (b.economia_rs >= 0 ? "pos" : "neg") + '">' + fmtR(b.economia_rs) + '</td>' +
+           '<td>' + fmtB(b.prazo) + ' d</td>' +
+           '<td class="' + (b.delta_prazo > 1e-9 ? "neg" : "pos") + '">' + fmtD(b.delta_prazo) + '</td>' +
+           '<td>' + fmtB(b.prazo_prometido) + ' d</td>' +
+           '<td class="mix">' + mix + '</td></tr>';
+    }
+    h += "</tbody></table></div>";
+    h += '<p class="muted">★ = maior economia sem aumentar o prazo (— se nenhuma banda faz isso). Economia contra quem levou de fato em jan–set/2026.</p>';
+  }
+  return h + "</section>";
+}
+
+function ligar(q, s){
+  const sel = document.querySelector('select[data-banda="' + s + '"]');
+  if(sel) sel.onchange = () => { const v = sel.value === "" ? null : Number(sel.value); definir(s, v); };
+  const btn = document.querySelector('button[data-usar="' + s + '"]');
+  if(btn) btn.onclick = () => definir(s, Number(btn.dataset.v));
+}
+
+function definir(s, v){
+  const k = chave(uf, s);
+  des.set(k, v);
+  desenhar();
+}
+
+// ---------- barra de salvar ----------
+async function barra(){
+  const ks = pendentes();
+  const bar = $("#bar");
+  bar.hidden = !ks.length;
+  if(!ks.length) return;
+  const itensD = itens();
+  const cont = ks.length + (ks.length === 1 ? " alteração pendente" : " alterações pendentes");
+  let r = null;
+  try{ r = await api("POST", "/v1/cobertura/banda/validar", { regras: itensD, base_versao: est.versao }); }catch(e){ r = { ok: false, violacoes: [msgErro(e)] }; }
+  $("#bar-st").innerHTML = "<b>" + esc(cont) + "</b> · " + (r.ok ? "pronto para salvar" :
+      '<span class="r">não pode ser salva</span>: ' + esc((r.violacoes || []).join(" ")));
+  $("#b-salvar").disabled = !r.ok;
+  $("#b-salvar").dataset.pronto = r.ok ? "1" : "";
+}
+
+async function salvar(){
+  const motivo = $("#motivo").value.trim();
+  if(motivo.length < 10){ toast("Escreva o motivo (pelo menos 10 letras).", { erro: true }); return; }
+  try{
+    const r = await api("PUT", "/v1/cobertura/banda", { regras: itens(), base_versao: est.versao, motivo });
+    toast("Bandas salvas (" + (r.mudancas || []).length + " mudança(s)).");
+    des = new Map(); for(const k in cache) delete cache[k];
+    $("#motivo").value = "";
+    await carregarEstado();
+  }catch(e){
+    if(e.status === 409){ toast("As bandas mudaram enquanto você editava. Recarreguei a tela.", { erro: true }); des = new Map(); for(const k in cache) delete cache[k]; await carregarEstado(); }
+    else toast(msgErro(e), { erro: true });
+  }
+}
+
+// ---------- tema / inicialização ----------
+function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
+$("#tema").onclick = () => { const n = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", n); try{ localStorage.setItem("portal_tema", n); }catch(_){} icone(); };
+icone();
+$("#b-desfazer").onclick = () => { des = new Map(); barra(); desenhar(); };
+$("#b-salvar").onclick = salvar;
+
+async function iniciar(){
+  try{ await carregarEstado(); }
+  catch(e){
+    if(e.status === 403){ $("#semacesso").hidden = false; }
+    else { aviso("Não consegui carregar as bandas agora. " + esc(msgErro(e))); $("#conteudo").hidden = false; }
+  }
+  document.documentElement.classList.remove("gate-pend");
+}
+if(GATE){ PortalGate.pronto.then(u => { if(u) iniciar(); else document.documentElement.classList.remove("gate-pend"); }); }
+else { iniciar(); }
+})();
+</script>
+</body>
+</html>
