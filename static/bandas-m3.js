@@ -56,6 +56,13 @@ const CSS = `
 .bm-tab tr.bm-rec.bm-sel .bm-sub{color:var(--ink)}
 .bm-pos{color:var(--at)} .bm-neg{color:var(--bq)}
 .bm-tab td.bm-mix{white-space:normal;text-align:left;min-width:160px;font-size:11.5px;color:var(--soft)}
+.bm-bloqbox{margin:8px 0;padding:10px 12px;border-radius:10px;font-size:12.5px;line-height:1.5;
+  background:color-mix(in srgb,var(--alerta) 14%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 55%,transparent)}
+.bm-bloqbox b{color:var(--ink)}
+.bm-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;font-size:12px;color:var(--soft)}
+.bm-chip{display:inline-flex;gap:5px;align-items:center;border:1px solid color-mix(in srgb,var(--bq) 55%,transparent);border-radius:9999px;padding:2px 10px;
+  font-weight:700;color:var(--bq);background:color-mix(in srgb,var(--bq) 10%,transparent)}
+.bm-mixb{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--bq);opacity:.9}
 .bm-tag{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:1px 9px;background:color-mix(in srgb,var(--bq) 18%,transparent);color:var(--bq)}
 .bm-bar{position:sticky;bottom:0;z-index:20;background:var(--card);border:2px solid var(--brand);border-radius:12px;padding:12px 16px;
   display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:6px 0 18px}
@@ -102,6 +109,7 @@ function montar(raiz, ctx){
     '<button type="button" class="btn pri" id="bm-salvar" disabled>Salvar</button></div></div>';
 
   let est = null, base = new Map(), des = new Map(), uf = "SP", cache = {}, vez = 0, q = "";
+  let bloqUF = new Set();          // transportadoras (nome curto) bloqueadas no ESTADO aberto
   const REG = ctx.regioes || null, NOME = ctx.nomeUF || {};
   const nomeUF = u => NOME[u] || u;
   const semAcento = t => String(t).toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
@@ -156,15 +164,20 @@ function montar(raiz, ctx){
     let d;
     try{ d = await impacto(uf); }
     catch(e){ aviso(aq); $("#bm-painel").innerHTML = '<div class="aviso">Não consegui carregar ' + esc(nomeUF(uf)) + ". " + esc(msgErro(e)) + "</div>"; return; }
-    aviso(aq + (d.desatualizado ? "Há bloqueio de transportadora em " + esc(uf) + " e a planilha não considera bloqueio: os números abaixo podem estar desatualizados." : ""));
+    aviso(aq);
+    const bloq = (d.bloqueios || []).filter(b => !b.liberado);
+    bloqUF = new Set(bloq.filter(b => b.onde === uf).map(b => b.curto));
     let h = '<select class="uf-mob" id="bm-mob" aria-label="Estado">' + est.ufs.map(u => '<option value="' + u + '"' + (u === uf ? " selected" : "") + ">" + esc(nomeUF(u)) + "</option>").join("") + "</select>";
-    h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + '</h3><span class="bm-info">' + (d.fonte === "recalculo" ? "Números recalculados com a cobertura atual." : "Números da planilha de 23/10 (jan–set/2026, calculada sem bloqueios).") + "</span></div>";
-    h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc)).join("");
+    h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + '</h3><span class="bm-info">' + (d.fonte === "recalculo" ? "Números recalculados com a cobertura atual (bloqueios já considerados)." : "Números da planilha de 23/10 (jan–set/2026, calculada sem bloqueios).") + "</span></div>";
+    if(bloq.length) h += '<div class="bm-chips"><span>Bloqueios da Cobertura em ' + esc(nomeUF(uf)) + ':</span>' +
+      bloq.map(b => '<span class="bm-chip" title="Bloqueada em ' + esc(b.onde) + '">✕ ' + esc(b.curto) + " · " + esc(b.onde === uf ? "estado inteiro" : b.onde) + "</span>").join("") + "</div>";
+    h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc, bloq)).join("");
     $("#bm-painel").innerHTML = h;
     const mob = $("#bm-mob"); if(mob) mob.onchange = () => { uf = mob.value; desenhar(); };
     for(const [s] of SEG){
       raiz.querySelectorAll('input[name="bm-' + s + '"]').forEach(r => r.onchange = () => escolher(s, r.value === "" ? null : Number(r.value)));
       // clicar em qualquer ponto da linha escolhe a banda dela
+      const fx = raiz.querySelector('button[data-fixar="' + s + '"]'); if(fx) fx.onclick = () => escolher(s, Number(fx.dataset.v));
       raiz.querySelectorAll('tr[data-seg="' + s + '"]').forEach(tr => tr.onclick = ev => {
         if(ev.target.closest("input,label")) return;          // o próprio radio/label já tratam
         escolher(s, tr.dataset.b === "" ? null : Number(tr.dataset.b));
@@ -178,7 +191,7 @@ function montar(raiz, ctx){
     desenhar().then(() => { const r = raiz.querySelector('input[name="bm-' + s + '"][value="' + (b == null ? "" : b) + '"]'); if(r) r.focus(); });
   }
 
-  function cardRegra(d, s, nome, desc){
+  function cardRegra(d, s, nome, desc, bloq){
     const quadro = d.segmentos[s], salva = desejado(uf, s), pad = padraoDe(uf, s);
     let h = '<section class="bm-card"><h4>' + nome + ' <span class="bm-mudo">· ' + esc(desc) + "</span></h4>";
     const rotEf = salva != null ? "+" + fmtB(salva) + " d (banda salva)" : (pad > 0 ? "★ Recomendada +" + fmtB(pad) + " d (padrão)" : "★ Recomendada: só a mais rápida (padrão)");
@@ -189,7 +202,20 @@ function montar(raiz, ctx){
     const h0 = quadro.hoje;
     h += '<p class="bm-mudo">Hoje: ' + h0.pedidos + " pedidos · frete " + fmtR(h0.frete) + " · prazo realizado " + fmtB(h0.prazo_real) +
          " d úteis" + (quadro.poucos ? ' · <span class="bm-tag">poucos pedidos: use com cautela</span>' : "") + "</p>";
+    if(d.fonte !== "recalculo" && bloq.length){
+      const nomes = [...new Set(bloq.map(b => b.curto))].join(", ");
+      h += '<div class="bm-bloqbox" role="status"><b>Bloqueio ativo: ' + esc(nomes) + ".</b> A API <b>já respeita o bloqueio</b> (a transportadora bloqueada não disputa). " +
+           "Mas esta tabela é a estimativa da planilha de 23/10, calculada <b>com</b> ela: o nome aparece <s class=\"bm-mixb\">riscado</s> na mistura e a coluna <b>⚠</b> mostra quanto do resultado depende dela. " +
+           "O recálculo exato fica pronto quando a base de pedidos for carregada na Azure.</div>";
+    }
     h += '<div class="bm-esc"><span class="bm-atual">Escolhida: <b>' + esc(rotEf) + "</b></span></div>";
+    // recalculado com os bloqueios: a melhor banda de AGORA pode ser outra que a recomendada da planilha (padrao da API)
+    const melhorAgora = quadro.sugestao;
+    if(d.fonte === "recalculo" && !igual(melhorAgora, pad > 0 ? pad : null)){
+      h += '<div class="bm-bloqbox" role="status">Com os bloqueios atuais, a melhor banda sem piorar o prazo ' + (melhorAgora == null ? "<b>deixou de existir</b>" : "passou a ser <b>+" + fmtB(melhorAgora) + " d</b>") +
+           ". A <b>★ Recomendada</b> da API continua " + (pad > 0 ? "+" + fmtB(pad) + " d" : "“só a mais rápida”") + " (vem da planilha de 23/10)." +
+           (melhorAgora != null ? ' <button type="button" class="btn" data-fixar="' + s + '" data-v="' + melhorAgora + '">Fixar +' + fmtB(melhorAgora) + " d</button>" : "") + "</div>";
+    }
     h += '<div class="bm-tab"><table><caption class="bm-mudo" style="text-align:left;padding:6px 10px">Clique na linha para escolher a banda de ' + nome + " em " + esc(nomeUF(uf)) + "</caption>" +
          '<thead><tr><th scope="col">Banda</th><th scope="col">Economia</th><th scope="col">R$ (9 meses)</th><th scope="col">Prazo médio</th><th scope="col">Δ prazo vs hoje</th><th scope="col">Prazo prometido</th><th scope="col">Mix de transportadoras</th></tr></thead><tbody>';
     // 1ª linha: ★ Recomendada (padrão) = nenhuma banda salva; mostra os números da banda recomendada
@@ -199,7 +225,10 @@ function montar(raiz, ctx){
            "<td>" + fmtB(b.prazo) + " d</td>" +
            '<td class="' + (b.delta_prazo > 1e-9 ? "bm-neg" : "bm-pos") + '">' + fmtD(b.delta_prazo) + "</td>" +
            "<td>" + fmtB(b.prazo_prometido) + " d</td>";
-    const mixDe = b => Object.entries(b.mix).filter(([, v]) => v >= 0.005).sort((a, c) => c[1] - a[1]).map(([t, v]) => esc(t) + " " + fmtP(v)).join(" · ");
+    const emBloq = b => Object.entries(b.mix).filter(([t]) => bloqUF.has(t)).reduce((a, [, v]) => a + v, 0);
+    const mixDe = b => Object.entries(b.mix).filter(([, v]) => v >= 0.005).sort((a, c) => c[1] - a[1])
+      .map(([t, v]) => bloqUF.has(t) ? '<s class="bm-mixb" title="Bloqueada: este resultado conta com ela">' + esc(t) + " " + fmtP(v) + "</s>" : esc(t) + " " + fmtP(v)).join(" · ") +
+      (d.fonte !== "recalculo" && emBloq(b) >= 0.005 ? ' <span class="bm-tag" title="Parte dos pedidos desta banda iria para transportadora hoje bloqueada">⚠ ' + fmtP(emBloq(b)) + " bloqueada</span>" : "");
     h += '<tr data-seg="' + s + '" data-b="" class="bm-rec' + (salva == null ? " bm-sel" : "") + '"><td><label><input type="radio" name="bm-' + s + '" value=""' + (salva == null ? " checked" : "") +
          '><span>★ Recomendada<span class="bm-sub">' + (pad > 0 ? "+" + fmtB(pad) + " d · padrão da API" : "só a mais rápida · padrão da API") + "</span></span></label></td>" +
          (lr ? col(lr) + '<td class="bm-mix">' + mixDe(lr) + "</td>" : '<td colspan="6" style="text-align:left;color:var(--soft)">' + (pad > 0 ? "Sem números para esta banda." : "Nenhuma banda economiza sem piorar o prazo aqui: usa só a transportadora mais rápida.") + "</td>") + "</tr>";
