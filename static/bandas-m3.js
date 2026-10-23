@@ -207,6 +207,13 @@ function montar(raiz, ctx){
       ? '<span class="bm-fonteb" title="' + esc(d.descricao || "") + '">Dados reais ' + esc(per.length ? mesBr(per[0]) + "–" + mesBr(per[1]) : "") + " · bloqueios considerados</span>"
       : '<span class="bm-fonteb bm-velha" title="' + esc(d.descricao || "") + '">Planilha de 23/10 · sem bloqueios</span>';
     h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + "</h3>" + selo + "</div>";
+    const at = pa.atualizacao || {};
+    const dBr = iso => { const x = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return x ? x[3] + "/" + x[2] + "/" + x[1] : ""; };
+    if(pa.gerado_em){
+      const falhou = at.ligada && /^(RECUSADO|erro)/.test(at.resultado || "");
+      h += '<p class="bm-mudo" id="bm-otif">Prazo do OTIF de ' + esc(dBr(pa.gerado_em)) + (at.ligada ? " (atualização automática diária)" : " (arquivo da imagem, sem atualização automática)") +
+        (falhou ? ' · <span class="bm-fonteb bm-velha" title="' + esc(at.resultado) + '">última atualização não aplicada: ' + esc(at.resultado) + " — segue o dado anterior</span>" : "") + "</p>";
+    }
     if(bloq.length) h += '<div class="bm-chips"><span>Bloqueios da Cobertura em ' + esc(nomeUF(uf)) + ':</span>' +
       bloq.map(b => '<span class="bm-chip" title="Bloqueada em ' + esc(b.onde) + '">✕ ' + esc(b.curto) + " · " + esc(b.onde === uf ? "estado inteiro" : b.onde) + "</span>").join("") + "</div>";
     h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc, bloq)).join("");
