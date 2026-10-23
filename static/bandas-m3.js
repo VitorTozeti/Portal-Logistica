@@ -71,6 +71,19 @@ const CSS = `
 .bm-bar[hidden]{display:none}
 .bm-st{flex:1;min-width:220px;font-size:15px;line-height:1.45} .bm-r{color:var(--bl)}
 .bm-bar input{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:260px}
+.bm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 12px}
+.bm-kpi{border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:var(--bg)}
+.bm-kpi span{display:block;font-size:13px;color:var(--soft);font-weight:600}
+.bm-kpi b{display:block;font-size:clamp(20px,1.2rem + .4vw,24px);font-weight:800;letter-spacing:-.01em;margin-top:2px;color:var(--ink)}
+.bm-kpi small{display:block;font-size:12.5px;color:var(--soft);margin-top:2px}
+.bm-kpi .bm-lev{font-size:14px;color:var(--ink);margin-top:4px;line-height:1.5}
+.bm-kpi.bm-real{border-color:color-mix(in srgb,var(--brand) 55%,var(--line));box-shadow:inset 4px 0 0 var(--brand)}
+.bm-fonteb{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:700;border-radius:9999px;padding:3px 12px;
+  background:color-mix(in srgb,var(--bm-verde) 16%,transparent);color:var(--ink);border:1px solid color-mix(in srgb,var(--bm-verde) 45%,transparent)}
+.bm-fonteb.bm-velha{background:color-mix(in srgb,var(--alerta) 16%,transparent);border-color:color-mix(in srgb,var(--alerta) 50%,transparent)}
+.bm details{margin:0 0 12px;font-size:14px;color:var(--soft)} .bm summary{cursor:pointer;font-weight:700;color:var(--ink)}
+.bm details ul{margin:6px 0 0;padding-left:18px;line-height:1.6}
+.sr-only{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .bm-sim .bm-form{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:10px 0}
 .bm-sim label.bm-f{display:grid;gap:3px;font-size:13.5px;color:var(--soft)}
 .bm-sim select,.bm-sim input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:15px;color:var(--ink);min-inline-size:0}
@@ -110,9 +123,12 @@ function montar(raiz, ctx){
   }
   const $ = s => raiz.querySelector(s);
   raiz.innerHTML =
-    '<div class="bm"><p class="sub bm-topo">Cada estado tem três regras: <b>Capital</b>, <b>Interior</b> e <b>Distribuidor</b> (cliente distribuidor, em qualquer cidade). ' +
-    'A banda diz até quantos dias úteis a mais que a transportadora mais rápida a escolha aceita em troca de frete mais barato. ' +
-    '<b>Clique na linha</b> para escolher: a escolhida fica <b style="color:var(--at)">verde</b>. Sem banda salva, a API usa a <b>★ Recomendada</b> (1ª linha).</p>' +
+    '<div class="bm"><p class="sub bm-topo">Escolha a banda de cada regra: <b>clique na linha</b>, a escolhida fica verde.</p>' +
+    '<details><summary>Como a escolha funciona</summary><ul>' +
+    '<li>Banda = quantos dias úteis a mais que a transportadora mais rápida a escolha aceita para pagar menos frete.</li>' +
+    '<li>Três regras por estado: Capital, Interior e Distribuidor (cliente distribuidor, qualquer cidade).</li>' +
+    '<li>Sem banda salva, a API usa a ★ Recomendada: maior economia sem aumentar o prazo.</li>' +
+    '<li>Frete e economia comparados sem ICMS, como o motor da Azure. Transportadora bloqueada na Cobertura não entra.</li></ul></details>' +
     '<div class="aviso" id="bm-aviso" hidden></div>' +
     '<div class="exp"><div class="bm-esq"><input type="search" id="bm-q" placeholder="Filtrar estado…" aria-label="Filtrar estado por nome ou sigla">' +
     '<div class="ufs" id="bm-ufs" role="listbox" aria-label="Estados"></div></div>' +
@@ -174,7 +190,6 @@ function montar(raiz, ctx){
   async function desenhar(){
     desenharLista();
     const pa = est.prazo_ajuste || {};
-    const dataBr = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? m[3] + "/" + m[2] + "/" + m[1] : ""; };
     const aq = (est.modo_sem_banda === "ponderada"
       ? "Atenção: a reserva <b>ESCOLHA_SEM_BANDA=ponderada</b> está ligada na Azure — regra sem banda salva usa o método antigo, não a recomendada. " : "") +
       (pa.erro ? "O <b>ajuste de prazo</b> não está carregado na Azure (" + esc(pa.erro) + "): o M3 compara só o prazo prometido, sem o desvio medido no OTIF. " : "");
@@ -185,15 +200,18 @@ function montar(raiz, ctx){
     const bloq = (d.bloqueios || []).filter(b => !b.liberado);
     bloqUF = new Set(bloq.filter(b => b.onde === uf).map(b => b.curto));
     let h = '<select class="uf-mob" id="bm-mob" aria-label="Estado">' + est.ufs.map(u => '<option value="' + u + '"' + (u === uf ? " selected" : "") + ">" + esc(nomeUF(u)) + "</option>").join("") + "</select>";
-    h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + '</h3><span class="bm-info">' + (d.fonte === "recalculo" ? "Números recalculados com a cobertura atual (bloqueios já considerados)." : "Números da planilha de 23/10 (jan–set/2026, calculada sem bloqueios).") + "</span></div>";
+    const bb = d.base || {}, per = bb.periodo || [];
+    const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    const mesBr = m => { const x = /^(\d{4})-(\d{2})/.exec(m || ""); return x ? MES[+x[2] - 1] + "/" + x[1].slice(2) : ""; };
+    const selo = d.fonte === "recalculo"
+      ? '<span class="bm-fonteb" title="' + esc(d.descricao || "") + '">Dados reais ' + esc(per.length ? mesBr(per[0]) + "–" + mesBr(per[1]) : "") + " · bloqueios considerados</span>"
+      : '<span class="bm-fonteb bm-velha" title="' + esc(d.descricao || "") + '">Planilha de 23/10 · sem bloqueios</span>';
+    h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + "</h3>" + selo + "</div>";
     if(bloq.length) h += '<div class="bm-chips"><span>Bloqueios da Cobertura em ' + esc(nomeUF(uf)) + ':</span>' +
       bloq.map(b => '<span class="bm-chip" title="Bloqueada em ' + esc(b.onde) + '">✕ ' + esc(b.curto) + " · " + esc(b.onde === uf ? "estado inteiro" : b.onde) + "</span>").join("") + "</div>";
-    if(!pa.erro && pa.fonte) h += '<p class="bm-mudo bm-fonte" title="' + esc(pa.fonte) + '">Prazo esperado do M3 = prazo prometido da cidade + desvio medido nas entregas reais do Power BI do OTIF · ' +
-      esc((pa.fonte.match(/(\d[\d.]*) NFs/) || [])[1] ? (pa.fonte.match(/(\d[\d.]*) NFs/))[1].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " entregas" : "") + (pa.gerado_em ? " · atualizado em " + dataBr(pa.gerado_em) : "") + "</p>";
     h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc, bloq)).join("");
     h += '<section class="bm-card bm-sim"><h4>Simular um pedido neste estado</h4>' +
-      '<p class="bm-mudo">Roda o motor da Azure para um pedido de verdade, <b>sem</b> os bloqueios e <b>com</b> os bloqueios atuais da Cobertura, usando a banda <b>já salva</b> (alterações ainda não salvas não entram). ' +
-      'Mostra o custo e o prazo esperado de cada transportadora, quem a regra escolhe e quanto muda.</p>' +
+      '<p class="bm-mudo">Motor da Azure sem e com os bloqueios atuais, na banda já salva.</p>' +
       '<div class="bm-form"><label class="bm-f">Cidade<select id="bm-sc" aria-label="Cidade do pedido"><option value="' + CAPITAIS[uf] + '">Capital</option></select></label>' +
       '<label class="bm-f">Peso (kg)<input type="number" id="bm-sp" min="0.1" max="2000" step="0.1" value="12" style="inline-size:90px"></label>' +
       '<label class="bm-f">Valor da NF (R$)<input type="number" id="bm-sv" min="0" step="100" value="2500" style="inline-size:120px"></label>' +
@@ -274,25 +292,28 @@ function montar(raiz, ctx){
       return h + '<p class="bm-mudo">Sem pedidos desta regra em ' + esc(nomeUF(uf)) + ' na base: não há como medir o impacto de uma banda aqui.</p>' +
         '<div class="bm-esc"><span class="bm-atual">Escolhida: <b>' + esc(rotEf) + "</b></span></div></section>";
     }
-    const h0 = quadro.hoje;
-    h += '<p class="bm-mudo">Hoje: ' + h0.pedidos + " pedidos · frete " + fmtR(h0.frete) + " · prazo realizado " + fmtB(h0.prazo_real) +
-         " d úteis" + (quadro.poucos ? ' · <span class="bm-tag">poucos pedidos: use com cautela</span>' : "") + "</p>";
+    const h0 = quadro.hoje, nMes = (d.base && d.base.meses) || 9;
+    const lev = Object.entries(h0.quem_levou || {}).slice(0, 3).map(([t, n]) => esc(t) + " " + fmtP(n / h0.pedidos)).join("<br>");
+    h += '<div class="bm-kpis">' +
+      '<div class="bm-kpi bm-real"><span>Frete real hoje</span><b>' + fmtR(h0.frete_fatura != null ? h0.frete_fatura : h0.frete) + "</b><small>" +
+        (h0.frete_fatura != null ? "faturado, com ICMS · " + fmtR(h0.frete) + " sem ICMS" : "sem ICMS") + "</small></div>" +
+      '<div class="bm-kpi bm-real"><span>Prazo realizado hoje</span><b>' + fmtB(h0.prazo_real) + " d úteis</b><small>média das entregas</small></div>" +
+      '<div class="bm-kpi"><span>Pedidos</span><b>' + h0.pedidos.toLocaleString("pt-BR") + "</b><small>" + nMes + " meses" + (quadro.poucos ? " · poucos, use com cautela" : "") + "</small></div>" +
+      '<div class="bm-kpi"><span>Quem levou</span><div class="bm-lev">' + (lev || "—") + "</div></div></div>";
     if(d.fonte !== "recalculo" && bloq.length){
       const nomes = [...new Set(bloq.map(b => b.curto))].join(", ");
-      h += '<div class="bm-bloqbox" role="status"><b>Bloqueio ativo: ' + esc(nomes) + ".</b> A API <b>já respeita o bloqueio</b> (a transportadora bloqueada não disputa). " +
-           "Mas esta tabela é a estimativa da planilha de 23/10, calculada <b>com</b> ela: o nome aparece <s class=\"bm-mixb\">riscado</s> na mistura e a coluna <b>⚠</b> mostra quanto do resultado depende dela. " +
-           "O recálculo exato fica pronto quando a base de pedidos for carregada na Azure.</div>";
+      h += '<div class="bm-bloqbox" role="status"><b>' + esc(nomes) + " bloqueada.</b> A API já respeita. Esta tabela ainda é a planilha de 23/10: o nome riscado no mix mostra quanto dependia dela.</div>";
     }
     h += '<div class="bm-esc"><span class="bm-atual">Escolhida: <b>' + esc(rotEf) + "</b></span></div>";
     // recalculado com os bloqueios: a melhor banda de AGORA pode ser outra que a recomendada da planilha (padrao da API)
     const melhorAgora = quadro.sugestao;
     if(d.fonte === "recalculo" && !igual(melhorAgora, pad > 0 ? pad : null)){
-      h += '<div class="bm-bloqbox" role="status">Com os bloqueios atuais, a melhor banda sem piorar o prazo ' + (melhorAgora == null ? "<b>deixou de existir</b>" : "passou a ser <b>+" + fmtB(melhorAgora) + " d</b>") +
-           ". A <b>★ Recomendada</b> da API continua " + (pad > 0 ? "+" + fmtB(pad) + " d" : "“só a mais rápida”") + " (vem da planilha de 23/10)." +
+      h += '<div class="bm-bloqbox" role="status">Melhor banda sem piorar o prazo agora: ' + (melhorAgora == null ? "<b>nenhuma</b>" : "<b>+" + fmtB(melhorAgora) + " d</b>") +
+           " (a ★ Recomendada da API segue " + (pad > 0 ? "+" + fmtB(pad) + " d" : "só a mais rápida") + ")." +
            (melhorAgora != null ? ' <button type="button" class="btn" data-fixar="' + s + '" data-v="' + melhorAgora + '">Fixar +' + fmtB(melhorAgora) + " d</button>" : "") + "</div>";
     }
-    h += '<div class="bm-tab"><table><caption class="bm-mudo" style="text-align:left;padding:6px 10px">Clique na linha para escolher a banda de ' + nome + " em " + esc(nomeUF(uf)) + "</caption>" +
-         '<thead><tr><th scope="col">Banda</th><th scope="col">Economia</th><th scope="col">R$ (9 meses)</th><th scope="col">Prazo médio</th><th scope="col">Δ prazo vs hoje</th><th scope="col">Prazo prometido</th><th scope="col">Mix de transportadoras</th></tr></thead><tbody>';
+    h += '<div class="bm-tab"><table><caption class="sr-only">Bandas de ' + nome + " em " + esc(nomeUF(uf)) + "</caption>" +
+         '<thead><tr><th scope="col">Banda</th><th scope="col">Economia</th><th scope="col">R$ (' + nMes + ' meses)</th><th scope="col">Prazo médio</th><th scope="col">Δ prazo vs hoje</th><th scope="col">Prazo prometido</th><th scope="col">Mix de transportadoras</th></tr></thead><tbody>';
     // 1ª linha: ★ Recomendada (padrão) = nenhuma banda salva; mostra os números da banda recomendada
     const lr = pad > 0 ? quadro.bandas.find(x => igual(x.banda, pad)) : null;
     const col = b => '<td class="' + (b.economia_rs >= 0 ? "bm-pos" : "bm-neg") + '">' + fmtP(b.economia_pct) + "</td>" +
@@ -313,7 +334,7 @@ function montar(raiz, ctx){
            '<td><label><input type="radio" name="bm-' + s + '" value="' + b.banda + '"' + (sel ? " checked" : "") + "><span>+" + fmtB(b.banda) + " d</span></label></td>" +
            col(b) + '<td class="bm-mix">' + mixDe(b) + "</td></tr>";
     }
-    return h + '</tbody></table></div><p class="bm-mudo">★ = banda recomendada: maior economia sem aumentar o prazo. Economia contra quem levou de fato em jan–set/2026. Escolher a linha ★ Recomendada remove a banda salva e volta ao padrão.</p></section>';
+    return h + '</tbody></table></div><p class="bm-mudo">★ maior economia sem aumentar o prazo · economia contra o frete real de hoje, sem ICMS.</p></section>';
   }
 
   async function barra(){
