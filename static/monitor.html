@@ -81,6 +81,10 @@
     /* âmbar exclusivo do alerta "dados desatualizados" — 1 exceção à paleta mono
        de propósito: uma falha de atualização PRECISA saltar aos olhos (ver _DECISOES) */
     --alerta:#f4a72c;
+    /* escala de espaçamento, raios e anel de foco (Taste: 1 escala só, sem números soltos) */
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+    --r-sm:8px; --r-md:12px;
+    --ring:0 0 0 3px color-mix(in srgb,var(--brand) 30%,transparent);
   }
   /* ============================================================= */
   *{box-sizing:border-box}
@@ -88,19 +92,33 @@
      (mesmo com pouco conteúdo). 100dvh = respeita a barra do navegador no mobile. */
   body{margin:0;font:15px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);
     min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
-  header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--card);
-    border-bottom:2px solid var(--brand);flex:0 0 auto}
+  /* o header acompanha a largura do conteúdo (main = 1440px): alinhamento limpo em telas largas */
+  header{display:flex;align-items:center;gap:var(--sp-3);padding:14px max(20px,calc((100% - 1440px)/2 + 28px));
+    background:var(--card);border-bottom:2px solid var(--brand);flex:0 0 auto;position:sticky;top:0;z-index:30}
   header b{font-size:16px;color:var(--brand)}
+  .titulo{margin:0;font-size:clamp(15px,.6vw + 12px,17px);font-weight:800;letter-spacing:-.01em;color:var(--brand)}
+  .volta{display:inline-flex;align-items:center;gap:6px;color:var(--ink);text-decoration:none;font-size:14.5px;
+    font-weight:600;padding:6px 10px;margin-inline-start:-10px;border-radius:var(--r-sm);opacity:.85;
+    transition:opacity .15s,background .15s,color .15s}
+  .volta:hover{opacity:1;color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,transparent)}
+  .volta:focus-visible{outline:none;box-shadow:var(--ring);opacity:1}
+  .transp{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;
+    border-radius:999px;border:1px solid var(--line);color:var(--ink2)}
+  .skip{position:absolute;inset-inline-start:12px;inset-block-start:-56px;z-index:200;background:var(--brand);
+    color:var(--p1);padding:8px 14px;border-radius:var(--r-sm);font-weight:700;text-decoration:none}
+  .skip:focus{inset-block-start:10px;outline:none;box-shadow:var(--ring)}
   /* botão de troca de tema (claro/escuro) — herda a paleta, sem cor própria */
-  .tema-btn{margin-left:14px;flex:0 0 auto;width:34px;height:34px;border-radius:50%;
+  .tema-btn{margin-left:0;flex:0 0 auto;width:34px;height:34px;border-radius:50%;
     display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
     font-size:16px;line-height:1;background:transparent;color:var(--ink);
     border:1px solid color-mix(in srgb,var(--brand) 45%,transparent);transition:background .15s,border-color .15s}
   .tema-btn:hover{background:color-mix(in srgb,var(--brand) 14%,transparent);border-color:var(--brand)}
-  .tema-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .tema-btn:focus-visible{outline:none;box-shadow:var(--ring)}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--p3);display:inline-block}
   .dot.on{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
-  .live{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+  .live{margin-left:auto;font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:var(--sp-2);
+    padding:5px 12px;border:1px solid var(--line);border-radius:999px;min-width:0}
+  .live #livetxt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-inline-size:220px}
   /* banner "não consegui atualizar as NFs" — some quando a fonte volta */
   .alerta{margin:10px 16px 0;padding:11px 15px;border-radius:10px;
     background:color-mix(in srgb,var(--alerta) 16%,var(--card));
@@ -114,32 +132,34 @@
   @media (max-width:720px){main{grid-template-columns:1fr}}
   @media (max-width:440px){main{padding:14px 12px;gap:14px}header{padding:12px 14px}
     header b{font-size:15px}.col h2{font-size:13px}}
-  html,body{overflow-x:hidden}
+  html{overflow-x:hidden} body{overflow-x:clip}   /* clip (não hidden) para o header sticky funcionar */
   /* barras de rolagem ocultas (a rolagem continua funcionando) — visual mais limpo/profissional */
   html,body,.hist-body,.dw-body,#up,#stuck{scrollbar-width:none;-ms-overflow-style:none}
   ::-webkit-scrollbar{width:0;height:0;background:transparent}
-  .col h2{font-size:14px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
-  .count{background:var(--line);border-radius:20px;padding:1px 9px;font-size:12px}
+  .col h2{font-size:15px;font-weight:700;letter-spacing:-.005em;margin:0 0 var(--sp-3);display:flex;gap:var(--sp-2);align-items:center}
+  .count{background:var(--line);border-radius:999px;padding:1px 10px;font-size:12px;font-variant-numeric:tabular-nums}
   /* ---- filtros (Travadas por tipo de erro / Subiram por semana) ---- */
   .filtros{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
-    padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;border:1px solid transparent;
-    transition:opacity .12s,filter .12s}
+    padding:4px 11px;min-height:28px;border-radius:999px;cursor:pointer;user-select:none;border:1px solid transparent;
+    transition:opacity .12s,filter .12s,box-shadow .12s}
+  .chip:focus-visible{outline:none;box-shadow:var(--ring)}
+  .chip:hover{opacity:1}
   .chip .n{font-weight:800;opacity:.85}
-  .chip[aria-pressed=false]{opacity:.42;filter:grayscale(.4)}
+  .chip[aria-pressed=false]{opacity:.68;filter:grayscale(.25);border-color:var(--line)}
   .chip.limpar{background:transparent;border-color:var(--line);color:var(--ink2)}
   .chip.limpar:hover{background:var(--line);color:var(--ink)}
   .nf{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
-    border-radius:11px;padding:10px 13px;margin-bottom:8px;
+    border-radius:var(--r-md);padding:12px 14px;margin-bottom:var(--sp-2);
     transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+  .nf:focus-visible{outline:none;box-shadow:var(--ring);border-color:var(--brand)}
   .nf.travada,.nf.subiu{cursor:pointer}
-  .nf.travada:hover,.nf.subiu:hover{box-shadow:0 4px 16px rgba(0,0,0,.4);transform:translateY(-2px);
-    border-color:var(--brand)}
-  .nf.subiu{border-left-color:var(--accent);
-    background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 7%,var(--card)),var(--card) 42%)}
+  .nf.travada:hover,.nf.subiu:hover{box-shadow:0 1px 2px rgba(0,0,0,.12),0 10px 24px -14px rgba(0,0,0,.5);
+    transform:translateY(-1px);border-color:var(--brand)}
+  .nf.subiu{border-left-color:var(--accent)}
   @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
   .nf .top{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
-  .num{font-family:ui-monospace,monospace}
+  .num{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums}
   .fil{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
     padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--ink2)}
   .fil-varejo{color:var(--p1);background:var(--brand);border-color:var(--brand)}
@@ -155,7 +175,8 @@
   .meta{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap}
   .tempo{font-size:12px;font-weight:600;color:var(--warn)}
   .tempo.velho{color:var(--crit)}
-  .empty{color:var(--ink2);font-size:13px;padding:14px;text-align:center}
+  .empty{color:var(--ink2);font-size:13px;padding:var(--sp-5) var(--sp-4);text-align:center;
+    border:1px dashed var(--line);border-radius:var(--r-md)}
   .maisbtn{width:100%;margin:2px 0 4px;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand);
     background:transparent;border:1px dashed var(--line);border-radius:9px;padding:9px;cursor:pointer}
   .maisbtn:hover{background:var(--panel2)}
@@ -214,6 +235,18 @@
   .ft-ro{color:var(--ink2)}
   .ft-ver{color:var(--ink2);font-family:ui-monospace,monospace;font-size:11.5px}
   @media (max-width:560px){.ft-mid{margin-left:0;width:100%}}
+  .titulo{white-space:nowrap}
+  @media (max-width:560px){.transp{display:none} .live #livetxt{max-inline-size:110px} .volta{font-size:14px}}
+  /* telas estreitas: só a bolinha de status no header (o texto fica para leitores de tela e no rodapé) */
+  @media (max-width:440px){
+    .live{padding:8px;margin-left:auto}
+    .live #livetxt{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;scroll-behavior:auto !important}
+    .nf.travada:hover,.nf.subiu:hover{transform:none}
+  }
   /* marcador monocromático no título das colunas (cor do texto/paleta) */
   .hdot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block;opacity:.85}
   /* ---- filtros da coluna Subiram (2 linhas: segmento+ignoradas / busca+data) ---- */
@@ -309,10 +342,10 @@
   html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
     border:3px solid var(--p3);border-top-color:var(--brand);border-radius:50%;visibility:visible;animation:gira .8s linear infinite}
   @keyframes gira{to{transform:rotate(360deg)}}
-  .conta{position:relative;margin-left:14px;flex:0 0 auto}
+  .conta{position:relative;margin-left:0;flex:0 0 auto}
   .avatar{width:36px;height:36px;border-radius:50%;cursor:pointer;font:inherit;font-weight:700;font-size:13px;
     background:var(--brand);color:var(--p1);border:0;text-transform:uppercase}
-  .avatar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .avatar:focus-visible{outline:none;box-shadow:var(--ring)}
   .conta-menu{position:absolute;right:0;top:44px;min-width:230px;z-index:40;background:var(--card);border:1px solid var(--line);
     border-radius:12px;padding:8px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
   .conta-menu[hidden]{display:none}
@@ -364,11 +397,12 @@
     <div class="loader-count" id="loader-count">preparando</div>
   </div>
 </div>
+<a class="skip" href="#conteudo">Pular para as notas</a>
 <header>
-  <span class="dot" id="dot"></span>
-  <b>Portal da Logística</b>
-  <span style="font-size:12px;color:var(--ink2)">· B4You</span>
-  <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
+  <a class="volta" href="./" id="volta"><span aria-hidden="true">←</span> Painel</a>
+  <h1 class="titulo">Monitor de NFs</h1>
+  <span class="transp">B4You</span>
+  <span class="live" role="status" aria-live="polite"><span class="dot" id="dot" aria-hidden="true"></span><span id="livetxt">conectando…</span></span>
   <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
   <div class="conta" id="conta">
     <button type="button" class="avatar" id="avatar" aria-haspopup="true" aria-expanded="false" aria-label="Minha conta"><span id="avatar-ini">?</span></button>
@@ -398,7 +432,7 @@
   </div>
 </div>
 
-<main>
+<main id="conteudo" tabindex="-1">
   <div class="col">
     <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span></h2>
     <div class="filtros" id="filtros"></div>
@@ -624,7 +658,7 @@
     const t = tempoDesde(n.travada_desde);
     const tempo = t ? `<span class="tempo ${t.velho?"velho":""}" data-iso="${esc(n.travada_desde)}">◷ ${t.texto}</span>` : "";
     const cor = corDe(n);
-    return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrirTravada('${esc(n.id)}')">`
+    return `<div class="nf travada" role="button" tabindex="0" style="border-left-color:${cor}" onclick="abrirTravada('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
       + `<span class="tag" style="${estiloTag(n)}">${esc(n.problema_codigo)}</span>`
@@ -639,7 +673,7 @@
     const dt = dataBR(n.atualizado_em);
     const fil = n.filial || "";
     const filCls = fil==="Varejo" ? "fil fil-varejo" : fil==="Atacado" ? "fil fil-atacado" : "fil";
-    return `<div class="nf subiu" onclick="abrirSubiu('${esc(n.id)}')">`
+    return `<div class="nf subiu" role="button" tabindex="0" onclick="abrirSubiu('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + (fil ? `<span class="${filCls}">${esc(fil)}</span>` : "")
       + `<span class="tag">✓ subiu</span>`
@@ -957,6 +991,13 @@
   $("#dw-fechar").onclick = fechar;
   $("#scrim").onclick = fechar;
   document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
+  // cards (div role=button): Enter/Espaço abrem o detalhe, como o clique
+  document.addEventListener("keydown", e => {
+    const el = e.target;
+    if((e.key === "Enter" || e.key === " ") && el && el.classList && el.classList.contains("nf") && el.getAttribute("role") === "button"){
+      e.preventDefault(); el.click();
+    }
+  });
 
   // ===== aplica cada evento do SSE =====
   function trimRisen(){
