@@ -12,6 +12,16 @@ window.PortalGateCF = (function () {
   // hosts que usam este backend. Domínio próprio na Cloudflare: acrescente aqui (ex.: |portal\.empresa\.com\.br).
   const HOSTS_CF = /(\.pages\.dev|^portal\.pharmaesthetics\.com\.br)$/;
   const API = "/api";
+  // PLANO GRATUITO (100 mil chamadas/dia nas Functions): toda chamada /api/* conta. Por isso (26/10):
+  //   • "quem sou eu" (/me) e o token da Azure (/token) ficam guardados na aba (sessionStorage) e servem a
+  //     navegação entre as páginas sem nova chamada; 401 em qualquer rota apaga o guardado;
+  //   • as ações (ignorar/reativar NF) são relidas a cada 60 s com a aba visível, e na hora em que a aba volta.
+  const ME_TTL_MS = 10 * 60 * 1000, ACOES_MS = 60000;
+  const guardado = {
+    ler(k) { try { const x = JSON.parse(sessionStorage.getItem(k) || "null"); return x && x.ate > Date.now() ? x.v : null; } catch (_) { return null; } },
+    gravar(k, v, ms) { try { sessionStorage.setItem(k, JSON.stringify({ v, ate: Date.now() + ms })); } catch (_) {} },
+    limpar() { try { sessionStorage.removeItem("cf_me"); sessionStorage.removeItem("cf_tok"); } catch (_) {} },
+  };
 
   function quer() { return HOSTS_CF.test(location.hostname); }
 
@@ -22,6 +32,7 @@ window.PortalGateCF = (function () {
       headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
     });
+    if (r.status === 401) guardado.limpar();
     if (r.status === 204) return null;
     const dados = await r.json().catch(() => ({}));
     if (!r.ok) {
@@ -57,20 +68,27 @@ window.PortalGateCF = (function () {
 
     // 1ª resposta: quem sou eu (401 = sem sessão, 403 = sessão de alguém que saiu do portal)
     let erroCarga = false;   // servidor fora do ar / resposta inesperada (ex.: 404 antes do deploy da API)
-    const pronto = req("GET", "/me").then(perfilDe).catch((e) => {
+    const meGuardado = guardado.ler("cf_me");
+    const pronto = (meGuardado ? Promise.resolve(meGuardado) : req("GET", "/me").then((x) => { guardado.gravar("cf_me", x, ME_TTL_MS); return x; }))
+      .then(perfilDe).catch((e) => {
       if (e.message === "sem-acesso") { try { sessionStorage.setItem("portal_sem_acesso", "1"); } catch (_) {} }
       else if (e.message !== "sem-sessao") erroCarga = true;
       return null;
     }).then((p) => { usuarioAtual = p; return p; });
 
     // ---- ações (ignorar/reativar NF): sem tempo real nativo → consulta a cada 15 s enquanto houver ouvinte ----
+    let ultimaLeitura = 0;
     async function atualizarAcoes() {
+      ultimaLeitura = Date.now();
       try {
         const lista = await req("GET", "/acoes");
         ultimoMapa = new Map(lista.map((a) => [a.id, a]));
         ouvintes.forEach((cb) => cb(ultimoMapa));
       } catch (e) { console.warn("[acoes] sem leitura:", e.message); }
     }
+
+    // aba voltou a ficar visível: relê na hora se a última leitura passou de 20 s (quem trocou de aba vê o atual)
+    function aoVoltar() { if (!document.hidden && Date.now() - ultimaLeitura > 20000) atualizarAcoes(); }
 
     return {
       modo() { return "cloudflare"; },
@@ -88,23 +106,29 @@ window.PortalGateCF = (function () {
 
       // Token para a API da Azure: o Worker devolve o JWT do Access (a Azure passa a validá-lo — ver CLOUDFLARE.md)
       async idToken(forcar) {
+        if (!forcar && !tokenCache) tokenCache = guardado.ler("cf_tok");
         if (!forcar && tokenCache && tokenCache.ate > Date.now() + 60000) return tokenCache.token;
         const t = await req("GET", "/token");
         tokenCache = { token: t.token, ate: (t.exp || 0) * 1000 || Date.now() + 300000 };
+        guardado.gravar("cf_tok", tokenCache, Math.max(tokenCache.ate - Date.now() - 60000, 0));
         return t.token;
       },
 
       // Login por e-mail e senha (o Worker confere e grava o cookie de sessão)
       async entrar(email, senha) {
         try {
-          usuarioAtual = perfilDe(await req("POST", "/login", { email: (email || "").trim(), senha: senha || "" }));
+          const x = await req("POST", "/login", { email: (email || "").trim(), senha: senha || "" });
+          guardado.limpar(); guardado.gravar("cf_me", x, ME_TTL_MS);
+          usuarioAtual = perfilDe(x);
           return usuarioAtual;
         } catch (e) { throw traduzir(e); }
       },
       // Primeiro acesso: a pessoa autorizada define a própria senha (só funciona se a conta ainda não tem senha)
       async primeiroAcesso(email, senha) {
         try {
-          usuarioAtual = perfilDe(await req("POST", "/primeiro-acesso", { email: (email || "").trim(), senha: senha || "" }));
+          const x = await req("POST", "/primeiro-acesso", { email: (email || "").trim(), senha: senha || "" });
+          guardado.limpar(); guardado.gravar("cf_me", x, ME_TTL_MS);
+          usuarioAtual = perfilDe(x);
           return usuarioAtual;
         } catch (e) { throw traduzir(e); }
       },
@@ -116,6 +140,7 @@ window.PortalGateCF = (function () {
       },
       async redefinirSenhaPropria() { throw new Error("use-trocar-senha"); },
       async sair() {
+        guardado.limpar(); tokenCache = null;
         try { await req("POST", "/logout"); } catch (_) {}
         usuarioAtual = null;
       },
@@ -127,6 +152,7 @@ window.PortalGateCF = (function () {
                 .sort((a, b) => a.email.localeCompare(b.email));
       },
       async salvarUsuario(email, perfil) {
+        guardado.limpar();
         if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
         await req("PUT", "/usuarios/" + encodeURIComponent(email.trim().toLowerCase()), { perfil });
       },
@@ -150,8 +176,11 @@ window.PortalGateCF = (function () {
       ouvirAcoes(cb) {
         ouvintes.add(cb);
         atualizarAcoes();
-        if (!timer) timer = setInterval(() => { if (!document.hidden) atualizarAcoes(); }, 15000);
-        return () => { ouvintes.delete(cb); if (!ouvintes.size && timer) { clearInterval(timer); timer = null; } };
+        if (!timer) {
+          timer = setInterval(() => { if (!document.hidden) atualizarAcoes(); }, ACOES_MS);
+          document.addEventListener("visibilitychange", aoVoltar);
+        }
+        return () => { ouvintes.delete(cb); if (!ouvintes.size && timer) { clearInterval(timer); timer = null; document.removeEventListener("visibilitychange", aoVoltar); } };
       },
       async ocultar(id, tipo, motivo, nf, filial) {
         await req("PUT", "/acoes/" + encodeURIComponent(id), { tipo, motivo: motivo || "", nf: nf || "", filial: filial || "" });
