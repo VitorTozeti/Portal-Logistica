@@ -1,47 +1,52 @@
-# Migração opcional para Cloudflare (Pages + Access + Worker)
+# Portal da Logística na Cloudflare (Pages + Functions + D1)
 
-**Estado: front PREPARADO, backend ainda não existe.** O GitHub Pages + Firebase segue sendo o único ambiente
-ativo; nada muda para quem usa hoje. O código novo só liga em hosts `*.pages.dev`
-(ou `portal.pharmaesthetics.com.br`) — ver `HOSTS_CF` em `static/portal-auth-cf.js`.
+**Estado:** código pronto na branch `claude/worker-d1-senha`, aguardando teste no preview da Cloudflare.
+O GitHub Pages (`github.io`) segue com Firebase e não é afetado: o caminho Cloudflare só liga em `*.pages.dev`.
 
-## Como o front escolhe o backend
-`static/portal-auth.js` é o único que as telas usam (`window.PortalGate`). No início ele pergunta a
-`PortalGateCF.quer()`: se o host é Cloudflare, devolve `PortalGateCF.montar(...)` (mesma interface, via `/api/*`);
-senão segue o Firebase de sempre. `github.io`, arquivo local e servidor interno **não são afetados**.
-`PortalGate.modo()` devolve `"firebase"` ou `"cloudflare"` (as telas de cadastro/senha usam isso).
+## Arquitetura
+- **Pages** publica a pasta `static/` (o front).
+- **Pages Functions** em `functions/api/[[route]].js` é a API `/api/*`.
+- **D1** guarda `usuarios` (perfil, ferramentas, senha com hash), `acoes`, `acoes_log` e `tentativas` (limite de tentativas). Schema em `db/schema.sql`.
+- **Login:** e-mail + senha conferidos pelo Worker (PBKDF2, 100k iterações). A sessão é um cookie assinado, `HttpOnly`, `Secure`, `SameSite=Strict`, válido 12 h.
+- Quem não está em `usuarios` não entra (403). Administradores iniciais (`v.tozeti@`, `m.milani@`) são sempre TI.
 
-## O que falta para ligar (fases)
-1. **Cloudflare Pages**: projeto ligado ao repo, pasta de saída `static`, sem build. Gera `*.pages.dev`.
-2. **Worker `/api/*`** (rota no mesmo projeto Pages, Functions) + **D1** (ou KV) com as 3 coleções abaixo.
-3. **Cloudflare Access** na frente do site inteiro: política "e-mails `@pharmaesthetics.com.br`" (login Microsoft
-   ou código por e-mail). O Worker valida o JWT do cabeçalho `Cf-Access-Jwt-Assertion` em TODA rota `/api/*`.
-4. **Migrar os dados** do Firestore (tela Usuários → exportar; `acoes` e `acoes_log`) para o D1.
-5. **Azure**: `firebase_auth.py` passa a aceitar também o JWT do Access (JWKS do time Cloudflare) para as rotas
-   `/v1/cobertura/*`; as duas verificações coexistem até o desligamento do Firebase.
-6. Testar com login real em `*.pages.dev`, só então apontar o domínio e desligar o Firebase.
+## Passo a passo de deploy
+1. **D1:** crie o banco `portal-logistica` e rode o `db/schema.sql` (ou só o `ALTER TABLE usuarios ADD COLUMN senha TEXT;` + o `CREATE TABLE tentativas` se as tabelas já existirem).
+2. **Pages:** projeto ligado ao repo, build vazio, saída `static`.
+3. **Bindings:** D1 com nome `DB`.
+4. **Secrets** (Settings → Variables and secrets, tipo *Secret*):
+   - `SESSION_SECRET`: string longa aleatória (ex.: 64 caracteres).
+   - `TOKEN_SECRET`: outra string longa aleatória.
+5. Remova as variáveis `ACCESS_TEAM` e `ACCESS_AUD` se criou no passo antigo (não são usadas).
+6. Faça um redeploy (as variáveis só valem no próximo deploy).
+7. **Primeiro acesso:** abra o endereço, digite `v.tozeti@pharmaesthetics.com.br` e uma senha de 8+ caracteres. Esse campo define a senha da primeira vez. Depois, entre normalmente.
 
-**Reversão:** basta não usar o host Cloudflare; o GitHub Pages continua publicando a cada push na `main`.
-
-## Contrato do Worker (o que `portal-auth-cf.js` espera)
-Identidade vem SÓ do cabeçalho do Access (o front nunca manda e-mail). Administradores iniciais
-(`v.tozeti@`, `m.milani@`) são sempre `ti`, igual a `boot()` de `firestore.rules`. Sem registro em `usuarios` = 403.
-
-| Rota | Quem | Resposta |
+## Contrato da API
+| Rota | Quem | Descrição |
 |---|---|---|
-| `GET /api/me` | qualquer autorizado | `{email, perfil, ferramentas?, acessoCusto?}`; carimba `ultimoAcesso` |
-| `GET /api/usuarios` | ti | `[{email, perfil, ferramentas?, acessoCusto?, ultimoAcesso(ms)}]` |
-| `PUT /api/usuarios/{email}` | ti | corpo parcial `{perfil?, ferramentas?, acessoCusto?}` (perfil ∈ logistica/ti/leitor; ferramentas ≤ 20) |
-| `POST /api/usuarios/lote` | ti | `{itens:[{email, perfil?, ferramentas?, acessoCusto?}]}` |
-| `DELETE /api/usuarios/{email}` | ti | 204 |
-| `GET /api/acoes` | qualquer autorizado | `[{id, tipo, motivo, nf, filial, em}]` |
-| `PUT /api/acoes/{id}` | logistica/ti | `{tipo: ignorada\|tratada, motivo, nf, filial}`; Worker grava `em` e a linha do log com o e-mail do Access |
-| `DELETE /api/acoes/{id}` | logistica/ti | 204; grava log "reativar" |
-| `GET /api/acoes/log?id=` | ti | última mudança `{acao, por, motivo, em(ms)}` |
-| `GET /api/token` | qualquer autorizado | `{token: <JWT do Access>, exp}` — usado como Bearer na API da Azure |
+| `POST /api/login` | público | `{email, senha}` → cookie de sessão. Erros: `credenciais`, `primeiro-acesso` (409), `bloqueado` (429) |
+| `POST /api/primeiro-acesso` | público (só conta sem senha) | `{email, senha}` define a senha e entra |
+| `POST /api/logout` | — | apaga o cookie |
+| `GET /api/me` | logado | `{email, perfil, ferramentas, acessoCusto}` |
+| `POST /api/senha` | logado | `{atual, nova}` |
+| `GET /api/token` | logado | `{token, exp}` assinado com `TOKEN_SECRET`, 5 min (para a Azure) |
+| `GET /api/usuarios` | ti | lista |
+| `PUT /api/usuarios/{email}` | ti | `{perfil?, ferramentas?, acessoCusto?, resetar_senha?}` |
+| `POST /api/usuarios/lote` | ti | `{itens:[...]}` |
+| `DELETE /api/usuarios/{email}` | ti | remove |
+| `GET /api/acoes` | logado | NFs ignoradas/tratadas |
+| `PUT /api/acoes/{id}` | logistica/ti | `{tipo, motivo, nf, filial}`; grava o log |
+| `DELETE /api/acoes/{id}` | logistica/ti | reativa; grava o log |
+| `GET /api/acoes/log?id=` | ti | última mudança da NF |
 
-401/403 → o front trata como "sem acesso". Regras de negócio idênticas às de `firestore.rules`.
+`resetar_senha: true` (tela Usuários, via `PUT`) apaga a senha; a pessoa define outra no próximo acesso.
 
-## Testado (26/10, local)
-Servidor de teste simulando `/api/*` com o host liberado: painel, lista de ferramentas, `ocultar`, `ouvirAcoes`
-e `listarUsuarios` funcionam em modo Cloudflare; em host comum o modo continua `firebase`. **Não testado:** o
-Worker real, o Access e o login Firebase em `github.io` (a mudança ali é inerte).
+## Pendências (não feitas)
+- **Azure:** `firebase_auth.py` ainda só aceita o token do Firebase. Precisa aceitar o `/api/token` validando a assinatura com `TOKEN_SECRET` (guardado no Key Vault). Mudança de produção: branch, teste e só depois a `main`.
+- **Trocar senha pela tela:** a API existe (`POST /api/senha`), mas ainda não há botão no site.
+- **Migração dos dados:** `usuarios` pelos 10 INSERTs do chat; `acoes` ainda não migradas (aguardando exportação do Firestore).
+- **Risco aceito:** no primeiro acesso, qualquer pessoa que souber o e-mail de uma conta autorizada **sem senha** pode definir a senha antes do dono. Mitigação: ativar as senhas logo após o deploy e usar `resetar_senha` se alguém fizer isso.
+- **Arquivos estáticos** (HTML/JS) são públicos, como já eram no Pages. Os dados passam pela API, que exige login.
+
+## Teste feito (26/10)
+Só o front, com servidor simulado: login sem API mostra "Não foi possível falar com o servidor", e o formulário aparece. Modo Cloudflare com `/api/me` simulado: painel, ações e usuários funcionam. **Não testado:** o Worker real (sem Node/Wrangler nesta máquina), o D1 e o fluxo completo de login. Isso só se testa no preview do Pages.

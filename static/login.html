@@ -54,20 +54,21 @@
     if (!(window.PortalGate && PortalGate.ativo())) {
       // fora do Pages (servidor interno/localhost) não há login: segue direto para o portal
       location.replace("./");
-    } else if (PortalGate.modo && PortalGate.modo() === "cloudflare") {
-      // Cloudflare Access já autenticou a pessoa; aqui só chega quem NÃO está autorizado no portal
-      PortalGate.pronto.then((u) => {
-        if (u) { location.replace(AuthUI.destino()); return; }
-        $("#form").hidden = true;
-        document.body.insertAdjacentHTML("beforeend", '<p style="text-align:center;padding:24px">Este e-mail não está autorizado. Peça acesso ao TI.</p>');
-      });
     } else {
       AuthUI.olho($("#senha"));
       // preserva ?next= nos links das outras telas
       $("#lnk-cadastro").href = AuthUI.comNext("./cadastro.html");
+      if (PortalGate.modo() === "cloudflare") {   // sem "esqueci a senha" (o TI redefine); quem ainda não tem senha cria a primeira aqui
+        $("#lnk-esqueci").hidden = true;
+        $("#links-conta").innerHTML = 'Primeiro acesso? <a href="' + AuthUI.comNext("./cadastro.html") + '">Criar minha senha</a>';
+      }
       try { if (sessionStorage.getItem("portal_sem_acesso")) { sessionStorage.removeItem("portal_sem_acesso");
         AuthUI.aviso($("#aviso"), "erro", "Este e-mail não está autorizado. Peça acesso ao TI."); } } catch (_) {}
-      PortalGate.pronto.then((u) => { if (u) location.replace(AuthUI.destino()); });   // já logado → entra direto
+      // já logado → entra direto; servidor fora do ar → avisa (não confundir com "sem acesso")
+      PortalGate.pronto.then((u) => {
+        if (u) location.replace(AuthUI.destino());
+        else if (PortalGate.erro && PortalGate.erro()) AuthUI.aviso($("#aviso"), "erro", "Não foi possível falar com o servidor. Tente de novo em instantes.");
+      });
 
       $("#form").addEventListener("submit", async (e) => {
         e.preventDefault();                                   // no Pages não existe rota /login
@@ -80,7 +81,13 @@
         if (falta) { AuthUI.aviso($("#aviso"), "erro", AuthUI.msgErro(new Error("bloqueado:" + falta))); return; }
         AuthUI.carregando($("#btn"), true, "Entrando…");
         try {
-          await PortalGate.entrar(em, sn, $("#lembrar").checked);
+          try {
+            await PortalGate.entrar(em, sn, $("#lembrar").checked);
+          } catch (x) {
+            // conta autorizada que ainda não tem senha: a senha digitada passa a ser a dela
+            if (x.message !== "primeiro-acesso") throw x;
+            await PortalGate.primeiroAcesso(em, sn);
+          }
           AuthUI.trava.limpar();
           location.replace(AuthUI.destino());
         } catch (x) {
