@@ -8,6 +8,8 @@
 .volta:hover svg{transform:translateX(-3px)}
 .volta:active{transform:translateY(1px)}
 header .sep{width:1px;height:22px;background:var(--line,#333);flex:none}
+/* overflow-x:hidden no html/body vira contêiner de rolagem e quebra o position:sticky; clip só corta */
+html:has(>body.pagina),body.pagina{overflow-x:clip}
 body.pagina header{position:sticky;top:0;z-index:40}
 :where(button,a,select,input,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--brand,#31cceb);outline-offset:2px}
 .tema-btn,.sair{transition:background .12s,border-color .12s}

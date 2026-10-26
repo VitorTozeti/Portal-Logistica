@@ -61,10 +61,21 @@
   .card .ir{color:var(--brand);font-weight:700;font-size:13.5px}
   .vazio{border:2px dashed var(--line);border-radius:16px;padding:34px;text-align:center;color:var(--soft)}
   .vazio b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+  .av{width:34px;height:34px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;
+    color:var(--bg);background:var(--brand)}
+  .eu{display:flex;align-items:center;gap:8px} .eu .tx{overflow:hidden;text-overflow:ellipsis}
+  a.card .ir{display:inline-flex;align-items:center;gap:6px;margin-top:4px} a.card .ir i{font-style:normal;transition:transform .12s}
+  a.card:hover .ir i,a.card:focus-visible .ir i{transform:translateX(4px)}
+  .ic{background:linear-gradient(135deg,color-mix(in srgb,var(--brand) 26%,transparent),color-mix(in srgb,var(--brand) 8%,transparent));
+    border:1px solid color-mix(in srgb,var(--brand) 30%,transparent)}
+  .sk{height:176px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(100deg,var(--card) 30%,color-mix(in srgb,var(--brand) 9%,var(--card)) 50%,var(--card) 70%);
+    background-size:300% 100%;animation:brilho 1.3s ease-in-out infinite}
+  @keyframes brilho{from{background-position:100% 0}to{background-position:0 0}}
+  @media (prefers-reduced-motion:reduce){.sk{animation:none}a.card .ir i{transition:none}}
   footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--soft);border-top:1px solid var(--line)}
   @media (max-width:640px){main{padding:22px 14px 40px} h1{font-size:20px} .eu{display:none} header{padding:12px 14px}}
 </style>
-<link rel="stylesheet" href="./ui.css?v=20261026b">
+<link rel="stylesheet" href="./ui.css?v=20261026c">
 </head>
 <body class="pagina">
 <header>
@@ -77,7 +88,7 @@
 <main>
   <h1 id="ola">Painel de ferramentas</h1>
   <p class="sub">Escolha a ferramenta que você precisa. O que aparece aqui é o que o TI liberou para o seu usuário.</p>
-  <div id="corpo"></div>
+  <div id="corpo"><div class="grid" aria-hidden="true"><div class="sk"></div><div class="sk"></div></div></div>
 </main>
 <footer>Pharmaesthetics · Logística</footer>
 <script>
@@ -85,14 +96,17 @@
 "use strict";
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const card = f => '<a class="card" href="' + esc(f.href) + '"><span class="ic" aria-hidden="true">' + f.icone + "</span><b>" + esc(f.nome) + "</b><p>" + esc(f.desc) + '</p><span class="ir">Abrir →</span></a>';
+const card = f => '<a class="card" href="' + esc(f.href) + '"><span class="ic" aria-hidden="true">' + f.icone + "</span><b>" + esc(f.nome) + "</b><p>" + esc(f.desc) + '</p><span class="ir">Abrir <i aria-hidden="true">→</i></span></a>';
 function montar(u){
   const nome = (u.email || "").split("@")[0].split(/[._-]+/)[0] || "";
-  $("#eu").textContent = u.email || "";
-  $("#ola").textContent = nome ? "Olá, " + nome.charAt(0).toUpperCase() + nome.slice(1) : "Painel de ferramentas";
+  const ini = (nome || "?").charAt(0).toUpperCase();
+  $("#eu").innerHTML = '<span class="av" aria-hidden="true">' + esc(ini) + '</span><span class="tx">' + esc(u.email || "") + "</span>";
+  const hr = new Date().getHours(), sau = hr < 12 ? "Bom dia" : hr < 18 ? "Boa tarde" : "Boa noite";
+  $("#ola").textContent = nome ? sau + ", " + nome.charAt(0).toUpperCase() + nome.slice(1) : "Painel de ferramentas";
   const minhas = PortalGate.ferramentas().filter(f => PortalGate.podeFerramenta(f.id));
   let h = minhas.length ? '<div class="grid">' + minhas.map(card).join("") + "</div>"
     : '<div class="vazio"><b>Nenhuma ferramenta liberada ainda</b>Peça ao TI para liberar o seu usuário.</div>';
+  if(u.perfil === "ti" && minhas.length) h = '<h2 class="sec" style="margin-top:0">Ferramentas</h2>' + h;
   if(u.perfil === "ti") h += '<h2 class="sec">Administração</h2><div class="grid">' + card(PortalGate.ferramentaTI()) + "</div>";
   $("#corpo").innerHTML = h;
 }

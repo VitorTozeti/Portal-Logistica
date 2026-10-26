@@ -114,6 +114,16 @@
   .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:15px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
   .toast.erro{border-color:var(--alerta)}
   .semacesso{max-width:520px;margin:60px auto;text-align:center}
+  /* acabamento (26/10): abas fixas sob o cabeçalho, destaque ao passar o mouse, barra de salvar com sombra */
+  nav.tabs{position:sticky;top:var(--cab,66px);z-index:39;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{border-radius:10px 10px 0 0;transition:background .12s,color .12s}
+  .tab:hover:not([aria-selected="true"]){background:color-mix(in srgb,var(--brand) 10%,transparent);color:var(--ink)}
+  .tab[aria-selected="true"]{background:color-mix(in srgb,var(--brand) 8%,transparent)}
+  h2{font-size:19px;letter-spacing:-.01em} .sub{max-width:80ch}
+  .card{transition:border-color .12s} .card:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line))}
+  .bar{box-shadow:0 -8px 24px rgba(0,0,0,.28)}
+  @media (prefers-reduced-motion:reduce){.tab,.card{transition:none}}
   @media (max-width:640px){main{padding:16px 12px 150px} header{padding:12px 14px} .eu{display:none} .dois{grid-template-columns:1fr}}
   /* ---- Cobertura: explorador estado → cidade ----
      Vocabulário: claro = segue o estado · cheio com marcador = exceção da cidade · listrado = estado com exceções.
@@ -186,7 +196,7 @@
   @media (max-width:860px){.exp{grid-template-columns:minmax(0,1fr)} .ufs{display:none} .uf-mob{display:block}
     .legenda{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;font-size:13px}}
 </style>
-<link rel="stylesheet" href="./ui.css?v=20261026b">
+<link rel="stylesheet" href="./ui.css?v=20261026c">
 </head>
 <body class="pagina">
 <header>
@@ -687,6 +697,7 @@ function trocarAba(t){
   if(t === "historico") carregarHistorico();
   try{ history.replaceState(null, "", "#" + t); }catch(_){}
 }
+{ const cab = () => document.documentElement.style.setProperty("--cab", document.querySelector("header").offsetHeight + "px"); cab(); addEventListener("resize", cab); }   // abas fixas logo abaixo do cabeçalho, qualquer que seja a altura dele
 $("#tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if(b) trocarAba(b.dataset.t); });
 function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
 $("#tema").onclick = () => { const n = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
