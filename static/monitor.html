@@ -14,7 +14,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth.js?v=20261023"></script>
+<script src="./portal-auth-cf.js?v=20261026"></script>
+<script src="./portal-auth.js?v=20261026"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
@@ -1031,7 +1032,7 @@
     $("#sair").addEventListener("click", async e => { e.preventDefault(); await PortalGate.sair();
       try{ sessionStorage.removeItem("portal_acesso_ok"); }catch(_){}
       location.replace("./login.html"); });
-    $("#btn-senha").hidden = false;
+    $("#btn-senha").hidden = !!(PortalGate.modo && PortalGate.modo() === "cloudflare");
     $("#btn-senha").addEventListener("click", async e => { e.preventDefault(); fecharMenu();
       try{ await PortalGate.redefinirSenhaPropria(); toast("Enviamos um link para criar uma nova senha no seu e-mail."); }
       catch(_){ toast("Não foi possível enviar o link. Tente de novo.", {erro:true}); } });

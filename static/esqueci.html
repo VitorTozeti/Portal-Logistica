@@ -11,7 +11,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth.js?v=20261023"></script>
+<script src="./portal-auth-cf.js?v=20261026"></script>
+<script src="./portal-auth.js?v=20261026"></script>
 <script src="./auth-ui.js?v=20261009"></script>
 </head>
 <body>
@@ -40,7 +41,7 @@
     AuthUI.tema();
     const $ = AuthUI.$;
     $("#lnk-login").href = AuthUI.comNext("./login.html");
-    if (!(window.PortalGate && PortalGate.ativo())) { location.replace("./login.html"); }
+    if (!(window.PortalGate && PortalGate.ativo()) || PortalGate.modo() === "cloudflare") { location.replace("./login.html"); }
     else {
       let espera = 0, timer = null;
       const contar = () => {

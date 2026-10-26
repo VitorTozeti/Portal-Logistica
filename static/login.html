@@ -11,7 +11,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth.js?v=20261023"></script>
+<script src="./portal-auth-cf.js?v=20261026"></script>
+<script src="./portal-auth.js?v=20261026"></script>
 <script src="./auth-ui.js?v=20261009"></script>
 </head>
 <body>
@@ -53,6 +54,13 @@
     if (!(window.PortalGate && PortalGate.ativo())) {
       // fora do Pages (servidor interno/localhost) não há login: segue direto para o portal
       location.replace("./");
+    } else if (PortalGate.modo && PortalGate.modo() === "cloudflare") {
+      // Cloudflare Access já autenticou a pessoa; aqui só chega quem NÃO está autorizado no portal
+      PortalGate.pronto.then((u) => {
+        if (u) { location.replace(AuthUI.destino()); return; }
+        $("#form").hidden = true;
+        document.body.insertAdjacentHTML("beforeend", '<p style="text-align:center;padding:24px">Este e-mail não está autorizado. Peça acesso ao TI.</p>');
+      });
     } else {
       AuthUI.olho($("#senha"));
       // preserva ?next= nos links das outras telas

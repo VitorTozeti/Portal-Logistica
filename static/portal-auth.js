@@ -23,7 +23,9 @@ window.PortalGate = (function () {
   };
   // só faz sentido quando o site é ESTÁTICO (Pages / arquivo local)
   const ESTATICO = location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname);
-  const ATIVO = ESTATICO;                       // fail-CLOSED: se o SDK não carregar, ninguém entra
+  // Cloudflare (Pages + Access): backend alternativo em portal-auth-cf.js — só liga em *.pages.dev; github.io segue Firebase
+  const CF = !!(window.PortalGateCF && window.PortalGateCF.quer());
+  const ATIVO = ESTATICO || CF;                       // fail-CLOSED: se o SDK não carregar, ninguém entra
   const SDK = typeof firebase !== "undefined";
 
   // Administradores iniciais: entram como TI mesmo sem documento em `usuarios/` (para poder cadastrar
@@ -50,6 +52,8 @@ window.PortalGate = (function () {
     if (Array.isArray(x.ferramentas)) return x.ferramentas.filter((i) => IDS.includes(i));
     return x.acessoCusto === true ? ["monitor", "custo"] : ["monitor"];
   }
+
+  if (CF) return window.PortalGateCF.montar({ FERRAMENTAS, FERRAMENTA_TI, IDS, PERFIS, ferramentasDe });
 
   let auth = null, db = null, usuarioAtual = null, criando = false;
   if (ATIVO && SDK) {
@@ -101,6 +105,7 @@ window.PortalGate = (function () {
   const agora = () => firebase.firestore.FieldValue.serverTimestamp();
 
   return {
+    modo() { return "firebase"; },
     ativo() { return ATIVO; },
     pronto,
     usuario() { return usuarioAtual; },
