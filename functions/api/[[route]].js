@@ -295,7 +295,7 @@ async function rotear(ctx) {
 
   if (a === "token" && m === "GET") {
     const exp = Math.floor(Date.now() / 1000) + TOKEN_S;
-    const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, exp });
+    const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, c: u.acessoCusto, exp });
     return json({ token, exp });
   }
 

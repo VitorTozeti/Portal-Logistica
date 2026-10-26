@@ -1246,7 +1246,9 @@
   // Em produção o site é ESTÁTICO (GitHub Pages, sem FastAPI/SSE): lê a rota
   // PÚBLICA só-leitura do container Azure (sem credencial, só campos não-sensíveis).
   // Em dev (uvicorn) segue usando o backend local (/api/nfs) + SSE.
-  const ESTATICO = location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname);
+  // estático = sem o servidor interno (FastAPI): GitHub Pages, arquivo local ou Cloudflare Pages (*.pages.dev)
+  const ESTATICO = location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname)
+    || !!(window.PortalGateCF && PortalGateCF.quer());
   const AZURE_PUBLICO = "https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io/v1/portal/nfs/publico";
   function normalizar(dados){
     // backend local devolve array direto; Azure devolve {nfs:[...]}. Unifica e
