@@ -84,7 +84,7 @@
           AuthUI.aviso($("#aviso"), "ok", CF ? "Senha criada! Entrando…" : "Conta criada! Entrando…");
           location.replace(AuthUI.destino());
         } catch (x) {
-          AuthUI.carregando($("#btn"), false, "Criar conta →");
+          AuthUI.carregando($("#btn"), false, CF ? "Criar senha →" : "Criar conta →");
           AuthUI.aviso($("#aviso"), "erro", AuthUI.msgErro(x, "cadastro"));
         }
       });

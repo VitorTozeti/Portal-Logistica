@@ -243,6 +243,20 @@ const logStmt = (db, nfId, acao, tipo, motivo, por, em) =>
   db.prepare("INSERT INTO acoes_log (nf_id, acao, tipo, motivo, por, em) VALUES (?,?,?,?,?,?)")
     .bind(nfId, acao, tipo, motivo, por, em);
 
+// ---------- diagnóstico ----------
+async function saude(env) {
+  const r = { db: !!env.DB, session_secret: !!env.SESSION_SECRET, token_secret: !!env.TOKEN_SECRET, tabelas: {} };
+  if (env.DB) {
+    for (const t of ["usuarios", "acoes", "acoes_log", "tentativas"]) {
+      try { await env.DB.prepare(`SELECT 1 FROM ${t} LIMIT 1`).all(); r.tabelas[t] = "ok"; }
+      catch (e) { r.tabelas[t] = String(e && e.message || e).slice(0, 120); }
+    }
+    try { await env.DB.prepare("SELECT senha FROM usuarios LIMIT 1").all(); r.coluna_senha = "ok"; }
+    catch (e) { r.coluna_senha = String(e && e.message || e).slice(0, 120); }
+  }
+  return json(r);
+}
+
 // ---------- roteador ----------
 export async function onRequest(ctx) {
   try {
@@ -264,6 +278,9 @@ async function rotear(ctx) {
     if (!(request.headers.get("Content-Type") || "").includes("application/json")) throw new Falha(415, "json-obrigatorio");
     try { return await request.json(); } catch (_) { throw new Falha(400, "json-invalido"); }
   };
+
+  // diagnóstico de configuração (só diz sim/não — nenhum valor): útil logo após o deploy
+  if (a === "saude" && m === "GET") return saude(env);
 
   if (a === "login" && m === "POST") return login(ctx, await corpo());
   if (a === "primeiro-acesso" && m === "POST") return primeiroAcesso(ctx, await corpo());
