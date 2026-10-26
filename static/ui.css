@@ -1,0 +1,22 @@
+/* Portal da Logística — acabamento comum das telas (index, custo, usuarios, monitor). Só usa as variáveis de tema de cada página. */
+.volta{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px 0 9px;border-radius:18px;flex:none;
+  border:1px solid color-mix(in srgb,var(--brand,#31cceb) 45%,transparent);background:transparent;color:var(--ink,#fff);
+  text-decoration:none;font-size:14px;font-weight:700;line-height:1;opacity:1;transition:background .12s,border-color .12s,box-shadow .12s}
+.volta svg{width:18px;height:18px;flex:none;transition:transform .12s}
+.volta:hover,.volta:focus-visible{background:color-mix(in srgb,var(--brand,#31cceb) 14%,transparent);border-color:var(--brand,#31cceb);color:var(--ink,#fff);outline:none}
+.volta:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--brand,#31cceb) 35%,transparent)}
+.volta:hover svg{transform:translateX(-3px)}
+.volta:active{transform:translateY(1px)}
+header .sep{width:1px;height:22px;background:var(--line,#333);flex:none}
+body.pagina header{position:sticky;top:0;z-index:40}
+:where(button,a,select,input,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--brand,#31cceb);outline-offset:2px}
+.tema-btn,.sair{transition:background .12s,border-color .12s}
+.tema-btn:focus-visible,.sair:focus-visible{outline-offset:2px}
+@media (max-width:640px){
+  .volta{padding:0 9px}
+  .volta .rot{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  header .sep{display:none}
+  header b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  header .so-desk,header #livetxt{display:none}
+}
+@media (prefers-reduced-motion:reduce){.volta,.volta svg,a.card{transition:none!important}.volta:hover svg{transform:none}}

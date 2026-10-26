@@ -354,6 +354,7 @@
   .toast.erro{border-color:var(--alerta)}
   .toast button{background:transparent;border:0;color:var(--brand);font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
 </style>
+<link rel="stylesheet" href="./ui.css?v=20261026b">
 </head>
 <body>
 <div id="loader" class="loader">
@@ -365,9 +366,11 @@
   </div>
 </div>
 <header>
+  <a class="volta" href="./" aria-label="Voltar ao Painel de ferramentas" title="Voltar ao Painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span class="rot">Painel</span></a>
+  <span class="sep" aria-hidden="true"></span>
   <span class="dot" id="dot"></span>
   <b>Portal da Logística</b>
-  <span style="font-size:12px;color:var(--ink2)">· B4You</span>
+  <span class="so-desk" style="font-size:12px;color:var(--ink2)">· B4You</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
   <div class="conta" id="conta">

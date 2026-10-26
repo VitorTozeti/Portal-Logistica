@@ -43,8 +43,8 @@
     border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gira .8s linear infinite}
   @keyframes gira{to{transform:rotate(360deg)}}
   header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand)}
-  header b{font-size:16px;color:var(--brand)} header a{color:var(--ink);text-decoration:none;font-size:13px;font-weight:600;opacity:.85}
-  header a:hover{opacity:1;color:var(--brand)} .esp{margin-left:auto}
+  header b{font-size:16px;color:var(--brand)}
+  .esp{margin-left:auto}
   .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);
     border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
   button,input,select,textarea{font:inherit;color:var(--ink)}
@@ -85,10 +85,12 @@
   .toast.erro{border-color:var(--alerta)}
   @media (max-width:640px){main{padding:16px 12px 60px} header{padding:12px 14px}}
 </style>
+<link rel="stylesheet" href="./ui.css?v=20261026b">
 </head>
-<body>
+<body class="pagina">
 <header>
-  <a href="./">← Painel</a>
+  <a class="volta" href="./" aria-label="Voltar ao Painel de ferramentas" title="Voltar ao Painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span class="rot">Painel</span></a>
+  <span class="sep" aria-hidden="true"></span>
   <b>Usuários e permissões</b>
   <span class="esp"></span>
   <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
