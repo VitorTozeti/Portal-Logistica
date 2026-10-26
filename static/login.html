@@ -58,9 +58,9 @@
       AuthUI.olho($("#senha"));
       // preserva ?next= nos links das outras telas
       $("#lnk-cadastro").href = AuthUI.comNext("./cadastro.html");
-      if (PortalGate.modo() === "cloudflare") {   // sem cadastro público nem "esqueci a senha": quem administra é o TI
-        $("#links-conta").hidden = true;
+      if (PortalGate.modo() === "cloudflare") {   // sem "esqueci a senha" (o TI redefine); quem ainda não tem senha cria a primeira aqui
         $("#lnk-esqueci").hidden = true;
+        $("#links-conta").innerHTML = 'Primeiro acesso? <a href="' + AuthUI.comNext("./cadastro.html") + '">Criar minha senha</a>';
       }
       try { if (sessionStorage.getItem("portal_sem_acesso")) { sessionStorage.removeItem("portal_sem_acesso");
         AuthUI.aviso($("#aviso"), "erro", "Este e-mail não está autorizado. Peça acesso ao TI."); } } catch (_) {}

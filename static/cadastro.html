@@ -49,8 +49,16 @@
     AuthUI.tema();
     const $ = AuthUI.$;
     $("#lnk-login").href = AuthUI.comNext("./login.html");
-    if (!(window.PortalGate && PortalGate.ativo()) || PortalGate.modo() === "cloudflare") { location.replace("./login.html"); }
+    if (!(window.PortalGate && PortalGate.ativo())) { location.replace("./login.html"); }
     else {
+      // Cloudflare: "Criar conta" vira PRIMEIRO ACESSO (a conta já foi autorizada pelo TI; aqui a pessoa define a senha, 8+ caracteres)
+      const CF = PortalGate.modo() === "cloudflare", MIN = CF ? 8 : 6;
+      if (CF) {
+        document.querySelector("h1").textContent = "Criar minha senha";
+        $(".sub").textContent = "Primeiro acesso: use o e-mail da empresa que o TI autorizou e escolha sua senha (mínimo de 8 caracteres).";
+        $("#btn").textContent = "Criar senha →";
+        $("#forca-txt").textContent = "Mínimo de 8 caracteres. Misture letras e números.";
+      }
       AuthUI.olho($("#senha")); AuthUI.olho($("#senha2"));
       $("#senha").addEventListener("input", () => {
         const n = AuthUI.forca($("#senha").value);
@@ -68,12 +76,12 @@
         AuthUI.aviso($("#aviso"), "", "");
         ["#email", "#senha", "#senha2"].forEach(i => AuthUI.dica($(i), ""));
         if (!AuthUI.emailOk(em)) { AuthUI.dica($("#email"), "Digite um e-mail válido."); $("#email").focus(); return; }
-        if (s1.length < 6) { AuthUI.dica($("#senha"), "A senha precisa ter pelo menos 6 caracteres."); $("#senha").focus(); return; }
+        if (s1.length < MIN) { AuthUI.dica($("#senha"), "A senha precisa ter pelo menos " + MIN + " caracteres."); $("#senha").focus(); return; }
         if (s1 !== s2) { AuthUI.dica($("#senha2"), "As senhas não são iguais."); $("#senha2").focus(); return; }
         AuthUI.carregando($("#btn"), true, "Criando conta…");
         try {
-          await PortalGate.cadastrar(em, s1);
-          AuthUI.aviso($("#aviso"), "ok", "Conta criada! Entrando…");
+          await (CF ? PortalGate.primeiroAcesso(em, s1) : PortalGate.cadastrar(em, s1));
+          AuthUI.aviso($("#aviso"), "ok", CF ? "Senha criada! Entrando…" : "Conta criada! Entrando…");
           location.replace(AuthUI.destino());
         } catch (x) {
           AuthUI.carregando($("#btn"), false, "Criar conta →");
