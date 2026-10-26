@@ -68,6 +68,11 @@ window.AuthUI = (function () {
     const c = (x && x.code) || "", m = x && x.message;
     if (m === "sem-acesso") return "Este e-mail não está autorizado. Peça acesso ao TI.";
     if (m && m.indexOf("bloqueado:") === 0) return "Muitas tentativas. Tente de novo em " + m.split(":")[1] + " s.";
+    if (m === "credenciais") return "E-mail ou senha incorretos.";
+    if (m === "senha-curta") return "A senha precisa ter pelo menos 8 caracteres.";
+    if (m === "senha-ja-definida") return "Esta conta já tem senha. Entre com ela.";
+    if (m === "sem-email") return "Peça ao TI para redefinir sua senha.";
+    if (m === "use-login") return "O cadastro é feito pelo TI. Entre com seu e-mail e senha.";
     if (c === "auth/network-request-failed") return "Sem conexão. Verifique a internet e tente de novo.";
     if (c === "auth/too-many-requests") return "Muitas tentativas. Aguarde alguns minutos e tente de novo.";
     if (c === "auth/email-already-in-use") return "Já existe uma conta com este e-mail. Entre ou use “Esqueci a senha”.";

@@ -1,13 +1,12 @@
-// portal-auth-cf.js — backend de login/perfis para a CLOUDFLARE (Pages + Access + Worker).
+// portal-auth-cf.js — backend de login/perfis para a CLOUDFLARE (Pages Functions + D1).
 //
-// ESTADO: PREPARADO, INERTE. Só liga em hosts *.pages.dev (ver quer()). No GitHub Pages (github.io), no
-// servidor interno e em arquivo local este arquivo não faz nada — vale o Firebase de portal-auth.js.
+// Só liga em hosts *.pages.dev (ver quer()). No GitHub Pages (github.io), no servidor interno e em
+// arquivo local este arquivo não faz nada — vale o Firebase de portal-auth.js.
 //
 // Mesma interface do PortalGate do Firebase (as telas não mudam). Diferenças:
-//   • quem LOGA é o Cloudflare Access (e-mail corporativo / Microsoft) ANTES da página abrir — não há senha aqui;
-//   • perfil, ferramentas, ações e log vêm de um Worker same-origin em /api/* (contrato em CLOUDFLARE.md);
-//   • a identidade da pessoa é lida pelo Worker no cabeçalho do Access — o navegador nunca manda o e-mail.
-// A SEGURANÇA REAL está no Worker (confere o JWT do Access e o perfil); esconder botão aqui é só UX.
+//   • login por e-mail e senha conferido pelo Worker, com cookie HttpOnly (o JavaScript não lê a sessão);
+//   • perfil, ferramentas, ações e log vêm do Worker em /api/* (contrato em CLOUDFLARE.md).
+// A SEGURANÇA REAL está no Worker (functions/api); esconder botão aqui é só UX.
 
 window.PortalGateCF = (function () {
   // hosts que usam este backend. Domínio próprio na Cloudflare: acrescente aqui (ex.: |portal\.empresa\.com\.br).
@@ -23,9 +22,22 @@ window.PortalGateCF = (function () {
       headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
     });
-    if (r.status === 401 || r.status === 403) throw new Error("sem-acesso");
-    if (!r.ok) throw new Error("http-" + r.status);
-    return r.status === 204 ? null : r.json();
+    if (r.status === 204) return null;
+    const dados = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      // o código de erro vem do Worker (credenciais, primeiro-acesso, bloqueado, sem-sessao, sem-acesso...)
+      const e = new Error(dados.erro || (r.status === 403 ? "sem-acesso" : "http-" + r.status));
+      e.status = r.status;
+      e.segundos = dados.segundos;
+      throw e;
+    }
+    return dados;
+  }
+
+  // código de erro do Worker -> mensagem que o login.html já sabe mostrar (bloqueado:<segundos>)
+  function traduzir(e) {
+    if (e.message === "bloqueado") return new Error("bloqueado:" + (e.segundos || 60));
+    return e;
   }
 
   // base = { FERRAMENTAS, FERRAMENTA_TI, IDS, PERFIS, ferramentasDe } vindos de portal-auth.js
@@ -43,9 +55,11 @@ window.PortalGateCF = (function () {
       acessoCusto: ferramentasDe(x.perfil, x).includes("custo"),
     });
 
-    // 1ª resposta: quem sou eu (o Worker lê o Access e devolve o perfil, ou 403 se o e-mail não está em usuarios)
+    // 1ª resposta: quem sou eu (401 = sem sessão, 403 = sessão de alguém que saiu do portal)
+    let erroCarga = false;   // servidor fora do ar / resposta inesperada (ex.: 404 antes do deploy da API)
     const pronto = req("GET", "/me").then(perfilDe).catch((e) => {
       if (e.message === "sem-acesso") { try { sessionStorage.setItem("portal_sem_acesso", "1"); } catch (_) {} }
+      else if (e.message !== "sem-sessao") erroCarga = true;
       return null;
     }).then((p) => { usuarioAtual = p; return p; });
 
@@ -62,6 +76,7 @@ window.PortalGateCF = (function () {
       modo() { return "cloudflare"; },
       ativo() { return true; },
       pronto,
+      erro() { return erroCarga; },
       usuario() { return usuarioAtual; },
       perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
       podeEditar() { return !!usuarioAtual && ["logistica", "ti"].includes(usuarioAtual.perfil); },
@@ -79,12 +94,31 @@ window.PortalGateCF = (function () {
         return t.token;
       },
 
-      // Sem senha aqui: quem autentica é o Access.
-      async entrar() { throw new Error("sem-acesso"); },
-      async cadastrar() { throw new Error("sem-acesso"); },
-      async redefinirSenha() {},
-      async redefinirSenhaPropria() { throw new Error("sem-senha"); },
-      async sair() { location.href = "/cdn-cgi/access/logout"; return new Promise(() => {}); },
+      // Login por e-mail e senha (o Worker confere e grava o cookie de sessão)
+      async entrar(email, senha) {
+        try {
+          usuarioAtual = perfilDe(await req("POST", "/login", { email: (email || "").trim(), senha: senha || "" }));
+          return usuarioAtual;
+        } catch (e) { throw traduzir(e); }
+      },
+      // Primeiro acesso: a pessoa autorizada define a própria senha (só funciona se a conta ainda não tem senha)
+      async primeiroAcesso(email, senha) {
+        try {
+          usuarioAtual = perfilDe(await req("POST", "/primeiro-acesso", { email: (email || "").trim(), senha: senha || "" }));
+          return usuarioAtual;
+        } catch (e) { throw traduzir(e); }
+      },
+      // cadastro público e "esqueci a senha" não existem no modo Cloudflare: quem administra é o TI
+      async cadastrar() { throw new Error("use-login"); },
+      async redefinirSenha() { throw new Error("sem-email"); },
+      async trocarSenha(atual, nova) {
+        try { await req("POST", "/senha", { atual, nova }); } catch (e) { throw traduzir(e); }
+      },
+      async redefinirSenhaPropria() { throw new Error("use-trocar-senha"); },
+      async sair() {
+        try { await req("POST", "/logout"); } catch (_) {}
+        usuarioAtual = null;
+      },
 
       // ---- usuários (só o perfil ti; o Worker barra os demais) ----
       async listarUsuarios() {
