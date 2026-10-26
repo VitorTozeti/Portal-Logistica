@@ -123,7 +123,7 @@ function montar(raiz, ctx){
   }
   const $ = s => raiz.querySelector(s);
   raiz.innerHTML =
-    '<div class="bm"><p class="sub bm-topo">Escolha a banda de cada regra: <b>clique na linha</b>, a escolhida fica verde.</p>' +
+    '<div class="bm">' +
     '<details><summary>Como a escolha funciona</summary><ul>' +
     '<li>Banda = quantos dias úteis a mais que a transportadora mais rápida a escolha aceita para pagar menos frete.</li>' +
     '<li>Três regras por estado: Capital, Interior e Distribuidor (cliente distribuidor, qualquer cidade).</li>' +
