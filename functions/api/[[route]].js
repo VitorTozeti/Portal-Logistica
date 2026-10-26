@@ -8,9 +8,19 @@
 // Login: e-mail + senha (PBKDF2 no próprio Worker). Quem não está em `usuarios` não entra.
 // Administradores iniciais (BOOT) são sempre TI, igual a boot() em firestore.rules.
 
-const PERFIS = ["logistica", "ti", "leitor"];
 const FERRAMENTAS = ["monitor", "custo"];
 const BOOT = ["v.tozeti@pharmaesthetics.com.br", "m.milani@pharmaesthetics.com.br"];
+// Perfis: o que cada um PODE FAZER (as ferramentas que a pessoa ABRE continuam por pessoa). Ficam na tabela `perfis` do D1;
+// enquanto a tabela não existir (migração não rodada), valem estes. `ti` sempre pode tudo (não dá para tirar e ficar sem admin).
+// Só DONO_PERFIS cria, altera ou apaga perfis (pedido do usuário, 26/10).
+const DONO_PERFIS = "v.tozeti@pharmaesthetics.com.br";
+const PERFIS_BASE = {
+  ti: { rotulo: "TI", editar: true, admin: true, sistema: true },
+  logistica: { rotulo: "Logística", editar: true, admin: false, sistema: true },
+  leitor: { rotulo: "Somente leitura", editar: false, admin: false, sistema: true },
+  faturamento: { rotulo: "Faturamento", editar: false, admin: false, sistema: false },
+};
+const NOME_PERFIL = /^[a-z][a-z0-9-]{1,29}$/;
 const ITERACOES = 100000;          // limite do PBKDF2 no runtime do Workers
 const SESSAO_S = 12 * 3600;
 const TOKEN_S = 300;
@@ -105,34 +115,53 @@ function ferramentasDe(perfil, row) {
   return row.acesso_custo ? ["monitor", "custo"] : ["monitor"];
 }
 
+// mapa nome -> {rotulo, editar, admin, sistema}. Lido do D1 (1 consulta por requisição); sem a tabela, PERFIS_BASE.
+async function lerPerfis(db) {
+  let P;
+  try {
+    const rows = (await db.prepare("SELECT nome, rotulo, editar_nfs, admin, sistema FROM perfis").all()).results;
+    P = {};
+    for (const r of rows) P[r.nome] = { rotulo: r.rotulo, editar: !!r.editar_nfs, admin: !!r.admin, sistema: !!r.sistema };
+  } catch (_) {
+    P = JSON.parse(JSON.stringify(PERFIS_BASE));
+  }
+  P.ti = { ...(P.ti || PERFIS_BASE.ti), editar: true, admin: true, sistema: true };
+  return P;
+}
+const perfisDo = async (ctx) => (ctx.perfis ||= await lerPerfis(ctx.env.DB));
+
 // perfil efetivo da pessoa, ou null se não está autorizada
-async function perfilDe(db, email) {
+async function perfilDe(db, email, P) {
   const row = await db.prepare("SELECT * FROM usuarios WHERE email = ?").bind(email).first();
   if (BOOT.includes(email)) {
-    return { email, perfil: "ti", ferramentas: FERRAMENTAS.slice(), acessoCusto: true, temSenha: !!(row && row.senha), ultimoAcesso: row ? row.ultimo_acesso : 0 };
+    return { email, perfil: "ti", ferramentas: FERRAMENTAS.slice(), acessoCusto: true, pode: { editar: true, admin: true },
+             donoPerfis: email === DONO_PERFIS, temSenha: !!(row && row.senha), ultimoAcesso: row ? row.ultimo_acesso : 0 };
   }
-  if (!row || !PERFIS.includes(row.perfil)) return null;
+  if (!row || !P[row.perfil]) return null;
   const ferramentas = ferramentasDe(row.perfil, row);
-  return { email, perfil: row.perfil, ferramentas, acessoCusto: ferramentas.includes("custo"), temSenha: !!row.senha, ultimoAcesso: row.ultimo_acesso || 0 };
+  return { email, perfil: row.perfil, ferramentas, acessoCusto: ferramentas.includes("custo"),
+           pode: { editar: P[row.perfil].editar, admin: P[row.perfil].admin }, donoPerfis: email === DONO_PERFIS,
+           temSenha: !!row.senha, ultimoAcesso: row.ultimo_acesso || 0 };
 }
-const publico = (u) => ({ email: u.email, perfil: u.perfil, ferramentas: u.ferramentas, acessoCusto: u.acessoCusto });
+const publico = (u) => ({ email: u.email, perfil: u.perfil, ferramentas: u.ferramentas, acessoCusto: u.acessoCusto, pode: u.pode, donoPerfis: u.donoPerfis });
 
 async function sessaoAtual(ctx) {
   const p = await verificar(ctx.env.SESSION_SECRET, lerCookie(ctx.request));
   if (!p) return { erro: erro(401, "sem-sessao") };
-  const u = await perfilDe(ctx.env.DB, p.e);
+  const u = await perfilDe(ctx.env.DB, p.e, await perfisDo(ctx));
   if (!u) return { erro: erro(403, "sem-acesso") };
   return { u };
 }
-function exigir(u, perfis) {
-  if (!perfis.includes(u.perfil)) throw new Falha(403, "sem-permissao");
+// permissão do PERFIL: "editar" (ignorar/reativar NF) ou "admin" (usuários e log)
+function exigir(u, permissao) {
+  if (!u.pode || !u.pode[permissao]) throw new Falha(403, "sem-permissao");
 }
 
-async function gravarUsuario(db, email, body) {
+async function gravarUsuario(db, email, body, P) {
   const atual = await db.prepare("SELECT * FROM usuarios WHERE email = ?").bind(email).first();
   let perfil = atual ? atual.perfil : "leitor";
   if (body.perfil !== undefined) {
-    if (!PERFIS.includes(body.perfil)) throw new Falha(400, "perfil-invalido");
+    if (!P[body.perfil]) throw new Falha(400, "perfil-invalido");
     perfil = body.perfil;
   }
   let ferramentas = atual ? atual.ferramentas : null;
@@ -147,11 +176,55 @@ async function gravarUsuario(db, email, body) {
   }
   const senha = body.resetar_senha === true ? null : (atual ? atual.senha : null);
   const ultimo = atual ? atual.ultimo_acesso : null;
-  await db.prepare(
-    `INSERT INTO usuarios (email, perfil, ferramentas, acesso_custo, ultimo_acesso, senha) VALUES (?,?,?,?,?,?)
-     ON CONFLICT(email) DO UPDATE SET perfil = excluded.perfil, ferramentas = excluded.ferramentas,
-       acesso_custo = excluded.acesso_custo, senha = excluded.senha`
-  ).bind(email, perfil, ferramentas, acesso, ultimo, senha).run();
+  try {
+    await db.prepare(
+      `INSERT INTO usuarios (email, perfil, ferramentas, acesso_custo, ultimo_acesso, senha) VALUES (?,?,?,?,?,?)
+       ON CONFLICT(email) DO UPDATE SET perfil = excluded.perfil, ferramentas = excluded.ferramentas,
+         acesso_custo = excluded.acesso_custo, senha = excluded.senha`
+    ).bind(email, perfil, ferramentas, acesso, ultimo, senha).run();
+  } catch (e) {
+    // a tabela antiga só aceita logistica/ti/leitor (CHECK); perfil novo exige a migração de db/schema.sql
+    if (/CHECK constraint/i.test(String(e && e.message))) throw new Falha(409, "migracao-pendente");
+    throw e;
+  }
+}
+
+// ---------- perfis (só DONO_PERFIS altera) ----------
+async function listarPerfis(ctx) {
+  const P = await perfisDo(ctx);
+  const uso = {};
+  try {
+    for (const r of (await ctx.env.DB.prepare("SELECT perfil, COUNT(*) AS n FROM usuarios GROUP BY perfil").all()).results) uso[r.perfil] = r.n;
+  } catch (_) {}
+  return Object.entries(P).map(([nome, x]) => ({ nome, rotulo: x.rotulo, editar: x.editar, admin: x.admin, sistema: x.sistema, pessoas: uso[nome] || 0 }))
+    .sort((a, b) => (b.sistema - a.sistema) || a.rotulo.localeCompare(b.rotulo));
+}
+async function gravarPerfil(ctx, nome, body) {
+  if (!NOME_PERFIL.test(nome)) throw new Falha(400, "nome-invalido");
+  const P = await perfisDo(ctx);
+  const rotulo = texto(body.rotulo).trim().slice(0, 40) || (P[nome] && P[nome].rotulo) || nome;
+  let editar = body.editar === true, admin = body.admin === true;
+  if (nome === "ti") { editar = true; admin = true; }
+  const sistema = P[nome] && P[nome].sistema ? 1 : 0;
+  try {
+    await ctx.env.DB.prepare(
+      `INSERT INTO perfis (nome, rotulo, editar_nfs, admin, sistema) VALUES (?,?,?,?,?)
+       ON CONFLICT(nome) DO UPDATE SET rotulo = excluded.rotulo, editar_nfs = excluded.editar_nfs, admin = excluded.admin`
+    ).bind(nome, rotulo, editar ? 1 : 0, admin ? 1 : 0, sistema).run();
+  } catch (e) {
+    if (/no such table/i.test(String(e && e.message))) throw new Falha(409, "migracao-pendente");
+    throw e;
+  }
+  ctx.perfis = null;
+}
+async function apagarPerfil(ctx, nome) {
+  const P = await perfisDo(ctx);
+  if (!P[nome]) throw new Falha(404, "nao-encontrado");
+  if (P[nome].sistema) throw new Falha(409, "perfil-do-sistema");
+  const r = await ctx.env.DB.prepare("SELECT COUNT(*) AS n FROM usuarios WHERE perfil = ?").bind(nome).first();
+  if (r && r.n) throw new Falha(409, "perfil-em-uso", { pessoas: r.n });
+  await ctx.env.DB.prepare("DELETE FROM perfis WHERE nome = ?").bind(nome).run();
+  ctx.perfis = null;
 }
 
 // ---------- limite de tentativas (por e-mail e por IP) ----------
@@ -191,7 +264,7 @@ async function login(ctx, body) {
   const espera = Math.max(await segundosBloqueado(db, kE), await segundosBloqueado(db, kI));
   if (espera) return erro(429, "bloqueado", { segundos: espera });
 
-  const u = await perfilDe(db, email);
+  const u = await perfilDe(db, email, await perfisDo(ctx));
   if (!u) { await registrarFalha(db, kE); await registrarFalha(db, kI); return erro(401, "credenciais"); }
   if (!u.temSenha) return erro(409, "primeiro-acesso");
 
@@ -224,7 +297,7 @@ async function primeiroAcesso(ctx, body) {
   }
   await db.prepare("UPDATE usuarios SET senha = ?, ultimo_acesso = ? WHERE email = ?")
     .bind(await hashSenha(senha), Date.now(), email).run();
-  const u = await perfilDe(db, email);
+  const u = await perfilDe(db, email, await perfisDo(ctx));
   return abrirSessao(ctx, u);
 }
 
@@ -247,7 +320,7 @@ const logStmt = (db, nfId, acao, tipo, motivo, por, em) =>
 async function saude(env) {
   const r = { db: !!env.DB, session_secret: !!env.SESSION_SECRET, token_secret: !!env.TOKEN_SECRET, tabelas: {} };
   if (env.DB) {
-    for (const t of ["usuarios", "acoes", "acoes_log", "tentativas"]) {
+    for (const t of ["usuarios", "acoes", "acoes_log", "tentativas", "perfis"]) {
       try { await env.DB.prepare(`SELECT 1 FROM ${t} LIMIT 1`).all(); r.tabelas[t] = "ok"; }
       catch (e) { r.tabelas[t] = String(e && e.message || e).slice(0, 120); }
     }
@@ -299,8 +372,16 @@ async function rotear(ctx) {
     return json({ token, exp });
   }
 
+  if (a === "perfis") {
+    if (!b && m === "GET") { exigir(u, "admin"); return json(await listarPerfis(ctx)); }
+    if (u.email !== DONO_PERFIS) throw new Falha(403, "sem-permissao");
+    if (b && m === "PUT") { await gravarPerfil(ctx, b, await corpo()); return json(await listarPerfis(ctx)); }
+    if (b && m === "DELETE") { await apagarPerfil(ctx, b); return json(null, 204); }
+  }
+
   if (a === "usuarios") {
-    exigir(u, ["ti"]);
+    exigir(u, "admin");
+    const P = await perfisDo(ctx);
     if (!b && m === "GET") {
       const rows = (await env.DB.prepare("SELECT * FROM usuarios ORDER BY email").all()).results;
       return json(rows.map((r) => {
@@ -311,10 +392,10 @@ async function rotear(ctx) {
     if (b === "lote" && m === "POST") {
       const body = await corpo();
       if (!Array.isArray(body.itens) || body.itens.length > 100) throw new Falha(400, "lote-invalido");
-      for (const it of body.itens) await gravarUsuario(env.DB, normEmail(it.email), it);
+      for (const it of body.itens) await gravarUsuario(env.DB, normEmail(it.email), it, P);
       return json({ ok: true });
     }
-    if (b && m === "PUT") { await gravarUsuario(env.DB, normEmail(b), await corpo()); return json({ ok: true }); }
+    if (b && m === "PUT") { await gravarUsuario(env.DB, normEmail(b), await corpo(), P); return json({ ok: true }); }
     if (b && m === "DELETE") {
       await env.DB.prepare("DELETE FROM usuarios WHERE email = ?").bind(normEmail(b)).run();
       return json(null, 204);
@@ -326,14 +407,14 @@ async function rotear(ctx) {
       return json((await env.DB.prepare("SELECT id, tipo, motivo, nf, filial, em FROM acoes").all()).results);
     }
     if (b === "log" && m === "GET") {
-      exigir(u, ["ti"]);
+      exigir(u, "admin");
       const id = new URL(request.url).searchParams.get("id") || "";
       const r = await env.DB.prepare(
         "SELECT acao, tipo, motivo, por, em FROM acoes_log WHERE nf_id = ? ORDER BY em DESC, id DESC LIMIT 1"
       ).bind(id).first();
       return json(r || null);
     }
-    exigir(u, ["logistica", "ti"]);
+    exigir(u, "editar");
     if (b && m === "PUT") {
       const body = await corpo();
       if (!["ignorada", "tratada"].includes(body.tipo)) throw new Falha(400, "tipo-invalido");

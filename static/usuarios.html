@@ -10,14 +10,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261026b"></script>
-<script src="./portal-auth.js?v=20261026"></script>
+<script src="./portal-auth-cf.js?v=20261026c"></script>
+<script src="./portal-auth.js?v=20261026b"></script>
 <script>
   if (window.PortalGate && PortalGate.ativo()) {
     document.documentElement.classList.add("gate-pend");
     PortalGate.pronto.then(function (u) {
       if (!u) location.replace("./login.html?next=" + encodeURIComponent("./usuarios.html"));
-      else if (u.perfil !== "ti") location.replace("./");     // só o TI administra pessoas
+      else if (!(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti")) location.replace("./");     // só quem o perfil deixa administrar
       else document.documentElement.classList.remove("gate-pend");
     });
   }
@@ -64,6 +64,7 @@
   tbody tr:last-child td{border-bottom:0}
   thead th{font-size:12px;color:var(--soft);font-weight:700;white-space:nowrap}
   th.c,td.c{text-align:center}
+  td .mini{color:var(--soft);font-size:12px;font-weight:600}
   th .mini{display:block;margin-top:4px;font-weight:600;font-size:11px}
   th .mini button{background:none;border:0;color:var(--brand);cursor:pointer;padding:0 3px;font-size:11px;font-weight:700;text-decoration:underline}
   .em{font-weight:600;overflow-wrap:anywhere} .st{display:block;font-size:11.5px;color:var(--soft);margin-top:2px} .st.pend{color:var(--alerta)}
@@ -97,12 +98,23 @@
 </header>
 <main>
   <h1>Quem entra e o que pode abrir</h1>
-  <p class="sub">Marque as ferramentas de cada pessoa — a mudança vale na hora, no próximo acesso dela. O TI sempre tem tudo. O <b>perfil</b> continua definindo quem pode editar notas no Monitor.</p>
+  <p class="sub">Ferramentas: o que a pessoa abre. Perfil: o que ela pode fazer.</p>
+
+  <details class="add" id="perfis" hidden><summary>🛡️ Perfis e permissões</summary>
+    <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Perfil</th><th class="c">Edita NFs</th><th class="c">Administra</th><th class="c">Pessoas</th><th style="text-align:right">Ações</th></tr></thead>
+      <tbody id="pf-corpo"></tbody></table></div>
+    <div class="linha" style="margin-top:10px">
+      <input id="pf-rotulo" placeholder="Nome do perfil (ex.: Faturamento)" aria-label="Nome do novo perfil" style="flex:1;min-width:200px">
+      <label><input type="checkbox" id="pf-editar"> Edita NFs</label>
+      <label><input type="checkbox" id="pf-admin"> Administra</label>
+      <button class="btn pri" id="pf-criar" type="button">Criar perfil</button>
+    </div>
+  </details>
 
   <details class="add" id="add"><summary>➕ Adicionar pessoas</summary>
     <textarea id="add-emails" rows="3" placeholder="Um ou vários e-mails (separe por vírgula, espaço ou linha)"></textarea>
     <div class="linha">
-      <label>Perfil <select id="add-perfil" class="perfil"><option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option></select></label>
+      <label>Perfil <select id="add-perfil" class="perfil"></select></label>
       <span id="add-ferr" style="display:inline-flex;gap:12px;flex-wrap:wrap"></span>
       <button class="btn pri" id="add-ok" type="button">Adicionar</button>
     </div>
@@ -110,7 +122,7 @@
 
   <div class="tools">
     <input id="busca" type="search" placeholder="Buscar e-mail…" aria-label="Buscar e-mail">
-    <select id="filtro" aria-label="Filtrar"><option value="">Todos</option><option value="logistica">Logística</option><option value="ti">TI</option><option value="leitor">Somente leitura</option><option value="pendente">Sem conta ainda</option><option value="semtudo">Sem nenhuma ferramenta</option></select>
+    <select id="filtro" aria-label="Filtrar"></select>
     <span class="massa">
       <button class="btn" id="m-tudo" type="button">Liberar tudo (filtrados)</button>
       <button class="btn perigo" id="m-nada" type="button">Retirar tudo (filtrados)</button>
@@ -124,7 +136,8 @@
 "use strict";
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };
+let ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };   // trocado pelos perfis do servidor (modo Cloudflare)
+let perfis = [];
 const FERR = PortalGate.ferramentas();
 const IDS = FERR.map(f => f.id);
 let lista = [], eu = "";
@@ -152,6 +165,60 @@ function desenhar(){
       + (voce ? "" : '<button class="btn perigo" data-rm type="button">Remover</button>') + "</div></td></tr>";
   }).join("") : '<tr><td class="vazio" colspan="' + (FERR.length + 3) + '">nenhuma pessoa encontrada</td></tr>';
 }
+function opcoesPerfil(){
+  const ops = Object.keys(ROT).map(p => '<option value="' + esc(p) + '">' + esc(ROT[p]) + "</option>").join("");
+  const add = $("#add-perfil"), antes = add.value; add.innerHTML = ops; add.value = ROT[antes] ? antes : (ROT.leitor ? "leitor" : Object.keys(ROT)[0]);
+  const f = $("#filtro"), fa = f.value;
+  f.innerHTML = '<option value="">Todos</option>' + ops + '<option value="pendente">Sem conta ainda</option><option value="semtudo">Sem nenhuma ferramenta</option>';
+  f.value = fa;
+}
+function desenharPerfis(){
+  $("#pf-corpo").innerHTML = perfis.map(p => {
+    const ti = p.nome === "ti";
+    return '<tr data-pf="' + esc(p.nome) + '"><td><b>' + esc(p.rotulo) + '</b> <span class="mini">' + esc(p.nome) + (p.sistema ? " · padrão" : "") + "</span></td>"
+      + '<td class="c"><input type="checkbox" data-pp="editar"' + (p.editar ? " checked" : "") + (ti ? " disabled" : "") + ' aria-label="' + esc(p.rotulo) + ' edita NFs"></td>'
+      + '<td class="c"><input type="checkbox" data-pp="admin"' + (p.admin ? " checked" : "") + (ti ? " disabled" : "") + ' aria-label="' + esc(p.rotulo) + ' administra"></td>'
+      + '<td class="c">' + (p.pessoas || 0) + "</td>"
+      + '<td><div class="acoes">' + (p.sistema || p.pessoas ? "" : '<button class="btn perigo" data-pfrm type="button">Apagar</button>') + "</div></td></tr>";
+  }).join("");
+}
+async function carregarPerfis(){
+  if(typeof PortalGate.listarPerfis !== "function") { opcoesPerfil(); return; }
+  try{
+    perfis = await PortalGate.listarPerfis();
+    ROT = {}; perfis.forEach(p => { ROT[p.nome] = p.rotulo; });
+  }catch(e){ console.warn("[perfis]", e.message); }
+  opcoesPerfil();
+  if(PortalGate.donoPerfis && PortalGate.donoPerfis()){ $("#perfis").hidden = false; desenharPerfis(); }
+}
+const ERRO_PF = { "migracao-pendente": "Falta rodar a migração do banco (db/schema.sql).", "perfil-em-uso": "Tem pessoas neste perfil.",
+  "perfil-do-sistema": "Perfil padrão não pode ser apagado.", "nome-invalido": "Nome inválido.", "sem-permissao": "Só o dono dos perfis pode mudar isso." };
+const msgPf = e => ERRO_PF[e && e.message] || ((e && e.message) || String(e));
+$("#pf-corpo").addEventListener("change", async e => {
+  const tr = e.target.closest("tr[data-pf]"); if(!tr || !e.target.matches("[data-pp]")) return;
+  const p = perfis.find(x => x.nome === tr.dataset.pf), novo = { rotulo: p.rotulo, editar: p.editar, admin: p.admin };
+  novo[e.target.dataset.pp] = e.target.checked;
+  if(e.target.dataset.pp === "admin" && e.target.checked && !confirm("Quem tem o perfil " + p.rotulo + " vai poder administrar usuários. Continuar?")){ e.target.checked = false; return; }
+  try{ perfis = await PortalGate.salvarPerfil(p.nome, novo); desenharPerfis(); toast("Perfil " + p.rotulo + " atualizado."); }
+  catch(x){ toast("Não foi possível salvar: " + msgPf(x), true); desenharPerfis(); }
+});
+$("#pf-corpo").addEventListener("click", async e => {
+  const tr = e.target.closest("tr[data-pf]"); if(!tr || !e.target.matches("[data-pfrm]")) return;
+  const p = perfis.find(x => x.nome === tr.dataset.pf);
+  if(!confirm("Apagar o perfil " + p.rotulo + "?")) return;
+  try{ await PortalGate.removerPerfil(p.nome); await carregarPerfis(); toast("Perfil apagado."); }
+  catch(x){ toast("Não foi possível apagar: " + msgPf(x), true); }
+});
+$("#pf-criar").onclick = async () => {
+  const rotulo = $("#pf-rotulo").value.trim();
+  const nome = rotulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
+  if(!/^[a-z][a-z0-9-]{1,29}$/.test(nome)){ toast("Dê um nome com pelo menos 2 letras.", true); return; }
+  if(ROT[nome]){ toast("Já existe um perfil com esse nome.", true); return; }
+  try{ perfis = await PortalGate.salvarPerfil(nome, { rotulo, editar: $("#pf-editar").checked, admin: $("#pf-admin").checked });
+       $("#pf-rotulo").value = ""; $("#pf-editar").checked = $("#pf-admin").checked = false;
+       ROT = {}; perfis.forEach(p => { ROT[p.nome] = p.rotulo; }); opcoesPerfil(); desenharPerfis(); desenhar(); toast("Perfil " + rotulo + " criado."); }
+  catch(x){ toast("Não foi possível criar: " + msgPf(x), true); }
+};
 async function carregar(){
   try{ lista = await PortalGate.listarUsuarios(); desenhar(); }
   catch(e){ $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Sem permissão para listar usuários.</td></tr>'; }
@@ -171,7 +238,7 @@ $("#corpo").addEventListener("change", async e => {
     if(u.email === eu && !confirm("Você vai mudar o seu próprio perfil. Continuar?")){ desenhar(); return; }
     try{ await PortalGate.salvarUsuario(u.email, e.target.value); u.perfil = e.target.value;
          u.ferramentas = PortalGate.ferramentasDe(u.perfil, { ferramentas: u.ferramentas }); desenhar(); toast("Perfil atualizado."); }
-    catch(x){ falha("Não foi possível salvar: ", x); desenhar(); }
+    catch(x){ toast("Não foi possível salvar: " + msgPf(x), true); desenhar(); }
   }
 });
 $("#corpo").addEventListener("click", async e => {
@@ -225,8 +292,9 @@ $("#tema").onclick = () => { const n = document.documentElement.getAttribute("da
   document.documentElement.setAttribute("data-theme", n); try{ localStorage.setItem("portal_tema", n); }catch(_){} icone(); };
 icone();
 if(window.PortalGate && PortalGate.ativo()){
-  PortalGate.pronto.then(u => { if(!u || u.perfil !== "ti") return; eu = u.email; carregar(); });
+  PortalGate.pronto.then(async u => { if(!u || !(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti")) return; eu = u.email; await carregarPerfis(); carregar(); });
 } else {
+  opcoesPerfil();
   $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Esta tela funciona só no portal publicado (login Firebase).</td></tr>';
 }
 })();

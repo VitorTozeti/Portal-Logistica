@@ -111,6 +111,8 @@ window.PortalGate = (function () {
     usuario() { return usuarioAtual; },
     perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
     podeEditar() { return !!usuarioAtual && ["logistica", "ti"].includes(usuarioAtual.perfil); },
+    admin() { return !!usuarioAtual && usuarioAtual.perfil === "ti"; },
+    donoPerfis() { return false; },          // perfis editáveis só existem no modo Cloudflare
     podeCusto() { return !!usuarioAtual && usuarioAtual.acessoCusto === true; },
     podeFerramenta(id) { return !!usuarioAtual && (usuarioAtual.ferramentas || []).includes(id); },
     // catálogo para o painel e para a tela de permissões

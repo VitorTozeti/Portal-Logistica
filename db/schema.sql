@@ -8,7 +8,7 @@
 
 CREATE TABLE IF NOT EXISTS usuarios (
   email TEXT PRIMARY KEY,
-  perfil TEXT NOT NULL CHECK (perfil IN ('logistica','ti','leitor')),
+  perfil TEXT NOT NULL,              -- nome de um perfil da tabela `perfis`
   ferramentas TEXT,
   acesso_custo INTEGER NOT NULL DEFAULT 0,
   ultimo_acesso INTEGER,
@@ -33,6 +33,28 @@ CREATE TABLE IF NOT EXISTS acoes_log (
   por TEXT NOT NULL,
   em INTEGER NOT NULL
 );
+
+-- Perfis = o que cada um PODE FAZER (26/10). Ferramentas que a pessoa abre continuam por pessoa (usuarios.ferramentas).
+-- Só v.tozeti cria/altera/apaga perfis pela tela Usuários. `ti` sempre pode tudo; perfis de sistema não se apagam.
+CREATE TABLE IF NOT EXISTS perfis (
+  nome TEXT PRIMARY KEY,
+  rotulo TEXT NOT NULL,
+  editar_nfs INTEGER NOT NULL DEFAULT 0,   -- ignorar/reativar NF no Monitor
+  admin INTEGER NOT NULL DEFAULT 0,        -- tela Usuários e log das ações
+  sistema INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO perfis (nome, rotulo, editar_nfs, admin, sistema) VALUES
+  ('ti', 'TI', 1, 1, 1), ('logistica', 'Logística', 1, 0, 1), ('leitor', 'Somente leitura', 0, 0, 1),
+  ('faturamento', 'Faturamento', 0, 0, 0);
+
+-- MIGRAÇÃO (banco que já existe, criado com o CHECK antigo em usuarios.perfil): rode UMA vez, nesta ordem, depois do
+-- CREATE TABLE perfis acima. Confira que os dois SELECT COUNT dão o mesmo número antes do DROP.
+--   CREATE TABLE usuarios_novo (email TEXT PRIMARY KEY, perfil TEXT NOT NULL, ferramentas TEXT,
+--     acesso_custo INTEGER NOT NULL DEFAULT 0, ultimo_acesso INTEGER, senha TEXT);
+--   INSERT INTO usuarios_novo SELECT email, perfil, ferramentas, acesso_custo, ultimo_acesso, senha FROM usuarios;
+--   SELECT COUNT(*) FROM usuarios;  SELECT COUNT(*) FROM usuarios_novo;
+--   DROP TABLE usuarios;
+--   ALTER TABLE usuarios_novo RENAME TO usuarios;
 
 CREATE TABLE IF NOT EXISTS tentativas (
   chave TEXT PRIMARY KEY,

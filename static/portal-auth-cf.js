@@ -64,6 +64,8 @@ window.PortalGateCF = (function () {
       doc: true,
       ferramentas: ferramentasDe(x.perfil, x),
       acessoCusto: ferramentasDe(x.perfil, x).includes("custo"),
+      pode: x.pode || null,
+      donoPerfis: x.donoPerfis === true,
     });
 
     // 1ª resposta: quem sou eu (401 = sem sessão, 403 = sessão de alguém que saiu do portal)
@@ -97,7 +99,10 @@ window.PortalGateCF = (function () {
       erro() { return erroCarga; },
       usuario() { return usuarioAtual; },
       perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
-      podeEditar() { return !!usuarioAtual && ["logistica", "ti"].includes(usuarioAtual.perfil); },
+      // o que o PERFIL permite (vem do Worker); sem `pode` (sessão antiga guardada), cai na regra fixa de antes
+      podeEditar() { return !!usuarioAtual && (usuarioAtual.pode ? !!usuarioAtual.pode.editar : ["logistica", "ti"].includes(usuarioAtual.perfil)); },
+      admin() { return !!usuarioAtual && (usuarioAtual.pode ? !!usuarioAtual.pode.admin : usuarioAtual.perfil === "ti"); },
+      donoPerfis() { return !!usuarioAtual && usuarioAtual.donoPerfis === true; },
       podeCusto() { return !!usuarioAtual && usuarioAtual.acessoCusto === true; },
       podeFerramenta(id) { return !!usuarioAtual && (usuarioAtual.ferramentas || []).includes(id); },
       ferramentas() { return FERRAMENTAS.slice(); },
@@ -152,8 +157,7 @@ window.PortalGateCF = (function () {
                 .sort((a, b) => a.email.localeCompare(b.email));
       },
       async salvarUsuario(email, perfil) {
-        guardado.limpar();
-        if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
+        guardado.limpar();                       // o Worker confere se o perfil existe
         await req("PUT", "/usuarios/" + encodeURIComponent(email.trim().toLowerCase()), { perfil });
       },
       async salvarFerramentas(email, lista) {
@@ -167,9 +171,12 @@ window.PortalGateCF = (function () {
         }) });
       },
       async salvarVarios(emails, perfil) {
-        if (!PERFIS.includes(perfil)) throw new Error("perfil inválido");
         await req("POST", "/usuarios/lote", { itens: emails.map((e) => ({ email: e.trim().toLowerCase(), perfil })) });
       },
+      // ---- perfis (listar: admin; criar/alterar/apagar: só o dono, o Worker barra os demais) ----
+      async listarPerfis() { return req("GET", "/perfis"); },
+      async salvarPerfil(nome, dados) { guardado.limpar(); return req("PUT", "/perfis/" + encodeURIComponent(nome), dados); },
+      async removerPerfil(nome) { await req("DELETE", "/perfis/" + encodeURIComponent(nome)); },
       async removerUsuario(email) { await req("DELETE", "/usuarios/" + encodeURIComponent(email.toLowerCase())); },
 
       // ---- ações ----
