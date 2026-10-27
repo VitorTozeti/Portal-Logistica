@@ -12,13 +12,35 @@ const FERRAMENTAS = ["monitor", "custo"];
 const BOOT = ["v.tozeti@pharmaesthetics.com.br", "m.milani@pharmaesthetics.com.br"];
 // Perfis: o que cada um PODE FAZER (as ferramentas que a pessoa ABRE continuam por pessoa). Ficam na tabela `perfis` do D1;
 // enquanto a tabela não existir (migração não rodada), valem estes. `ti` sempre pode tudo (não dá para tirar e ficar sem admin).
+// Permissões = UMA POR FERRAMENTA (pedido do usuário, 27/10). Ferramenta nova do Monitor (ex.: "limpar notas") = 1 linha aqui
+// + checar `u.pode.<id>` na rota dela; a tela de perfis mostra a caixinha sozinha. Sem nenhuma do Monitor = só vê travadas e subiram.
 // Só DONO_PERFIS cria, altera ou apaga perfis (pedido do usuário, 26/10).
 const DONO_PERFIS = "v.tozeti@pharmaesthetics.com.br";
+const CATALOGO = [
+  { id: "nf_ignorar", nome: "Ignorar e reativar NF", grupo: "Monitor de NFs" },
+  { id: "nf_ver_ocultas", nome: "Ver notas ocultas", grupo: "Monitor de NFs" },
+  { id: "admin", nome: "Administrar usuários", grupo: "Portal" },
+];
+const IDS_PERM = CATALOGO.map((c) => c.id);
 const PERFIS_BASE = {
-  ti: { rotulo: "TI", editar: true, admin: true, sistema: true },
-  logistica: { rotulo: "Logística", editar: true, admin: false, sistema: true },
-  leitor: { rotulo: "Somente leitura", editar: false, admin: false, sistema: true },
-  faturamento: { rotulo: "Faturamento", editar: false, admin: false, sistema: false },
+  ti: { rotulo: "TI", perms: IDS_PERM.slice(), sistema: true },
+  logistica: { rotulo: "Logística", perms: ["nf_ignorar", "nf_ver_ocultas"], sistema: true },
+  leitor: { rotulo: "Somente leitura", perms: [], sistema: true },
+  faturamento: { rotulo: "Faturamento", perms: [], sistema: false },
+};
+// linha da tabela -> lista de permissões. Coluna `permissoes` (JSON) manda; sem ela (migração antiga), vem das colunas fixas.
+function permsDaLinha(r) {
+  if (r.permissoes) { try { return JSON.parse(r.permissoes).filter((i) => IDS_PERM.includes(i)); } catch (_) {} }
+  const l = [];
+  if (r.editar_nfs) l.push("nf_ignorar", "nf_ver_ocultas");
+  if (r.admin) l.push("admin");
+  return l;
+}
+const podeDe = (perms) => {
+  const o = {};
+  for (const i of IDS_PERM) o[i] = perms.includes(i);
+  o.editar = o.nf_ignorar;               // nome antigo, para telas em cache
+  return o;
 };
 const NOME_PERFIL = /^[a-z][a-z0-9-]{1,29}$/;
 const ITERACOES = 100000;          // limite do PBKDF2 no runtime do Workers
@@ -115,17 +137,17 @@ function ferramentasDe(perfil, row) {
   return row.acesso_custo ? ["monitor", "custo"] : ["monitor"];
 }
 
-// mapa nome -> {rotulo, editar, admin, sistema}. Lido do D1 (1 consulta por requisição); sem a tabela, PERFIS_BASE.
+// mapa nome -> {rotulo, perms, sistema}. Lido do D1 (1 consulta por requisição); sem a tabela, PERFIS_BASE.
 async function lerPerfis(db) {
   let P;
   try {
-    const rows = (await db.prepare("SELECT nome, rotulo, editar_nfs, admin, sistema FROM perfis").all()).results;
+    const rows = (await db.prepare("SELECT * FROM perfis").all()).results;
     P = {};
-    for (const r of rows) P[r.nome] = { rotulo: r.rotulo, editar: !!r.editar_nfs, admin: !!r.admin, sistema: !!r.sistema };
+    for (const r of rows) P[r.nome] = { rotulo: r.rotulo, perms: permsDaLinha(r), sistema: !!r.sistema };
   } catch (_) {
     P = JSON.parse(JSON.stringify(PERFIS_BASE));
   }
-  P.ti = { ...(P.ti || PERFIS_BASE.ti), editar: true, admin: true, sistema: true };
+  P.ti = { ...(P.ti || PERFIS_BASE.ti), perms: IDS_PERM.slice(), sistema: true };
   return P;
 }
 const perfisDo = async (ctx) => (ctx.perfis ||= await lerPerfis(ctx.env.DB));
@@ -134,13 +156,13 @@ const perfisDo = async (ctx) => (ctx.perfis ||= await lerPerfis(ctx.env.DB));
 async function perfilDe(db, email, P) {
   const row = await db.prepare("SELECT * FROM usuarios WHERE email = ?").bind(email).first();
   if (BOOT.includes(email)) {
-    return { email, perfil: "ti", rotulo: P.ti.rotulo, ferramentas: FERRAMENTAS.slice(), acessoCusto: true, pode: { editar: true, admin: true },
+    return { email, perfil: "ti", rotulo: P.ti.rotulo, ferramentas: FERRAMENTAS.slice(), acessoCusto: true, pode: podeDe(IDS_PERM),
              donoPerfis: email === DONO_PERFIS, temSenha: !!(row && row.senha), ultimoAcesso: row ? row.ultimo_acesso : 0 };
   }
   if (!row || !P[row.perfil]) return null;
   const ferramentas = ferramentasDe(row.perfil, row);
   return { email, perfil: row.perfil, rotulo: P[row.perfil].rotulo, ferramentas, acessoCusto: ferramentas.includes("custo"),
-           pode: { editar: P[row.perfil].editar, admin: P[row.perfil].admin }, donoPerfis: email === DONO_PERFIS,
+           pode: podeDe(P[row.perfil].perms), donoPerfis: email === DONO_PERFIS,
            temSenha: !!row.senha, ultimoAcesso: row.ultimo_acesso || 0 };
 }
 const publico = (u) => ({ email: u.email, perfil: u.perfil, rotulo: u.rotulo, ferramentas: u.ferramentas, acessoCusto: u.acessoCusto, pode: u.pode, donoPerfis: u.donoPerfis });
@@ -152,7 +174,7 @@ async function sessaoAtual(ctx) {
   if (!u) return { erro: erro(403, "sem-acesso") };
   return { u };
 }
-// permissão do PERFIL: "editar" (ignorar/reativar NF) ou "admin" (usuários e log)
+// permissão do PERFIL: um id de CATALOGO (ex.: "nf_ignorar", "admin")
 function exigir(u, permissao) {
   if (!u.pode || !u.pode[permissao]) throw new Falha(403, "sem-permissao");
 }
@@ -196,23 +218,26 @@ async function listarPerfis(ctx) {
   try {
     for (const r of (await ctx.env.DB.prepare("SELECT perfil, COUNT(*) AS n FROM usuarios GROUP BY perfil").all()).results) uso[r.perfil] = r.n;
   } catch (_) {}
-  return Object.entries(P).map(([nome, x]) => ({ nome, rotulo: x.rotulo, editar: x.editar, admin: x.admin, sistema: x.sistema, pessoas: uso[nome] || 0 }))
+  const perfis = Object.entries(P).map(([nome, x]) => ({ nome, rotulo: x.rotulo, permissoes: x.perms, sistema: x.sistema, pessoas: uso[nome] || 0 }))
     .sort((a, b) => (b.sistema - a.sistema) || a.rotulo.localeCompare(b.rotulo));
+  return { catalogo: CATALOGO, perfis };
 }
 async function gravarPerfil(ctx, nome, body) {
   if (!NOME_PERFIL.test(nome)) throw new Falha(400, "nome-invalido");
   const P = await perfisDo(ctx);
   const rotulo = texto(body.rotulo).trim().slice(0, 40) || (P[nome] && P[nome].rotulo) || nome;
-  let editar = body.editar === true, admin = body.admin === true;
-  if (nome === "ti") { editar = true; admin = true; }
+  if (body.permissoes !== undefined && (!Array.isArray(body.permissoes) || body.permissoes.length > 50)) throw new Falha(400, "permissoes-invalidas");
+  let perms = body.permissoes !== undefined ? [...new Set(body.permissoes.filter((i) => IDS_PERM.includes(i)))] : ((P[nome] && P[nome].perms) || []);
+  if (nome === "ti") perms = IDS_PERM.slice();
   const sistema = P[nome] && P[nome].sistema ? 1 : 0;
   try {
     await ctx.env.DB.prepare(
-      `INSERT INTO perfis (nome, rotulo, editar_nfs, admin, sistema) VALUES (?,?,?,?,?)
-       ON CONFLICT(nome) DO UPDATE SET rotulo = excluded.rotulo, editar_nfs = excluded.editar_nfs, admin = excluded.admin`
-    ).bind(nome, rotulo, editar ? 1 : 0, admin ? 1 : 0, sistema).run();
+      `INSERT INTO perfis (nome, rotulo, editar_nfs, admin, sistema, permissoes) VALUES (?,?,?,?,?,?)
+       ON CONFLICT(nome) DO UPDATE SET rotulo = excluded.rotulo, editar_nfs = excluded.editar_nfs, admin = excluded.admin,
+         permissoes = excluded.permissoes`
+    ).bind(nome, rotulo, perms.includes("nf_ignorar") ? 1 : 0, perms.includes("admin") ? 1 : 0, sistema, JSON.stringify(perms)).run();
   } catch (e) {
-    if (/no such table/i.test(String(e && e.message))) throw new Falha(409, "migracao-pendente");
+    if (/no such (table|column)|has no column/i.test(String(e && e.message))) throw new Falha(409, "migracao-pendente");
     throw e;
   }
   ctx.perfis = null;
@@ -404,7 +429,9 @@ async function rotear(ctx) {
 
   if (a === "acoes") {
     if (!b && m === "GET") {
-      return json((await env.DB.prepare("SELECT id, tipo, motivo, nf, filial, em FROM acoes").all()).results);
+      const l = (await env.DB.prepare("SELECT id, tipo, motivo, nf, filial, em FROM acoes").all()).results;
+      // quem não vê as ocultas recebe só o id (o Monitor precisa para tirar a nota da lista), sem motivo nem quem/quando
+      return json(u.pode.nf_ver_ocultas ? l : l.map((a) => ({ id: a.id, tipo: a.tipo })));
     }
     if (b === "log" && m === "GET") {
       exigir(u, "admin");
@@ -414,7 +441,7 @@ async function rotear(ctx) {
       ).bind(id).first();
       return json(r || null);
     }
-    exigir(u, "editar");
+    exigir(u, "nf_ignorar");
     if (b && m === "PUT") {
       const body = await corpo();
       if (!["ignorada", "tratada"].includes(body.tipo)) throw new Falha(400, "tipo-invalido");

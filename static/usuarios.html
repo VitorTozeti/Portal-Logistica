@@ -10,8 +10,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261027"></script>
-<script src="./portal-auth.js?v=20261026b"></script>
+<script src="./portal-auth-cf.js?v=20261027b"></script>
+<script src="./portal-auth.js?v=20261027"></script>
 <script>
   if (window.PortalGate && PortalGate.ativo()) {
     document.documentElement.classList.add("gate-pend");
@@ -65,6 +65,7 @@
   thead th{font-size:12px;color:var(--soft);font-weight:700;white-space:nowrap}
   th.c,td.c{text-align:center}
   td .mini{color:var(--soft);font-size:12px;font-weight:600}
+  .mini-sub{margin:10px 0 0;color:var(--soft);font-size:13.5px} th .grp{display:block;font-size:10.5px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}
   th .mini{display:block;margin-top:4px;font-weight:600;font-size:11px}
   th .mini button{background:none;border:0;color:var(--brand);cursor:pointer;padding:0 3px;font-size:11px;font-weight:700;text-decoration:underline}
   .em{font-weight:600;overflow-wrap:anywhere} .st{display:block;font-size:11.5px;color:var(--soft);margin-top:2px} .st.pend{color:var(--alerta)}
@@ -101,12 +102,10 @@
   <p class="sub">Ferramentas: o que a pessoa abre. Perfil: o que ela pode fazer.</p>
 
   <details class="add" id="perfis" hidden><summary>🛡️ Perfis e permissões</summary>
-    <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Perfil</th><th class="c">Edita NFs</th><th class="c">Administra</th><th class="c">Pessoas</th><th style="text-align:right">Ações</th></tr></thead>
-      <tbody id="pf-corpo"></tbody></table></div>
+    <p class="mini-sub">Marque o que cada perfil pode fazer. Sem nenhuma caixa do Monitor, a pessoa só vê as travadas e as que subiram.</p>
+    <div class="scroll" style="margin-top:10px"><table><thead id="pf-cab"></thead><tbody id="pf-corpo"></tbody></table></div>
     <div class="linha" style="margin-top:10px">
       <input id="pf-rotulo" placeholder="Nome do perfil (ex.: Faturamento)" aria-label="Nome do novo perfil" style="flex:1;min-width:200px">
-      <label><input type="checkbox" id="pf-editar"> Edita NFs</label>
-      <label><input type="checkbox" id="pf-admin"> Administra</label>
       <button class="btn pri" id="pf-criar" type="button">Criar perfil</button>
     </div>
   </details>
@@ -137,7 +136,7 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };   // trocado pelos perfis do servidor (modo Cloudflare)
-let perfis = [];
+let perfis = [], catalogo = [];
 const FERR = PortalGate.ferramentas();
 const IDS = FERR.map(f => f.id);
 let lista = [], eu = "";
@@ -173,21 +172,23 @@ function opcoesPerfil(){
   f.value = fa;
 }
 function desenharPerfis(){
+  $("#pf-cab").innerHTML = "<tr><th>Perfil</th>" + catalogo.map(c => '<th class="c"><span class="grp">' + esc(c.grupo) + "</span>" + esc(c.nome) + "</th>").join("")
+    + '<th class="c">Pessoas</th><th style="text-align:right">Ações</th></tr>';
   $("#pf-corpo").innerHTML = perfis.map(p => {
-    const ti = p.nome === "ti";
+    const ti = p.nome === "ti", tem = p.permissoes || [];
     return '<tr data-pf="' + esc(p.nome) + '"><td><b>' + esc(p.rotulo) + '</b> <span class="mini">' + esc(p.nome) + (p.sistema ? " · padrão" : "") + "</span></td>"
-      + '<td class="c"><input type="checkbox" data-pp="editar"' + (p.editar ? " checked" : "") + (ti ? " disabled" : "") + ' aria-label="' + esc(p.rotulo) + ' edita NFs"></td>'
-      + '<td class="c"><input type="checkbox" data-pp="admin"' + (p.admin ? " checked" : "") + (ti ? " disabled" : "") + ' aria-label="' + esc(p.rotulo) + ' administra"></td>'
+      + catalogo.map(c => '<td class="c"><input type="checkbox" data-pp="' + esc(c.id) + '"' + (tem.includes(c.id) ? " checked" : "") + (ti ? ' disabled title="O TI sempre pode tudo"' : "")
+          + ' aria-label="' + esc(p.rotulo) + ": " + esc(c.nome) + '"></td>').join("")
       + '<td class="c">' + (p.pessoas || 0) + "</td>"
       + '<td><div class="acoes">' + (p.sistema || p.pessoas ? "" : '<button class="btn perigo" data-pfrm type="button">Apagar</button>') + "</div></td></tr>";
   }).join("");
 }
+// resposta do servidor: { catalogo, perfis }
+function receber(r){ catalogo = r.catalogo || []; perfis = r.perfis || []; ROT = {}; perfis.forEach(p => { ROT[p.nome] = p.rotulo; }); }
 async function carregarPerfis(){
   if(typeof PortalGate.listarPerfis !== "function") { opcoesPerfil(); return; }
-  try{
-    perfis = await PortalGate.listarPerfis();
-    ROT = {}; perfis.forEach(p => { ROT[p.nome] = p.rotulo; });
-  }catch(e){ console.warn("[perfis]", e.message); }
+  try{ receber(await PortalGate.listarPerfis()); }
+  catch(e){ console.warn("[perfis]", e.message); }
   opcoesPerfil();
   if(PortalGate.donoPerfis && PortalGate.donoPerfis()){ $("#perfis").hidden = false; desenharPerfis(); }
 }
@@ -196,10 +197,10 @@ const ERRO_PF = { "migracao-pendente": "Falta rodar a migração do banco (db/sc
 const msgPf = e => ERRO_PF[e && e.message] || ((e && e.message) || String(e));
 $("#pf-corpo").addEventListener("change", async e => {
   const tr = e.target.closest("tr[data-pf]"); if(!tr || !e.target.matches("[data-pp]")) return;
-  const p = perfis.find(x => x.nome === tr.dataset.pf), novo = { rotulo: p.rotulo, editar: p.editar, admin: p.admin };
-  novo[e.target.dataset.pp] = e.target.checked;
-  if(e.target.dataset.pp === "admin" && e.target.checked && !confirm("Quem tem o perfil " + p.rotulo + " vai poder administrar usuários. Continuar?")){ e.target.checked = false; return; }
-  try{ perfis = await PortalGate.salvarPerfil(p.nome, novo); desenharPerfis(); toast("Perfil " + p.rotulo + " atualizado."); }
+  const p = perfis.find(x => x.nome === tr.dataset.pf), id = e.target.dataset.pp;
+  if(id === "admin" && e.target.checked && !confirm("Quem tem o perfil " + p.rotulo + " vai poder administrar usuários. Continuar?")){ e.target.checked = false; return; }
+  const permissoes = (p.permissoes || []).filter(x => x !== id).concat(e.target.checked ? [id] : []);
+  try{ receber(await PortalGate.salvarPerfil(p.nome, { rotulo: p.rotulo, permissoes })); desenharPerfis(); toast("Perfil " + p.rotulo + " atualizado."); }
   catch(x){ toast("Não foi possível salvar: " + msgPf(x), true); desenharPerfis(); }
 });
 $("#pf-corpo").addEventListener("click", async e => {
@@ -214,9 +215,9 @@ $("#pf-criar").onclick = async () => {
   const nome = rotulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
   if(!/^[a-z][a-z0-9-]{1,29}$/.test(nome)){ toast("Dê um nome com pelo menos 2 letras.", true); return; }
   if(ROT[nome]){ toast("Já existe um perfil com esse nome.", true); return; }
-  try{ perfis = await PortalGate.salvarPerfil(nome, { rotulo, editar: $("#pf-editar").checked, admin: $("#pf-admin").checked });
-       $("#pf-rotulo").value = ""; $("#pf-editar").checked = $("#pf-admin").checked = false;
-       ROT = {}; perfis.forEach(p => { ROT[p.nome] = p.rotulo; }); opcoesPerfil(); desenharPerfis(); desenhar(); toast("Perfil " + rotulo + " criado."); }
+  try{ receber(await PortalGate.salvarPerfil(nome, { rotulo, permissoes: [] }));       // nasce só vendo; marque as caixas depois
+       $("#pf-rotulo").value = "";
+       opcoesPerfil(); desenharPerfis(); desenhar(); toast("Perfil " + rotulo + " criado. Marque o que ele pode fazer."); }
   catch(x){ toast("Não foi possível criar: " + msgPf(x), true); }
 };
 async function carregar(){

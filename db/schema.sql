@@ -41,11 +41,16 @@ CREATE TABLE IF NOT EXISTS perfis (
   rotulo TEXT NOT NULL,
   editar_nfs INTEGER NOT NULL DEFAULT 0,   -- ignorar/reativar NF no Monitor
   admin INTEGER NOT NULL DEFAULT 0,        -- tela Usuários e log das ações
-  sistema INTEGER NOT NULL DEFAULT 0
+  sistema INTEGER NOT NULL DEFAULT 0,
+  permissoes TEXT                          -- JSON, UMA POR FERRAMENTA (27/10): ["nf_ignorar","nf_ver_ocultas","admin"]; manda sobre as 2 colunas acima
 );
+-- Se a tabela `perfis` JÁ existia (migração de 26/10), rode só esta linha e as duas UPDATE abaixo:
+--   ALTER TABLE perfis ADD COLUMN permissoes TEXT;
 INSERT OR IGNORE INTO perfis (nome, rotulo, editar_nfs, admin, sistema) VALUES
   ('ti', 'TI', 1, 1, 1), ('logistica', 'Logística', 1, 0, 1), ('leitor', 'Somente leitura', 0, 0, 1),
   ('faturamento', 'Faturamento', 0, 0, 0);
+UPDATE perfis SET permissoes = '["nf_ignorar","nf_ver_ocultas"]' WHERE nome = 'logistica' AND permissoes IS NULL;
+UPDATE perfis SET permissoes = '[]' WHERE nome IN ('leitor', 'faturamento') AND permissoes IS NULL;
 
 -- MIGRAÇÃO (banco que já existe, criado com o CHECK antigo em usuarios.perfil): rode UMA vez, nesta ordem, depois do
 -- CREATE TABLE perfis acima. Confira que os dois SELECT COUNT dão o mesmo número antes do DROP.

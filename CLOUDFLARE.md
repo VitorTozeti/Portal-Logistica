@@ -38,15 +38,18 @@ O GitHub Pages (`github.io`) segue com Firebase e não é afetado: o caminho Clo
 | `PUT /api/acoes/{id}` | logistica/ti | `{tipo, motivo, nf, filial}`; grava o log |
 | `DELETE /api/acoes/{id}` | logistica/ti | reativa; grava o log |
 | `GET /api/acoes/log?id=` | ti | última mudança da NF |
-| `GET /api/perfis` | admin | perfis com o que cada um pode (`editar`, `admin`) e quantas pessoas têm |
-| `PUT /api/perfis/{nome}` | só v.tozeti | cria/altera `{rotulo, editar, admin}`; `ti` sempre pode tudo |
+| `GET /api/perfis` | admin | `{catalogo, perfis}`: o catálogo de ferramentas e, por perfil, a lista `permissoes` e quantas pessoas têm |
+| `PUT /api/perfis/{nome}` | só v.tozeti | cria/altera `{rotulo, permissoes:[ids do catálogo]}`; `ti` sempre pode tudo |
 | `DELETE /api/perfis/{nome}` | só v.tozeti | apaga perfil sem pessoas; os padrão (ti, logistica, leitor) não se apagam |
 
-**Perfis (26/10):** o perfil diz o que a pessoa **pode fazer** (`editar` = ignorar/reativar NF; `admin` = Usuários e log);
-as ferramentas que ela **abre** continuam marcadas por pessoa. Padrão: TI (tudo), Logística (edita), Somente leitura e
-Faturamento (só veem). Ficam na tabela `perfis`; para perfis novos funcionarem rode a **migração** de `db/schema.sql`
-(cria `perfis` e tira o CHECK fixo de `usuarios.perfil`). Sem ela, o Worker usa os 4 perfis padrão e recusa gravar
-pessoa em perfil novo com `409 migracao-pendente`.
+**Perfis (26/10, permissões por ferramenta desde 27/10):** o perfil diz o que a pessoa **pode fazer**, com **uma permissão por
+ferramenta** (catálogo `CATALOGO` no Worker): `nf_ignorar` (ignorar/reativar NF), `nf_ver_ocultas` (ver as notas ocultas, com motivo)
+e `admin` (Usuários e log). As ferramentas que ela **abre** continuam marcadas por pessoa. Sem nenhuma permissão do Monitor, a pessoa
+só vê as travadas e as que subiram; `/api/acoes` devolve a ela só o `id` das ocultas (sem motivo). **Ferramenta nova** (ex.: "limpar
+notas"): 1 linha no `CATALOGO` + `exigir(u, "<id>")` na rota + `PortalGate.pode("<id>")` na tela; a caixinha aparece sozinha.
+Padrão: TI (tudo), Logística (`nf_ignorar`, `nf_ver_ocultas`), Somente leitura e Faturamento (nada). Ficam na tabela `perfis`
+(coluna `permissoes` em JSON); rode a **migração** de `db/schema.sql`. Sem ela o Worker usa os 4 padrão e recusa perfil novo com
+`409 migracao-pendente`.
 
 `resetar_senha: true` (tela Usuários, via `PUT`) apaga a senha; a pessoa define outra no próximo acesso.
 

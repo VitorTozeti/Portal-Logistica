@@ -14,8 +14,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261027"></script>
-<script src="./portal-auth.js?v=20261026b"></script>
+<script src="./portal-auth-cf.js?v=20261027b"></script>
+<script src="./portal-auth.js?v=20261027"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
@@ -665,8 +665,10 @@
   // Saem da lista de Travadas; o chip "⊘ ocultas" mostra só elas (e permite reativar).
   const ocultas = new Map();
   let mostrarOcultas = false;
+  const veOcultas = () => !(window.PortalGate && PortalGate.ativo()) || (typeof PortalGate.pode === "function" ? PortalGate.pode("nf_ver_ocultas") : PortalGate.podeEditar());
   function renderOcultasChip(){
     const n = [...stuck.values()].filter(x => ocultas.has(x.id)).length;
+    if(!veOcultas()){ mostrarOcultas = false; $("#ocultas-bar").innerHTML = ""; return; }   // quem só vê: travadas e subiram
     $("#ocultas-bar").innerHTML = (n || mostrarOcultas)
       ? `<span class="chip" role="button" tabindex="0" aria-pressed="${mostrarOcultas}">⊘ ocultas (${n})</span>` : "";
   }
@@ -895,7 +897,7 @@
   function montarAcao(n){
     const b = $("#dw-acao"); b.hidden = true; b.onclick = null;
     document.getElementById("dw-quem-mexeu")?.remove();
-    if(!(window.PortalGate && PortalGate.ativo() && PortalGate.podeEditar())) return;
+    if(!(window.PortalGate && PortalGate.ativo() && (typeof PortalGate.pode === "function" ? PortalGate.pode("nf_ignorar") : PortalGate.podeEditar()))) return;
     const oc = ocultas.get(n.id);
     b.hidden = false;
     b.textContent = oc ? "↺ Reativar nota" : "⊘ Ignorar nota";
@@ -1041,7 +1043,7 @@
       catch(_){ toast("Não foi possível enviar o link. Tente de novo.", {erro:true}); } });
     PortalGate.pronto.then(u => {
       if(!u) return;
-      montarConta(u.email, u.perfil, u.rotulo, !PortalGate.podeEditar());
+      montarConta(u.email, u.perfil, u.rotulo, !(typeof PortalGate.pode === "function" ? PortalGate.pode("nf_ignorar") : PortalGate.podeEditar()));   // sem nenhuma ferramenta de edição = só vê
       if(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti") $("#btn-usuarios").hidden = false;
       $("#btn-painel").hidden = false;
       if(PortalGate.podeFerramenta("custo")) $("#btn-custo").hidden = false;

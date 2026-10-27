@@ -101,7 +101,13 @@ window.PortalGateCF = (function () {
       usuario() { return usuarioAtual; },
       perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
       // o que o PERFIL permite (vem do Worker); sem `pode` (sessão antiga guardada), cai na regra fixa de antes
-      podeEditar() { return !!usuarioAtual && (usuarioAtual.pode ? !!usuarioAtual.pode.editar : ["logistica", "ti"].includes(usuarioAtual.perfil)); },
+      // permissão por ferramenta (id do catálogo do Worker: nf_ignorar, nf_ver_ocultas, admin…)
+      pode(id) {
+        if (!usuarioAtual) return false;
+        if (usuarioAtual.pode && id in usuarioAtual.pode) return !!usuarioAtual.pode[id];
+        return ["logistica", "ti"].includes(usuarioAtual.perfil) && id !== "admin" || usuarioAtual.perfil === "ti";   // sessão antiga guardada
+      },
+      podeEditar() { return this.pode("nf_ignorar"); },
       rotulo() { return usuarioAtual ? (usuarioAtual.rotulo || usuarioAtual.perfil) : ""; },
       admin() { return !!usuarioAtual && (usuarioAtual.pode ? !!usuarioAtual.pode.admin : usuarioAtual.perfil === "ti"); },
       donoPerfis() { return !!usuarioAtual && usuarioAtual.donoPerfis === true; },
@@ -176,7 +182,7 @@ window.PortalGateCF = (function () {
         await req("POST", "/usuarios/lote", { itens: emails.map((e) => ({ email: e.trim().toLowerCase(), perfil })) });
       },
       // ---- perfis (listar: admin; criar/alterar/apagar: só o dono, o Worker barra os demais) ----
-      async listarPerfis() { return req("GET", "/perfis"); },
+      async listarPerfis() { return req("GET", "/perfis"); },          // { catalogo:[{id,nome,grupo}], perfis:[...] }
       async salvarPerfil(nome, dados) { guardado.limpar(); return req("PUT", "/perfis/" + encodeURIComponent(nome), dados); },
       async removerPerfil(nome) { await req("DELETE", "/perfis/" + encodeURIComponent(nome)); },
       async removerUsuario(email) { await req("DELETE", "/usuarios/" + encodeURIComponent(email.toLowerCase())); },
