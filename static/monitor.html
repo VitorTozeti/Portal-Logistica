@@ -14,8 +14,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261026b"></script>
-<script src="./portal-auth.js?v=20261026"></script>
+<script src="./portal-auth-cf.js?v=20261026c"></script>
+<script src="./portal-auth.js?v=20261026b"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
@@ -914,7 +914,7 @@
       }catch(e){ toast("Não foi possível salvar (sem permissão ou sem rede).", {erro:true}); }
       finally{ b.disabled = false; }
     };
-    if(PortalGate.perfil() === "ti"){
+    if(typeof PortalGate.admin === "function" ? PortalGate.admin() : PortalGate.perfil() === "ti"){
       PortalGate.ultimoLog(n.id).then(l => {
         if(!l || abertaId !== n.id) return;
         const quando = l.ms ? new Date(l.ms).toLocaleString("pt-BR") : "";
@@ -1042,7 +1042,7 @@
     PortalGate.pronto.then(u => {
       if(!u) return;
       montarConta(u.email, u.perfil);
-      if(u.perfil === "ti") $("#btn-usuarios").hidden = false;
+      if(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti") $("#btn-usuarios").hidden = false;
       $("#btn-painel").hidden = false;
       if(PortalGate.podeFerramenta("custo")) $("#btn-custo").hidden = false;
       PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
