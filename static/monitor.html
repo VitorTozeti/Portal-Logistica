@@ -292,17 +292,29 @@
   .hist-status{font-size:11.5px;color:var(--ink2)}
   .hist-status.fim{color:var(--brand);font-weight:700}
   .hist-tab tbody tr:hover{background:color-mix(in srgb,var(--brand) 7%,transparent)}
-  /* ---- tela de carregamento (foto inicial de ~12k NFs em 1 fetch) ---- */
-  .loader{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
-    background:var(--bg);transition:opacity .35s ease}
+  /* ---- tela de carregamento: passos + barra + dica (27/10) ---- */
+  .loader{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(ellipse at 50% 35%,color-mix(in srgb,var(--brand) 10%,var(--bg)),var(--bg) 70%);transition:opacity .35s ease}
   .loader.hide{opacity:0;pointer-events:none}
-  .loader-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px;text-align:center}
-  .loader-logo{font-size:17px;font-weight:800;color:var(--brand);letter-spacing:.01em}
-  .spinner{width:44px;height:44px;border-radius:50%;border:4px solid color-mix(in srgb,var(--brand) 22%,transparent);
-    border-top-color:var(--brand);animation:spin .8s linear infinite}
+  .loader-box{display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;max-width:340px;text-align:center}
+  .loader-logo{font-size:18px;font-weight:800;color:var(--brand);letter-spacing:.01em}
+  .loader-sub{font-size:13px;color:var(--ink2);margin-top:-12px}
+  .loader-barra{width:100%;height:5px;border-radius:5px;background:color-mix(in srgb,var(--brand) 18%,transparent);overflow:hidden}
+  .loader-barra i{display:block;height:100%;width:38%;border-radius:5px;background:var(--brand);animation:vai 1.25s ease-in-out infinite}
+  @keyframes vai{0%{transform:translateX(-110%)}100%{transform:translateX(290%)}}
+  .loader-passos{list-style:none;margin:0;padding:0;display:grid;gap:9px;width:100%;text-align:left}
+  .loader-passos li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink2);transition:color .2s}
+  .loader-passos .ic{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:12px;font-weight:800;
+    border:2px solid color-mix(in srgb,var(--brand) 30%,transparent)}
+  .loader-passos li.ativo{color:var(--ink);font-weight:700}
+  .loader-passos li.ativo .ic{border-color:var(--brand);border-top-color:transparent;animation:spin .8s linear infinite}
+  .loader-passos li.feito{color:var(--ink)}
+  .loader-passos li.feito .ic{background:var(--brand);border-color:var(--brand);color:var(--bg)}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .loader-txt{font-size:13.5px;color:var(--ink);font-weight:600}
-  .loader-count{font-size:12px;color:var(--ink2);font-family:ui-monospace,monospace;min-height:16px}
+  .loader-count{font-size:12px;color:var(--ink2);min-height:16px}
+  .loader-dica{font-size:12.5px;color:var(--ink2);background:color-mix(in srgb,var(--brand) 9%,transparent);border-radius:10px;padding:9px 12px;line-height:1.45}
+  .loader-dica[hidden]{display:none}
+  @media (prefers-reduced-motion:reduce){.loader-barra i{animation:none;width:100%;opacity:.5}.loader-passos li.ativo .ic{animation:none}}
 
   /* ===== acesso / conta / modais / toasts (UX de login e perfis) ===== */
   html.gate-pend body > *{visibility:hidden}
@@ -336,6 +348,9 @@
   .mdl-acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
   /* ignorar no robô (27/10) */
   .mdl-box.largo{max-width:960px}
+  .robo-resumo{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.5;margin-top:10px}
+  .robo-resumo b{display:inline-block;min-width:74px;color:var(--ink2);font-weight:700}
+  .robo-aviso code{font-size:12px}
   .robo-aviso{border-left:4px solid #d97706;background:color-mix(in srgb,#d97706 12%,transparent);border-radius:8px;padding:9px 11px;font-size:13px;margin:0 0 12px}
   .robo-st{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13.5px;line-height:1.45;border:1px solid var(--line)}
   .robo-st b{display:block;margin-bottom:2px}
@@ -376,12 +391,18 @@
 <link rel="stylesheet" href="./ui.css?v=20261026c">
 </head>
 <body>
-<div id="loader" class="loader">
+<div id="loader" class="loader" role="status" aria-live="polite">
   <div class="loader-box">
     <div class="loader-logo">Portal da Logística</div>
-    <div class="spinner" aria-hidden="true"></div>
-    <div class="loader-txt">Carregando notas fiscais…</div>
+    <div class="loader-sub">Monitor de NFs</div>
+    <div class="loader-barra" aria-hidden="true"><i></i></div>
+    <ul class="loader-passos" id="loader-passos">
+      <li data-p="1" class="feito"><span class="ic">✓</span>Acesso confirmado</li>
+      <li data-p="2" class="ativo"><span class="ic"></span>Buscando as notas</li>
+      <li data-p="3"><span class="ic"></span>Montando a tela</li>
+    </ul>
     <div class="loader-count" id="loader-count">preparando</div>
+    <div class="loader-dica" id="loader-dica" hidden>Demorando mais que o normal: o servidor estava dormindo e está acordando (o 1º acesso do dia pode levar até 30 s). Não precisa recarregar.</div>
   </div>
 </div>
 <header>
@@ -399,7 +420,7 @@
       <a href="./" id="btn-painel" hidden role="menuitem">🧰 Painel de ferramentas</a>
       <a href="./custo.html" id="btn-custo" hidden role="menuitem">💲 Custo de Frete</a>
       <a href="./usuarios.html" id="btn-usuarios" hidden role="menuitem">👥 Usuários e permissões</a>
-      <a href="#" id="btn-robohist" hidden role="menuitem">📜 Notas ignoradas no robô</a>
+      <a href="#" id="btn-robohist" hidden role="menuitem">📜 Notas ignoradas</a>
       <a href="#" id="btn-senha" hidden role="menuitem">🔑 Trocar senha</a>
       <a href="/logout" id="sair" role="menuitem">⎋ Sair</a>
     </div>
@@ -412,19 +433,26 @@
 
 <div id="robo-modal" class="mdl" hidden>
   <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="robo-titulo">
-    <b id="robo-titulo">Ignorar no robô</b>
-    <p class="mdl-sub">Vale para o robô: ele para de alertar e nunca mais processa esta NF. Aplica no próximo ciclo.</p>
-    <div class="robo-aviso">Use só para nota que não vai mais ser tratada. Fica no histórico com o seu nome e o motivo.</div>
-    <label for="robo-motivo" style="font-size:13px;font-weight:600">Motivo (obrigatório)</label>
-    <textarea id="robo-motivo" rows="3" maxlength="300" style="margin-top:6px"></textarea>
-    <div class="mdl-acoes"><button class="btn" type="button" id="robo-cancelar">Cancelar</button>
-      <button class="btn" type="button" id="robo-ok" style="background:#d97706;color:#111;border-color:#d97706">Ignorar no robô</button></div>
+    <b id="robo-titulo">Ignorar nota</b>
+    <div id="robo-p1">
+      <p class="mdl-sub">O robô para de alertar sobre esta nota e nunca mais a processa. Aplica no próximo ciclo.</p>
+      <label for="robo-motivo" style="font-size:13px;font-weight:600">Motivo (obrigatório)</label>
+      <textarea id="robo-motivo" rows="3" maxlength="300" style="margin-top:6px"></textarea>
+      <div class="mdl-acoes"><button class="btn" type="button" id="robo-cancelar">Cancelar</button>
+        <button class="btn" type="button" id="robo-continuar" style="background:var(--brand);color:var(--p1)">Continuar</button></div>
+    </div>
+    <div id="robo-p2" hidden>
+      <div class="robo-aviso"><b>Confirme antes de ignorar.</b> Depois que o robô aplicar, a nota <b>não volta</b> a ser tratada: ele marca todas as etapas como concluídas, como o script <code>ignorar_notas.py</code>.</div>
+      <div class="robo-resumo" id="robo-resumo"></div>
+      <div class="mdl-acoes"><button class="btn" type="button" id="robo-voltar">Voltar</button>
+        <button class="btn" type="button" id="robo-ok" style="background:#d97706;color:#111;border-color:#d97706">Sim, ignorar nota</button></div>
+    </div>
   </div>
 </div>
 
 <div id="rh-modal" class="mdl" hidden>
   <div class="mdl-box largo" role="dialog" aria-modal="true" aria-labelledby="rh-titulo">
-    <div class="mdl-top"><b id="rh-titulo">Notas ignoradas no robô</b><button class="dw-close" type="button" id="rh-fechar" title="fechar">×</button></div>
+    <div class="mdl-top"><b id="rh-titulo">Notas ignoradas</b><button class="dw-close" type="button" id="rh-fechar" title="fechar">×</button></div>
     <p class="mdl-sub">Quem pediu, quando, por quê e quando o robô aplicou.</p>
     <div class="mdl-tools">
       <select id="rh-status" aria-label="Filtrar por situação"><option value="">Todas</option><option value="pendente">Aguardando o robô</option>
@@ -502,7 +530,7 @@
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
     <button class="btn" type="button" id="dw-acao" hidden></button>
-    <button class="btn" type="button" id="dw-robo" hidden>🚫 Ignorar no robô</button>
+    <button class="btn" type="button" id="dw-robo" hidden>⊘ Ignorar nota</button>
     <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
 </aside>
@@ -946,6 +974,7 @@
     document.getElementById("dw-quem-mexeu")?.remove();
     if(!(window.PortalGate && PortalGate.ativo() && (typeof PortalGate.pode === "function" ? PortalGate.pode("nf_ignorar") : PortalGate.podeEditar()))) return;
     const oc = ocultas.get(n.id);
+    if(!oc && usaRobo(n)) return;          // UM botão só: quem pode ignorar no robô usa o "Ignorar nota" dele (o antigo só escondia no Portal)
     b.hidden = false;
     b.textContent = oc ? "↺ Reativar nota" : "⊘ Ignorar nota";
     b.onclick = async () => {
@@ -1309,6 +1338,7 @@
   const FILIAIS_ROBO = ["Varejo", "Atacado"];          // as que têm log mestre (Matriz/marketing usa outro controle)
   const ROT_ST = { pendente: "Aguardando o robô", aplicada: "Ignorada", erro: "Erro", cancelada: "Cancelada" };
   let pedidosRobo = new Map();                         // "Filial-NF" -> pedido
+  const usaRobo = n => podeRobo() && FILIAIS_ROBO.includes(n.filial);   // nota que o robô sabe ignorar (Varejo/Atacado)
   const podeRobo = () => !!(window.PortalGate && PortalGate.ativo() && typeof PortalGate.pode === "function" && PortalGate.pode("nf_ignorar_robo"));
   const quandoBR = iso => iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
   async function azureApi(metodo, caminho, corpo){
@@ -1345,25 +1375,35 @@
       return;
     }
     if(p && p.status === "aplicada"){
-      st("aplicada", "✓ Ignorada no robô", `Em ${esc(quandoBR(p.aplicado_em))}, pedido por ${esc(p.por)}: ${esc(p.motivo)}. Sai desta lista na próxima coleta.`);
+      st("aplicada", "✓ Nota ignorada", `Em ${esc(quandoBR(p.aplicado_em))}, pedido por ${esc(p.por)}: ${esc(p.motivo)}. Sai desta lista na próxima coleta.`);
       return;
     }
-    if(p && p.status === "erro") st("erro", "✕ O robô não conseguiu aplicar", esc(p.mensagem || "Erro sem detalhe.") + " Dá para pedir de novo.");
-    b.hidden = false; b.textContent = "🚫 Ignorar no robô";
+    if(p && p.status === "erro") st("erro", "✕ Não foi possível ignorar", esc(p.mensagem || "Erro sem detalhe.") + " Dá para pedir de novo.");
+    b.hidden = false; b.textContent = "⊘ Ignorar nota";
     b.onclick = () => pedirRobo(n);
   }
   function pedirRobo(n){
     const m = $("#robo-modal"); $("#robo-motivo").value = "";
-    $("#robo-titulo").textContent = "Ignorar no robô a NF " + n.nf + " (" + n.filial + ")";
-    const fim = () => { fecharMdl(m); $("#robo-ok").onclick = $("#robo-cancelar").onclick = null; };
+    $("#robo-titulo").textContent = "Ignorar a NF " + n.nf + " (" + n.filial + ")";
+    $("#robo-p1").hidden = false; $("#robo-p2").hidden = true;
+    const fim = () => { fecharMdl(m); $("#robo-ok").onclick = $("#robo-cancelar").onclick = $("#robo-continuar").onclick = $("#robo-voltar").onclick = null; };
     $("#robo-cancelar").onclick = fim;
-    $("#robo-ok").onclick = async () => {
+    // passo 1 -> 2: confirmação com o resumo do que vai acontecer
+    $("#robo-continuar").onclick = () => {
       const motivo = $("#robo-motivo").value.trim();
       if(motivo.length < 5){ toast("Escreva o motivo (pelo menos 5 letras).", { erro: true }); $("#robo-motivo").focus(); return; }
+      $("#robo-resumo").innerHTML = `<div><b>NF</b> ${esc(n.nf)} · ${esc(n.filial)}</div><div><b>Motivo</b> ${esc(motivo)}</div>`
+        + `<div><b>Pedido por</b> ${esc((PortalGate.usuario && PortalGate.usuario() && PortalGate.usuario().email) || "você")}</div>`;
+      $("#robo-titulo").textContent = "Confirmar: ignorar a NF " + n.nf;
+      $("#robo-p1").hidden = true; $("#robo-p2").hidden = false; $("#robo-ok").focus();
+    };
+    $("#robo-voltar").onclick = () => { $("#robo-titulo").textContent = "Ignorar a NF " + n.nf + " (" + n.filial + ")"; $("#robo-p2").hidden = true; $("#robo-p1").hidden = false; $("#robo-motivo").focus(); };
+    $("#robo-ok").onclick = async () => {
+      const motivo = $("#robo-motivo").value.trim();
       $("#robo-ok").disabled = true;
       try{
         const p = await azureApi("POST", "/v1/portal/ignorar", { nf: n.nf, filial: n.filial, motivo, problema: n.problema_codigo || "" });
-        pedidosRobo.set(p.id, p); fim(); toast("Pedido registrado. O robô aplica no próximo ciclo."); montarRobo(n);
+        pedidosRobo.set(p.id, p); fim(); toast("NF " + n.nf + " marcada para ignorar. O robô aplica no próximo ciclo."); montarRobo(n);
       }catch(e){
         if(e.pedido){ pedidosRobo.set(e.pedido.id, e.pedido); fim(); montarRobo(n); }
         toast("Não foi possível pedir: " + e.message, { erro: true });
@@ -1436,7 +1476,18 @@
   //    Por isso a rede tem folga generosa; o loader é que some rápido (via cache), não a rede.
   const LOADER_CAP_MS  = 10000;               // teto do loader só quando há cache pintado
   const FETCH_TIMEOUT_MS = 45000;             // teto da rede (cold start do Azure chega a ~27 s)
+  // passos do loading: 1 acesso (já feito) · 2 buscando · 3 montando
+  function loaderPasso(n){
+    document.querySelectorAll("#loader-passos li").forEach(li => {
+      const p = +li.dataset.p, ic = li.querySelector(".ic");
+      li.className = p < n ? "feito" : p === n ? "ativo" : "";
+      ic.textContent = p < n ? "✓" : "";
+    });
+  }
+  const _dicaLoader = setTimeout(() => { const d = $("#loader-dica"); if(d) d.hidden = false; }, 6000);   // rede lenta: explica em vez de parecer travado
   function esconderLoader(){
+    clearTimeout(_dicaLoader);
+    loaderPasso(4);
     const el = $("#loader"); if(!el) return;
     el.classList.add("hide");
     setTimeout(() => el.remove(), 400);
@@ -1470,7 +1521,7 @@
   // No servidor (SSE), a foto de /api/nfs carrega a saúde atual. Zeramos o banner
   // por padrão e deixamos um "__saude__" de falha presente na foto reacendê-lo —
   // assim um cache antigo de falha não fica preso na tela. (ESTATICO/Azure fora de escopo.)
-  function aplicarSnapshot(lista){ stuck.clear(); risen.clear(); if(!ESTATICO) aplicarSaude({fonte_ok:true}); inserirSnapshot(lista); render(); }
+  function aplicarSnapshot(lista){ loaderPasso(3); stuck.clear(); risen.clear(); if(!ESTATICO) aplicarSaude({fonte_ok:true}); inserirSnapshot(lista); render(); }
   // fetch com TETO rígido (AbortController): não deixa o boot pendurado além de `ms`
   async function fetchJSON(url, ms){
     const ac = new AbortController();
@@ -1505,6 +1556,7 @@
     const cache = lerCache();
     if(cache && cache.etag) azureEtag = cache.etag;   // p/ a 1ª revalidação já poder dar 304
     if(cache){
+      loaderPasso(3);
       aplicarSnapshot(cache.nfs);
       if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache) · atualizando…`;
       const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "cache · atualizando…";
@@ -1512,7 +1564,7 @@
     } else if(cnt && ESTATICO){
       // 1º acesso SEM cache: o container Azure pode estar frio (~20-30 s). Avisa e MANTÉM o
       // loader até a foto real chegar — melhor um spinner honesto que uma tela vazia.
-      cnt.textContent = "acordando o servidor da Azure… (1º acesso pode levar até ~30 s)";
+      cnt.textContent = "buscando no servidor da Azure…";
     }
     // (2) teto do LOADER (não da rede): se já há cache pintado, some rápido; sem cache, o loader
     // acompanha a rede (FETCH_TIMEOUT_MS) p/ não deixar tela vazia enquanto o Azure acorda.
