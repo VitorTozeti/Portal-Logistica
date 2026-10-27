@@ -314,6 +314,11 @@
   .loader-count{font-size:12px;color:var(--ink2);min-height:16px}
   .loader-dica{font-size:12.5px;color:var(--ink2);background:color-mix(in srgb,var(--brand) 9%,transparent);border-radius:10px;padding:9px 12px;line-height:1.45}
   .loader-dica[hidden]{display:none}
+  .loader-erro{width:100%;border:1px solid color-mix(in srgb,#dc2626 55%,transparent);background:color-mix(in srgb,#dc2626 10%,transparent);
+    border-radius:12px;padding:12px;font-size:13.5px;line-height:1.45;display:grid;gap:6px;text-align:left}
+  .loader-erro[hidden]{display:none}
+  .loader-erro-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .loader.erro .loader-barra i{animation:none;width:100%;background:#dc2626;opacity:.5}
   @media (prefers-reduced-motion:reduce){.loader-barra i{animation:none;width:100%;opacity:.5}.loader-passos li.ativo .ic{animation:none}}
 
   /* ===== acesso / conta / modais / toasts (UX de login e perfis) ===== */
@@ -402,6 +407,14 @@
       <li data-p="3"><span class="ic"></span>Montando a tela</li>
     </ul>
     <div class="loader-count" id="loader-count">preparando</div>
+    <div class="loader-erro" id="loader-erro" hidden role="alert">
+      <b>Não consegui buscar as notas na Azure.</b>
+      <span id="loader-erro-txt">Confira a conexão e tente de novo.</span>
+      <div class="loader-erro-acoes">
+        <button type="button" class="btn" id="loader-tentar" style="background:var(--brand);color:var(--p1)">Tentar de novo</button>
+        <button type="button" class="btn" id="loader-cache" hidden>Ver as notas salvas</button>
+      </div>
+    </div>
     <div class="loader-dica" id="loader-dica" hidden>Demorando mais que o normal: o servidor estava dormindo e está acordando (o 1º acesso do dia pode levar até 30 s). Não precisa recarregar.</div>
   </div>
 </div>
@@ -1469,12 +1482,11 @@
   // transferir/trabalhar quando o dado read-heavy realmente muda).
   let azureEtag = null;
   // ⚠️ Dois tempos DIFERENTES (não confundir — foi o que quebrou a Azure em 01/09):
-  //  - LOADER_CAP_MS: só o teto VISUAL da tela de carregamento QUANDO já pintamos o cache.
+  //  - (27/10) o loading só sai com dado real da Azure; cache só adianta a tela por trás dele.
   //  - FETCH_TIMEOUT_MS: teto da REDE. A rota pública do Azure lê a tabela inteira (~3 MB) e,
   //    com o container em min-replicas=0 (cold start), responde em ~20-30 s. Se abortarmos o
   //    fetch antes disso, o dado REAL nunca chega e o site cai eternamente no demo.json.
   //    Por isso a rede tem folga generosa; o loader é que some rápido (via cache), não a rede.
-  const LOADER_CAP_MS  = 10000;               // teto do loader só quando há cache pintado
   const FETCH_TIMEOUT_MS = 45000;             // teto da rede (cold start do Azure chega a ~27 s)
   // passos do loading: 1 acesso (já feito) · 2 buscando · 3 montando
   function loaderPasso(n){
@@ -1521,7 +1533,7 @@
   // No servidor (SSE), a foto de /api/nfs carrega a saúde atual. Zeramos o banner
   // por padrão e deixamos um "__saude__" de falha presente na foto reacendê-lo —
   // assim um cache antigo de falha não fica preso na tela. (ESTATICO/Azure fora de escopo.)
-  function aplicarSnapshot(lista){ loaderPasso(3); stuck.clear(); risen.clear(); if(!ESTATICO) aplicarSaude({fonte_ok:true}); inserirSnapshot(lista); render(); }
+  function aplicarSnapshot(lista){ stuck.clear(); risen.clear(); if(!ESTATICO) aplicarSaude({fonte_ok:true}); inserirSnapshot(lista); render(); }
   // fetch com TETO rígido (AbortController): não deixa o boot pendurado além de `ms`
   async function fetchJSON(url, ms){
     const ac = new AbortController();
@@ -1550,32 +1562,55 @@
       return { status:200, lista: normalizar(await r.json()) };
     } finally { clearTimeout(t); }
   }
+  // A tela de loading SÓ SAI quando as notas certas chegaram da Azure (foto nova 200, ou 304 = o cache já é a atual).
+  // Se falhar, ela NÃO some: mostra o erro com "Tentar de novo" (e "Ver as notas salvas" se houver cache, ciente de que
+  // podem estar desatualizadas). A demonstração (demo.json) só existe em localhost/arquivo — nunca no portal publicado.
+  const EM_DEV = location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  function loaderCarregando(){
+    const el = $("#loader"); if(!el) return;
+    el.classList.remove("erro"); $("#loader-erro").hidden = true; loaderPasso(2);
+  }
+  function loaderFalhou(cache, motivo){
+    const el = $("#loader"); if(!el) return;
+    el.classList.add("erro");
+    $("#loader-erro-txt").textContent = motivo || "Confira a conexão e tente de novo.";
+    $("#loader-erro").hidden = false;
+    $("#loader-cache").hidden = !cache;
+    $("#loader-dica").hidden = true;
+    const d = $("#loader-count"); if(d) d.textContent = "";
+    $("#loader-tentar").onclick = () => { loaderCarregando(); const d = $("#loader-count"); if(d) d.textContent = "tentando de novo…"; boot(); };
+    $("#loader-cache").onclick = () => { liberarTela(cache); };
+  }
+  // sai do loading (com dado real, ou escolhido pela pessoa no caso do cache) e processa o que chegou pelo SSE
+  function liberarTela(cache){
+    if(cache){
+      const lt = $("#livetxt"); if(lt) lt.textContent = "notas salvas (podem estar desatualizadas) · reconectando…";
+      const cnt = $("#loader-count"); if(cnt) cnt.textContent = "";
+    }
+    bootPronto = true;
+    for(const ev of bufferDeltas) aplicar(ev);
+    bufferDeltas.length = 0;
+    esconderLoader();
+  }
   async function boot(){
     const cnt = $("#loader-count");
-    // (1) pintura instantânea do cache, se houver → loader sai já, sem esperar a rede
+    // cache só ADIANTA a tela por trás do loading; o loading continua até a Azure responder
     const cache = lerCache();
-    if(cache && cache.etag) azureEtag = cache.etag;   // p/ a 1ª revalidação já poder dar 304
+    if(cache && cache.etag) azureEtag = cache.etag;   // p/ a revalidação já poder dar 304
     if(cache){
-      loaderPasso(3);
       aplicarSnapshot(cache.nfs);
-      if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache) · atualizando…`;
-      const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "cache · atualizando…";
-      esconderLoader();
-    } else if(cnt && ESTATICO){
-      // 1º acesso SEM cache: o container Azure pode estar frio (~20-30 s). Avisa e MANTÉM o
-      // loader até a foto real chegar — melhor um spinner honesto que uma tela vazia.
+      if(cnt) cnt.textContent = "confirmando com a Azure que estas notas são as atuais…";
+    } else if(cnt){
       cnt.textContent = "buscando no servidor da Azure…";
     }
-    // (2) teto do LOADER (não da rede): se já há cache pintado, some rápido; sem cache, o loader
-    // acompanha a rede (FETCH_TIMEOUT_MS) p/ não deixar tela vazia enquanto o Azure acorda.
-    const capLoader = setTimeout(esconderLoader, cache ? LOADER_CAP_MS : FETCH_TIMEOUT_MS);
     try{
       if(ESTATICO){
-        // rota pública do Azure COM revalidação por ETag: 304 = cache já é a foto atual.
+        // rota pública do Azure COM revalidação por ETag: 304 = o cache já é a foto atual.
         const res = await fetchPublicoCond(AZURE_PUBLICO, FETCH_TIMEOUT_MS);
+        loaderPasso(3);
         if(res.status === 200){
           aplicarSnapshot(res.lista);     // foto nova (1 render)
-          salvarCache(res.lista);         // guarda foto + ETag p/ a próxima abertura ser instantânea
+          salvarCache(res.lista);         // guarda foto + ETag p/ a próxima abertura ser mais rápida
           if(cnt) cnt.textContent = `${res.lista.length.toLocaleString("pt-BR")} notas`;
         } else if(cnt && cache){          // 304: nada mudou, mantém a foto do cache (sem repintar)
           cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas`;
@@ -1584,31 +1619,25 @@
       } else {
         // backend local (dev): sem ETag, foto por /api/nfs (o ao vivo é via SSE, abaixo)
         const lista = normalizar(await fetchJSON("/api/nfs", FETCH_TIMEOUT_MS));
-        aplicarSnapshot(lista);           // troca a foto do cache pela fresca (1 render)
-        salvarCache(lista);               // guarda p/ a próxima abertura ser instantânea
+        loaderPasso(3);
+        aplicarSnapshot(lista);
+        salvarCache(lista);
         if(cnt) cnt.textContent = `${lista.length.toLocaleString("pt-BR")} notas`;
       }
+      liberarTela(null);
     }catch(err){
-      if(!cache){
-        // sem cache e a rede falhou/estourou 10 s → demo local (último recurso)
+      if(EM_DEV && !cache){
+        // só em desenvolvimento (localhost/arquivo): sem backend, mostra a demonstração
         try{
           const lista = normalizar(await fetchJSON("./demo.json", 5000));
-          aplicarSnapshot(lista);
-          if(cnt) cnt.textContent = `demonstração — ${lista.length.toLocaleString("pt-BR")} notas (sem dados ao vivo)`;
+          loaderPasso(3); aplicarSnapshot(lista);
           const lt = $("#livetxt"); if(lt) lt.textContent = "modo demonstração (sem backend)";
-        }catch(_){ if(cnt) cnt.textContent = "falha ao carregar — reconectando…"; }
-      }else{
-        // já há a foto do cache na tela; só sinaliza que a atualização não chegou ainda
-        if(cnt) cnt.textContent = `${cache.nfs.length.toLocaleString("pt-BR")} notas (cache)`;
-        const lt = $("#livetxt"); if(lt && ESTATICO) lt.textContent = "cache (offline) · reconectando…";
+          liberarTela(null);
+          return;
+        }catch(_){ /* cai no erro abaixo */ }
       }
-    }finally{
-      clearTimeout(capLoader);
-      bootPronto = true;
-      // aplica o que chegou pelo SSE enquanto carregávamos a foto
-      for(const ev of bufferDeltas) aplicar(ev);
-      bufferDeltas.length = 0;
-      esconderLoader();
+      const abortou = err && err.name === "AbortError";
+      loaderFalhou(cache, abortou ? "A Azure demorou mais de " + Math.round(FETCH_TIMEOUT_MS / 1000) + " s para responder." : "A Azure não respondeu (" + ((err && err.message) || "erro") + ").");
     }
   }
 
