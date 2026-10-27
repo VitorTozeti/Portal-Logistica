@@ -19,12 +19,14 @@ const DONO_PERFIS = "v.tozeti@pharmaesthetics.com.br";
 const CATALOGO = [
   { id: "nf_ignorar", nome: "Ignorar e reativar NF", grupo: "Monitor de NFs" },
   { id: "nf_ver_ocultas", nome: "Ver notas ocultas", grupo: "Monitor de NFs" },
+  // grava a NF no log mestre do robô (fila na Azure; o robô aplica no próximo ciclo). Padrão: TI e Logística (27/10)
+  { id: "nf_ignorar_robo", nome: "Ignorar no robô (e ver o histórico)", grupo: "Monitor de NFs" },
   { id: "admin", nome: "Administrar usuários", grupo: "Portal" },
 ];
 const IDS_PERM = CATALOGO.map((c) => c.id);
 const PERFIS_BASE = {
   ti: { rotulo: "TI", perms: IDS_PERM.slice(), sistema: true },
-  logistica: { rotulo: "Logística", perms: ["nf_ignorar", "nf_ver_ocultas"], sistema: true },
+  logistica: { rotulo: "Logística", perms: ["nf_ignorar", "nf_ver_ocultas", "nf_ignorar_robo"], sistema: true },
   leitor: { rotulo: "Somente leitura", perms: [], sistema: true },
   faturamento: { rotulo: "Faturamento", perms: [], sistema: false },
 };
@@ -32,7 +34,7 @@ const PERFIS_BASE = {
 function permsDaLinha(r) {
   if (r.permissoes) { try { return JSON.parse(r.permissoes).filter((i) => IDS_PERM.includes(i)); } catch (_) {} }
   const l = [];
-  if (r.editar_nfs) l.push("nf_ignorar", "nf_ver_ocultas");
+  if (r.editar_nfs) l.push("nf_ignorar", "nf_ver_ocultas", "nf_ignorar_robo");
   if (r.admin) l.push("admin");
   return l;
 }
@@ -393,7 +395,8 @@ async function rotear(ctx) {
 
   if (a === "token" && m === "GET") {
     const exp = Math.floor(Date.now() / 1000) + TOKEN_S;
-    const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, c: u.acessoCusto, exp });
+    // "r" = pode ignorar NF no robô: a Azure confere este claim nas rotas /v1/portal/ignorar
+    const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, c: u.acessoCusto, r: !!(u.pode && u.pode.nf_ignorar_robo), exp });
     return json({ token, exp });
   }
 

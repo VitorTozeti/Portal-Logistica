@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261027b"></script>
+<script src="./portal-auth-cf.js?v=20261027c"></script>
 <script src="./portal-auth.js?v=20261027"></script>
 <script>
   if (window.PortalGate && PortalGate.ativo()) {
@@ -102,7 +102,7 @@
   <p class="sub">Ferramentas: o que a pessoa abre. Perfil: o que ela pode fazer.</p>
 
   <details class="add" id="perfis" hidden><summary>🛡️ Perfis e permissões</summary>
-    <p class="mini-sub">Marque o que cada perfil pode fazer. Sem nenhuma caixa do Monitor, a pessoa só vê as travadas e as que subiram.</p>
+    <p class="mini-sub">Marque o que cada perfil pode fazer. Sem nenhuma caixa do Monitor, a pessoa só vê as travadas e as que subiram. "Ignorar no robô" grava a nota no log do robô.</p>
     <div class="scroll" style="margin-top:10px"><table><thead id="pf-cab"></thead><tbody id="pf-corpo"></tbody></table></div>
     <div class="linha" style="margin-top:10px">
       <input id="pf-rotulo" placeholder="Nome do perfil (ex.: Faturamento)" aria-label="Nome do novo perfil" style="flex:1;min-width:200px">

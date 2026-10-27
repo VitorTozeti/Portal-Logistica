@@ -44,7 +44,7 @@ O GitHub Pages (`github.io`) segue com Firebase e não é afetado: o caminho Clo
 
 **Perfis (26/10, permissões por ferramenta desde 27/10):** o perfil diz o que a pessoa **pode fazer**, com **uma permissão por
 ferramenta** (catálogo `CATALOGO` no Worker): `nf_ignorar` (ignorar/reativar NF), `nf_ver_ocultas` (ver as notas ocultas, com motivo)
-e `admin` (Usuários e log). As ferramentas que ela **abre** continuam marcadas por pessoa. Sem nenhuma permissão do Monitor, a pessoa
+`nf_ignorar_robo` (Ignorar no robô: grava a NF no log mestre do robô via fila na Azure; vai no token como claim `r`) e `admin` (Usuários e log). As ferramentas que ela **abre** continuam marcadas por pessoa. Sem nenhuma permissão do Monitor, a pessoa
 só vê as travadas e as que subiram; `/api/acoes` devolve a ela só o `id` das ocultas (sem motivo). **Ferramenta nova** (ex.: "limpar
 notas"): 1 linha no `CATALOGO` + `exigir(u, "<id>")` na rota + `PortalGate.pode("<id>")` na tela; a caixinha aparece sozinha.
 Padrão: TI (tudo), Logística (`nf_ignorar`, `nf_ver_ocultas`), Somente leitura e Faturamento (nada). Ficam na tabela `perfis`
@@ -62,3 +62,11 @@ Padrão: TI (tudo), Logística (`nf_ignorar`, `nf_ver_ocultas`), Somente leitura
 
 ## Teste feito (26/10)
 Só o front, com servidor simulado: login sem API mostra "Não foi possível falar com o servidor", e o formulário aparece. Modo Cloudflare com `/api/me` simulado: painel, ações e usuários funcionam. **Não testado:** o Worker real (sem Node/Wrangler nesta máquina), o D1 e o fluxo completo de login. Isso só se testa no preview do Pages.
+
+## Ignorar no robô (27/10)
+Botão **🚫 Ignorar no robô** no painel da nota travada (Varejo/Atacado) e **📜 Notas ignoradas no robô** no menu da conta, para quem
+tem `nf_ignorar_robo` (padrão: TI e Logística). O Portal chama a **Azure** (`POST/GET /v1/portal/ignorar`, `DELETE
+/v1/portal/ignorar/{filial}/{nf}`) com o token do `/api/token` (claim `r`); o **robô** (`logistica_pharma/portal_ignorar.py`) lê
+`/v1/portal/ignorar/fila` no início do ciclo, grava no log mestre e devolve o resultado. O histórico (quem, quando, motivo,
+quando o robô aplicou) é a tabela `ignorarnfs` da Azure. Não mexe no D1 da Cloudflare (só a permissão do perfil).
+

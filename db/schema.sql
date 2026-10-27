@@ -49,7 +49,9 @@ CREATE TABLE IF NOT EXISTS perfis (
 INSERT OR IGNORE INTO perfis (nome, rotulo, editar_nfs, admin, sistema) VALUES
   ('ti', 'TI', 1, 1, 1), ('logistica', 'Logística', 1, 0, 1), ('leitor', 'Somente leitura', 0, 0, 1),
   ('faturamento', 'Faturamento', 0, 0, 0);
-UPDATE perfis SET permissoes = '["nf_ignorar","nf_ver_ocultas"]' WHERE nome = 'logistica' AND permissoes IS NULL;
+UPDATE perfis SET permissoes = '["nf_ignorar","nf_ver_ocultas","nf_ignorar_robo"]' WHERE nome = 'logistica' AND permissoes IS NULL;
+-- 27/10 (Ignorar no robô): se a Logística já tinha a lista antiga, rode também:
+--   UPDATE perfis SET permissoes = '["nf_ignorar","nf_ver_ocultas","nf_ignorar_robo"]' WHERE nome = 'logistica';
 UPDATE perfis SET permissoes = '[]' WHERE nome IN ('leitor', 'faturamento') AND permissoes IS NULL;
 
 -- MIGRAÇÃO (banco que já existe, criado com o CHECK antigo em usuarios.perfil): rode UMA vez, nesta ordem, depois do

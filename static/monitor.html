@@ -14,7 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261027b"></script>
+<script src="./portal-auth-cf.js?v=20261027c"></script>
 <script src="./portal-auth.js?v=20261027"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
@@ -334,6 +334,25 @@
     border-radius:8px;padding:9px 10px;font:inherit;font-size:14px;width:100%}
   .mdl-box input:focus-visible,.mdl-box select:focus-visible,.mdl-box textarea:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
   .mdl-acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  /* ignorar no robô (27/10) */
+  .mdl-box.largo{max-width:960px}
+  .robo-aviso{border-left:4px solid #d97706;background:color-mix(in srgb,#d97706 12%,transparent);border-radius:8px;padding:9px 11px;font-size:13px;margin:0 0 12px}
+  .robo-st{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13.5px;line-height:1.45;border:1px solid var(--line)}
+  .robo-st b{display:block;margin-bottom:2px}
+  .robo-st.pendente{border-color:color-mix(in srgb,#d97706 60%,transparent);background:color-mix(in srgb,#d97706 10%,transparent)}
+  .robo-st.aplicada{border-color:color-mix(in srgb,#16a34a 60%,transparent);background:color-mix(in srgb,#16a34a 10%,transparent)}
+  .robo-st.erro{border-color:color-mix(in srgb,#dc2626 60%,transparent);background:color-mix(in srgb,#dc2626 10%,transparent)}
+  #dw-robo{border-color:color-mix(in srgb,#d97706 60%,transparent);color:var(--ink)}
+  .rh-tab{width:100%;border-collapse:collapse;font-size:13.5px}
+  .rh-tab th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);padding:8px;border-bottom:1px solid var(--line)}
+  .rh-tab td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .rh-tab small{display:block;color:var(--ink2);margin-top:2px}
+  .rh-st{display:inline-block;font-size:12px;font-weight:800;border-radius:20px;padding:2px 9px;white-space:nowrap}
+  .rh-st.pendente{background:color-mix(in srgb,#d97706 18%,transparent);color:#d97706}
+  .rh-st.aplicada{background:color-mix(in srgb,#16a34a 18%,transparent);color:#16a34a}
+  .rh-st.erro{background:color-mix(in srgb,#dc2626 18%,transparent);color:#dc2626}
+  .rh-st.cancelada{background:color-mix(in srgb,var(--ink2) 18%,transparent);color:var(--ink2)}
+  .rh-scroll{overflow-x:auto}
   .mdl-tools{display:flex;gap:8px;margin-bottom:12px}
   .mdl-tools select{width:auto}
   .usr-linha{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;border:1px solid var(--line);
@@ -380,6 +399,7 @@
       <a href="./" id="btn-painel" hidden role="menuitem">🧰 Painel de ferramentas</a>
       <a href="./custo.html" id="btn-custo" hidden role="menuitem">💲 Custo de Frete</a>
       <a href="./usuarios.html" id="btn-usuarios" hidden role="menuitem">👥 Usuários e permissões</a>
+      <a href="#" id="btn-robohist" hidden role="menuitem">📜 Notas ignoradas no robô</a>
       <a href="#" id="btn-senha" hidden role="menuitem">🔑 Trocar senha</a>
       <a href="/logout" id="sair" role="menuitem">⎋ Sair</a>
     </div>
@@ -389,6 +409,31 @@
 <div id="toasts" aria-live="polite"></div>
 
 <div id="alerta-fonte" class="alerta" role="alert" hidden></div>
+
+<div id="robo-modal" class="mdl" hidden>
+  <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="robo-titulo">
+    <b id="robo-titulo">Ignorar no robô</b>
+    <p class="mdl-sub">Vale para o robô: ele para de alertar e nunca mais processa esta NF. Aplica no próximo ciclo.</p>
+    <div class="robo-aviso">Use só para nota que não vai mais ser tratada. Fica no histórico com o seu nome e o motivo.</div>
+    <label for="robo-motivo" style="font-size:13px;font-weight:600">Motivo (obrigatório)</label>
+    <textarea id="robo-motivo" rows="3" maxlength="300" style="margin-top:6px"></textarea>
+    <div class="mdl-acoes"><button class="btn" type="button" id="robo-cancelar">Cancelar</button>
+      <button class="btn" type="button" id="robo-ok" style="background:#d97706;color:#111;border-color:#d97706">Ignorar no robô</button></div>
+  </div>
+</div>
+
+<div id="rh-modal" class="mdl" hidden>
+  <div class="mdl-box largo" role="dialog" aria-modal="true" aria-labelledby="rh-titulo">
+    <div class="mdl-top"><b id="rh-titulo">Notas ignoradas no robô</b><button class="dw-close" type="button" id="rh-fechar" title="fechar">×</button></div>
+    <p class="mdl-sub">Quem pediu, quando, por quê e quando o robô aplicou.</p>
+    <div class="mdl-tools">
+      <select id="rh-status" aria-label="Filtrar por situação"><option value="">Todas</option><option value="pendente">Aguardando o robô</option>
+        <option value="aplicada">Ignoradas</option><option value="erro">Com erro</option><option value="cancelada">Canceladas</option></select>
+      <input type="search" id="rh-busca" placeholder="buscar NF, pessoa ou motivo" aria-label="Buscar">
+    </div>
+    <div class="rh-scroll" id="rh-corpo"><div class="empty">carregando…</div></div>
+  </div>
+</div>
 
 <div id="ign-modal" class="mdl" hidden>
   <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="ign-titulo">
@@ -457,6 +502,7 @@
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
     <button class="btn" type="button" id="dw-acao" hidden></button>
+    <button class="btn" type="button" id="dw-robo" hidden>🚫 Ignorar no robô</button>
     <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
 </aside>
@@ -862,6 +908,7 @@
     // Reabre a decisão "sem ações" de 31/08 — ver portal-logistica-auth no vault.
     $("#dw-body").innerHTML = corpo;
     montarAcao(n);
+    montarRobo(n);
     abrirDrawer();
   }
 
@@ -1047,6 +1094,7 @@
       if(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti") $("#btn-usuarios").hidden = false;
       $("#btn-painel").hidden = false;
       if(PortalGate.podeFerramenta("custo")) $("#btn-custo").hidden = false;
+      if(typeof PortalGate.pode === "function" && PortalGate.pode("nf_ignorar_robo")){ $("#btn-robohist").hidden = false; carregarPedidosRobo(); }
       PortalGate.ouvirAcoes(m => { ocultas.clear(); m.forEach((v,k) => ocultas.set(k,v)); agendarRender(); });
     });
   } else {
@@ -1255,6 +1303,105 @@
   const ESTATICO = location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname)
     || !!(window.PortalGateCF && PortalGateCF.quer());
   const AZURE_PUBLICO = "https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io/v1/portal/nfs/publico";
+
+  // ===== IGNORAR NO ROBÔ (27/10): o pedido vai para a fila na Azure; o robô grava no log mestre no próximo ciclo =====
+  const AZURE_BASE = AZURE_PUBLICO.replace(/\/v1\/portal\/nfs\/publico$/, "");
+  const FILIAIS_ROBO = ["Varejo", "Atacado"];          // as que têm log mestre (Matriz/marketing usa outro controle)
+  const ROT_ST = { pendente: "Aguardando o robô", aplicada: "Ignorada", erro: "Erro", cancelada: "Cancelada" };
+  let pedidosRobo = new Map();                         // "Filial-NF" -> pedido
+  const podeRobo = () => !!(window.PortalGate && PortalGate.ativo() && typeof PortalGate.pode === "function" && PortalGate.pode("nf_ignorar_robo"));
+  const quandoBR = iso => iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  async function azureApi(metodo, caminho, corpo){
+    const tok = await PortalGate.idToken();
+    const r = await fetch(AZURE_BASE + caminho, { method: metodo, cache: "no-store",
+      headers: Object.assign({ "Authorization": "Bearer " + tok }, corpo ? { "Content-Type": "application/json" } : {}),
+      body: corpo ? JSON.stringify(corpo) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if(!r.ok){ const e = new Error(j.erro || ("Erro " + r.status)); e.status = r.status; e.pedido = j.pedido; throw e; }
+    return j;
+  }
+  async function carregarPedidosRobo(){
+    if(!podeRobo()) return;
+    try{ const j = await azureApi("GET", "/v1/portal/ignorar?limite=2000"); pedidosRobo = new Map(j.pedidos.map(p => [p.id, p])); }
+    catch(e){ console.warn("[ignorar no robô] histórico:", e.message); }
+  }
+  function montarRobo(n){
+    const b = $("#dw-robo"); b.hidden = true; b.onclick = null; b.disabled = false;
+    document.getElementById("dw-robo-st")?.remove();
+    if(!podeRobo() || !FILIAIS_ROBO.includes(n.filial)) return;
+    const p = pedidosRobo.get(n.filial + "-" + n.nf);
+    const st = (cls, titulo, texto) => $("#dw-body").insertAdjacentHTML("beforeend",
+      `<div class="robo-st ${cls}" id="dw-robo-st"><b>${titulo}</b>${texto}</div>`);
+    if(p && p.status === "pendente"){
+      st("pendente", "⏳ Aguardando o robô", `Pedido por ${esc(p.por)} em ${esc(quandoBR(p.pedido_em))}: ${esc(p.motivo)}. O robô aplica no próximo ciclo.`);
+      b.hidden = false; b.textContent = "Cancelar pedido";
+      b.onclick = async () => {
+        if(!confirm("Cancelar o pedido de ignorar a NF " + n.nf + " no robô?")) return;
+        b.disabled = true;
+        try{ const x = await azureApi("DELETE", "/v1/portal/ignorar/" + encodeURIComponent(n.filial) + "/" + encodeURIComponent(n.nf));
+             pedidosRobo.set(x.id, x); toast("Pedido cancelado."); montarRobo(n); }
+        catch(e){ toast("Não foi possível cancelar: " + e.message, { erro: true }); if(e.pedido) pedidosRobo.set(e.pedido.id, e.pedido); montarRobo(n); }
+      };
+      return;
+    }
+    if(p && p.status === "aplicada"){
+      st("aplicada", "✓ Ignorada no robô", `Em ${esc(quandoBR(p.aplicado_em))}, pedido por ${esc(p.por)}: ${esc(p.motivo)}. Sai desta lista na próxima coleta.`);
+      return;
+    }
+    if(p && p.status === "erro") st("erro", "✕ O robô não conseguiu aplicar", esc(p.mensagem || "Erro sem detalhe.") + " Dá para pedir de novo.");
+    b.hidden = false; b.textContent = "🚫 Ignorar no robô";
+    b.onclick = () => pedirRobo(n);
+  }
+  function pedirRobo(n){
+    const m = $("#robo-modal"); $("#robo-motivo").value = "";
+    $("#robo-titulo").textContent = "Ignorar no robô a NF " + n.nf + " (" + n.filial + ")";
+    const fim = () => { fecharMdl(m); $("#robo-ok").onclick = $("#robo-cancelar").onclick = null; };
+    $("#robo-cancelar").onclick = fim;
+    $("#robo-ok").onclick = async () => {
+      const motivo = $("#robo-motivo").value.trim();
+      if(motivo.length < 5){ toast("Escreva o motivo (pelo menos 5 letras).", { erro: true }); $("#robo-motivo").focus(); return; }
+      $("#robo-ok").disabled = true;
+      try{
+        const p = await azureApi("POST", "/v1/portal/ignorar", { nf: n.nf, filial: n.filial, motivo, problema: n.problema_codigo || "" });
+        pedidosRobo.set(p.id, p); fim(); toast("Pedido registrado. O robô aplica no próximo ciclo."); montarRobo(n);
+      }catch(e){
+        if(e.pedido){ pedidosRobo.set(e.pedido.id, e.pedido); fim(); montarRobo(n); }
+        toast("Não foi possível pedir: " + e.message, { erro: true });
+      }finally{ $("#robo-ok").disabled = false; }
+    };
+    abrirMdl(m, $("#robo-motivo"));
+  }
+  function desenharHistRobo(){
+    const st = $("#rh-status").value, q = $("#rh-busca").value.trim().toLowerCase();
+    const l = [...pedidosRobo.values()].filter(p => (!st || p.status === st)
+      && (!q || [p.nf, p.filial, p.por, p.motivo, p.cancelado_por].join(" ").toLowerCase().includes(q)))
+      .sort((a, b) => (b.pedido_em || "").localeCompare(a.pedido_em || ""));
+    $("#rh-corpo").innerHTML = l.length ? '<table class="rh-tab"><thead><tr><th>NF</th><th>Situação</th><th>Motivo</th><th>Pedido</th><th>Robô</th><th></th></tr></thead><tbody>'
+      + l.map(p => `<tr><td><b>${esc(p.nf)}</b><small>${esc(p.filial)}</small></td>`
+        + `<td><span class="rh-st ${esc(p.status)}">${esc(ROT_ST[p.status] || p.status)}</span></td>`
+        + `<td>${esc(p.motivo)}${p.problema ? `<small>${esc(p.problema)}</small>` : ""}</td>`
+        + `<td>${esc(p.por)}<small>${esc(quandoBR(p.pedido_em))}</small></td>`
+        + `<td>${p.status === "cancelada" ? `cancelado por ${esc(p.cancelado_por)}<small>${esc(quandoBR(p.cancelado_em))}</small>`
+              : p.aplicado_em ? `${esc(quandoBR(p.aplicado_em))}<small>${esc(p.mensagem)}</small>` : "—"}</td>`
+        + `<td>${p.status === "pendente" ? `<button class="btn" type="button" data-rhcancel="${esc(p.id)}">Cancelar</button>` : ""}</td></tr>`).join("")
+      + "</tbody></table>"
+      : '<div class="empty">' + (pedidosRobo.size ? "nada com estes filtros" : "nenhuma nota ignorada no robô ainda") + "</div>";
+  }
+  $("#btn-robohist").addEventListener("click", async e => {
+    e.preventDefault(); fecharMenu();
+    $("#rh-corpo").innerHTML = '<div class="empty">carregando…</div>'; abrirMdl($("#rh-modal"), $("#rh-busca"));
+    await carregarPedidosRobo(); desenharHistRobo();
+  });
+  $("#rh-status").addEventListener("change", desenharHistRobo);
+  $("#rh-busca").addEventListener("input", desenharHistRobo);
+  $("#rh-fechar").addEventListener("click", () => fecharMdl($("#rh-modal")));
+  $("#rh-corpo").addEventListener("click", async e => {
+    const b = e.target.closest("[data-rhcancel]"); if(!b) return;
+    const p = pedidosRobo.get(b.dataset.rhcancel); if(!p || !confirm("Cancelar o pedido de ignorar a NF " + p.nf + "?")) return;
+    try{ const x = await azureApi("DELETE", "/v1/portal/ignorar/" + encodeURIComponent(p.filial) + "/" + encodeURIComponent(p.nf));
+         pedidosRobo.set(x.id, x); desenharHistRobo(); toast("Pedido cancelado."); }
+    catch(x){ toast("Não foi possível cancelar: " + x.message, { erro: true }); }
+  });
   function normalizar(dados){
     // backend local devolve array direto; Azure devolve {nfs:[...]}. Unifica e
     // garante um id estável (filial:nf) — as séries de NF repetem entre filiais.
