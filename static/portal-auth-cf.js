@@ -61,6 +61,7 @@ window.PortalGateCF = (function () {
     const perfilDe = (x) => ({
       email: (x.email || "").toLowerCase(),
       perfil: x.perfil,
+      rotulo: x.rotulo || "",
       doc: true,
       ferramentas: ferramentasDe(x.perfil, x),
       acessoCusto: ferramentasDe(x.perfil, x).includes("custo"),
@@ -101,6 +102,7 @@ window.PortalGateCF = (function () {
       perfil() { return usuarioAtual ? usuarioAtual.perfil : null; },
       // o que o PERFIL permite (vem do Worker); sem `pode` (sessão antiga guardada), cai na regra fixa de antes
       podeEditar() { return !!usuarioAtual && (usuarioAtual.pode ? !!usuarioAtual.pode.editar : ["logistica", "ti"].includes(usuarioAtual.perfil)); },
+      rotulo() { return usuarioAtual ? (usuarioAtual.rotulo || usuarioAtual.perfil) : ""; },
       admin() { return !!usuarioAtual && (usuarioAtual.pode ? !!usuarioAtual.pode.admin : usuarioAtual.perfil === "ti"); },
       donoPerfis() { return !!usuarioAtual && usuarioAtual.donoPerfis === true; },
       podeCusto() { return !!usuarioAtual && usuarioAtual.acessoCusto === true; },

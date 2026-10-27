@@ -134,16 +134,16 @@ const perfisDo = async (ctx) => (ctx.perfis ||= await lerPerfis(ctx.env.DB));
 async function perfilDe(db, email, P) {
   const row = await db.prepare("SELECT * FROM usuarios WHERE email = ?").bind(email).first();
   if (BOOT.includes(email)) {
-    return { email, perfil: "ti", ferramentas: FERRAMENTAS.slice(), acessoCusto: true, pode: { editar: true, admin: true },
+    return { email, perfil: "ti", rotulo: P.ti.rotulo, ferramentas: FERRAMENTAS.slice(), acessoCusto: true, pode: { editar: true, admin: true },
              donoPerfis: email === DONO_PERFIS, temSenha: !!(row && row.senha), ultimoAcesso: row ? row.ultimo_acesso : 0 };
   }
   if (!row || !P[row.perfil]) return null;
   const ferramentas = ferramentasDe(row.perfil, row);
-  return { email, perfil: row.perfil, ferramentas, acessoCusto: ferramentas.includes("custo"),
+  return { email, perfil: row.perfil, rotulo: P[row.perfil].rotulo, ferramentas, acessoCusto: ferramentas.includes("custo"),
            pode: { editar: P[row.perfil].editar, admin: P[row.perfil].admin }, donoPerfis: email === DONO_PERFIS,
            temSenha: !!row.senha, ultimoAcesso: row.ultimo_acesso || 0 };
 }
-const publico = (u) => ({ email: u.email, perfil: u.perfil, ferramentas: u.ferramentas, acessoCusto: u.acessoCusto, pode: u.pode, donoPerfis: u.donoPerfis });
+const publico = (u) => ({ email: u.email, perfil: u.perfil, rotulo: u.rotulo, ferramentas: u.ferramentas, acessoCusto: u.acessoCusto, pode: u.pode, donoPerfis: u.donoPerfis });
 
 async function sessaoAtual(ctx) {
   const p = await verificar(ctx.env.SESSION_SECRET, lerCookie(ctx.request));

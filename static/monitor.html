@@ -14,7 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261026c"></script>
+<script src="./portal-auth-cf.js?v=20261027"></script>
 <script src="./portal-auth.js?v=20261026b"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
@@ -1022,12 +1022,12 @@
     const abre = $("#conta-menu").hidden; $("#conta-menu").hidden = !abre; $("#avatar").setAttribute("aria-expanded", String(abre)); });
   document.addEventListener("click", e => { if(!e.target.closest("#conta")) fecharMenu(); });
   document.addEventListener("keydown", e => { if(e.key === "Escape") fecharMenu(); });
-  function montarConta(email, perfil){
+  function montarConta(email, perfil, rotulo, soLeitura){
     const nome = (email || "").split("@")[0], partes = nome.split(/[._-]+/).filter(Boolean);
     $("#avatar-ini").textContent = ((partes[0]||"?")[0] + ((partes[1]||"")[0]||"")).slice(0,2);
     $("#conta-email").textContent = email || "—";
-    $("#quem").textContent = PERFIL_ROT[perfil] || perfil || "";
-    $("#aviso-leitura").hidden = perfil !== "leitor";
+    $("#quem").textContent = rotulo || PERFIL_ROT[perfil] || perfil || "";
+    $("#aviso-leitura").hidden = !soLeitura;   // qualquer perfil que não edita (Somente leitura, Faturamento, os criados depois)
   }
   // quem está logado
   if(window.PortalGate && PortalGate.ativo()){
@@ -1041,7 +1041,7 @@
       catch(_){ toast("Não foi possível enviar o link. Tente de novo.", {erro:true}); } });
     PortalGate.pronto.then(u => {
       if(!u) return;
-      montarConta(u.email, u.perfil);
+      montarConta(u.email, u.perfil, u.rotulo, !PortalGate.podeEditar());
       if(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti") $("#btn-usuarios").hidden = false;
       $("#btn-painel").hidden = false;
       if(PortalGate.podeFerramenta("custo")) $("#btn-custo").hidden = false;
