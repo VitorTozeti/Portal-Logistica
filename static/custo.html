@@ -435,6 +435,9 @@ const cidAtendida = ib => garantCid(ib) > 0 || cidEf(COR, ib).lib;
 const soCorreiosUF = uf => garantUF(uf) === 0 && ufLib(COR, uf);
 const garantUF = uf => garantidoras().filter(t => ufLib(t.codigo, uf)).length;
 const garantCid = ib => garantidoras().filter(t => cidEf(t.codigo, ib).lib).length;
+// quantas transportadoras atendem de fato (tabela + as de API ao vivo: TGT e Correios) -- é o número da "Saúde"
+const atendemUF = uf => tr().filter(t => ufLib(t.codigo, uf)).length;
+const atendemCid = ib => tr().filter(t => cidEf(t.codigo, ib).lib).length;
 function excDe(c, uf){ const r = []; for(const k of des.keys()){ const [kc, e, ch] = k.split("|"); if(kc === c && e === "IBGE" && ufDe(ch) === uf) r.push(ch); } return r; }
 function excUF(uf){ const s = new Set(); for(const k of des.keys()){ const [, e, ch] = k.split("|"); if(e === "IBGE" && ufDe(ch) === uf) s.add(ch); } return s; }
 function ufTemPendencia(uf){ for(const k of new Set([...base.keys(), ...des.keys()])){ const [, e, ch] = k.split("|"); if((e === "UF" ? ch : ufDe(ch)) === uf && mudou(k)) return true; } return false; }
@@ -442,11 +445,12 @@ function classeUF(c, uf){ if(!nat(c, uf)) return "na"; const lib = ufLib(c, uf),
 function classeCid(c, ib){ const e = cidEf(c, ib); if(e.origem === "natureza") return "na"; return e.origem === "excecao" ? (e.lib ? "le" : "be") : (e.lib ? "lh" : "bh"); }
 const ICONE = {na: "–", l: "✓", b: "✕", p: "◐", pb: "◐", lh: "✓", bh: "✕", le: "✓", be: "✕"};
 const ROTULO = {na: "não atende pela tabela", l: "atende o estado", b: "bloqueada no estado", p: "atende o estado, com exceções em cidades", pb: "bloqueada no estado, com exceções em cidades", lh: "atende (segue o estado)", bh: "bloqueada (segue o estado)", le: "exceção da cidade: atende", be: "exceção da cidade: bloqueada"};
-function saude(n, curto, cor){
-  if(n === 0 && cor) return '<span class="saude fragil" title="nenhuma de tabela; só os Correios (API ao vivo) atendem. Se a API falhar, cai na Acerta.">' + (curto ? "Correios" : "só Correios") + "</span>";
+// n = quantas atendem (todas); garant = quantas dessas são de tabela (as que garantem a cobertura se a API cair)
+function saude(n, curto, garant){
+  if(garant === 0 && n > 0) return '<span class="saude fragil" title="nenhuma de tabela; só as de API ao vivo (' + n + ') atendem. Se a API falhar, cai na Acerta.">' + (curto ? "API" : "só API") + "</span>";
   return saudeN(n, curto);
 }
-function saudeN(n, curto){ const c = n === 0 ? "zero" : n === 1 ? "fragil" : "ok"; return '<span class="saude ' + c + '" title="' + n + ' transportadora(s) de tabela">' + (curto ? n : (n === 0 ? "sem cobertura" : n + " de tabela")) + "</span>"; }
+function saudeN(n, curto){ const c = n === 0 ? "zero" : n === 1 ? "fragil" : "ok"; return '<span class="saude ' + c + '" title="' + n + ' transportadora(s) atendem">' + (curto ? n : (n === 0 ? "sem cobertura" : n + " atendem")) + "</span>"; }
 const copiaDes = () => new Map([...des].map(([k, v]) => [k, Object.assign({}, v)]));
 // cidades com exceção (de qualquer transportadora) que ficariam sem nenhuma de tabela
 function cidadesDescobertas(){ const r = [], vistos = new Set(); for(const k of des.keys()){ const [, e, ch] = k.split("|"); if(e !== "IBGE" || vistos.has(ch)) continue; vistos.add(ch); if(!cidAtendida(ch)) r.push(ch); } return r; }
@@ -506,7 +510,7 @@ function renderUFs(){
       h += '<button class="ufb" role="option" data-uf="' + u + '" aria-current="' + (u === ufSel) + '"><span class="sg">' + u + '</span><span class="nm">' + NOME_UF[u] + "</span>"
         + (ufTemPendencia(u) ? '<span class="mm" title="alterações ainda não salvas"></span>' : "")
         + (ex ? '<span class="ex" title="' + ex + " cidade" + (ex > 1 ? "s" : "") + ' com exceção">' + ex + " exc.</span>" : "")
-        + saude(garantUF(u), true, ufLib(COR, u)) + "</button>";
+        + saude(atendemUF(u), true, garantUF(u)) + "</button>";
     }
   }
   $("#ufs").innerHTML = h;
@@ -525,9 +529,9 @@ async function renderPainel(){
     if(uf !== ufSel) return;
   }
   const todas = munis[uf], lista = filtradas(), vis = lista.slice(0, limCid);
-  let h = '<select class="uf-mob" id="uf-mob" aria-label="Estado">' + REGIOES.map(([rn, l]) => '<optgroup label="' + rn + '">' + l.map(u => { const n = garantUF(u), ex = excUF(u).size;
-    return '<option value="' + u + '"' + (u === uf ? " selected" : "") + ">" + NOME_UF[u] + " · " + n + " de tabela" + (ex ? " · " + ex + " c/ exceção" : "") + "</option>"; }).join("") + "</optgroup>").join("") + "</select>";
-  h += '<div class="cab-uf"><h3>' + NOME_UF[uf] + "</h3>" + saude(garantUF(uf), false, ufLib(COR, uf)) + '<span class="cont">' + todas.length + " cidades · " + excUF(uf).size + " com exceção</span></div>";
+  let h = '<select class="uf-mob" id="uf-mob" aria-label="Estado">' + REGIOES.map(([rn, l]) => '<optgroup label="' + rn + '">' + l.map(u => { const n = atendemUF(u), ex = excUF(u).size;
+    return '<option value="' + u + '"' + (u === uf ? " selected" : "") + ">" + NOME_UF[u] + " · " + n + " atendem" + (ex ? " · " + ex + " c/ exceção" : "") + "</option>"; }).join("") + "</optgroup>").join("") + "</select>";
+  h += '<div class="cab-uf"><h3>' + NOME_UF[uf] + "</h3>" + saude(atendemUF(uf), false, garantUF(uf)) + '<span class="cont">' + todas.length + " cidades · " + excUF(uf).size + " com exceção</span></div>";
   h += '<div class="linha-estado"><span class="rt">Estado inteiro</span>' + tr().map(t => { const c = classeUF(t.codigo, uf), mod = mudou(chave(t.codigo, "UF", uf));
     return '<span class="te">' + esc(nomeT(t)) + ' <button type="button" class="st ' + c + (mod ? " mod" : "") + '" data-ue="' + t.codigo + '" title="' + esc(t.nome) + " · " + NOME_UF[uf] + ": " + ROTULO[c] + (c === "na" ? "" : ". Clique para " + (ufLib(t.codigo, uf) ? "bloquear" : "liberar") + " o estado") + '"' + (c === "na" ? " disabled" : "") + ">" + ICONE[c] + "</button></span>"; }).join("") + "</div>";
   h += '<div class="ferr"><input id="q-cid" type="search" placeholder="Buscar cidade em ' + NOME_UF[uf] + ' (nome ou código IBGE)…" value="' + esc(qCid) + '" aria-label="Buscar cidade"><label class="chk"><input type="checkbox" id="so-exc"' + (soExc ? " checked" : "") + "> só cidades com exceção</label></div>";
@@ -538,7 +542,7 @@ async function renderPainel(){
     return '<tr class="' + (sel ? "sel" : "") + '"><td class="ck"><input type="checkbox" data-ck="' + ib + '"' + (sel ? " checked" : "") + ' aria-label="Selecionar ' + esc(titulo(m.cidade)) + '"></td><td class="d">' + esc(titulo(m.cidade)) + '<span class="ib">' + ib + "</span></td>"
       + tr().map(t => { const c = classeCid(t.codigo, ib), mod = mudou(chave(t.codigo, "IBGE", ib));
         return '<td><button type="button" class="st ' + c + (mod ? " mod" : "") + '" data-cc="' + t.codigo + "|" + ib + '" title="' + esc(t.nome) + " em " + esc(titulo(m.cidade)) + ": " + ROTULO[c] + '"' + (c === "na" ? " disabled" : "") + ">" + ICONE[c] + "</button></td>"; }).join("")
-      + "<td>" + saude(garantCid(ib), true, cidEf(COR, ib).lib) + "</td></tr>"; }).join("");
+      + "<td>" + saude(atendemCid(ib), true, garantCid(ib)) + "</td></tr>"; }).join("");
   h += "</tbody></table></div>";
   if(!vis.length) h += '<div class="vazio">Nenhuma cidade encontrada.</div>';
   if(lista.length > vis.length || lista.length > 1) h += '<div class="tools" style="margin:0">' + (lista.length > vis.length ? '<button class="btn" type="button" id="b-mais">Mostrar mais (' + (lista.length - vis.length) + " restantes)</button>" : "")
