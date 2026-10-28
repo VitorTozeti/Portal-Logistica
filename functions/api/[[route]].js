@@ -21,6 +21,9 @@ const CATALOGO = [
   { id: "nf_ver_ocultas", nome: "Ver notas ocultas", grupo: "Monitor de NFs" },
   // grava a NF no log mestre do robô (fila na Azure; o robô aplica no próximo ciclo). Padrão: TI e Logística (27/10)
   { id: "nf_ignorar_robo", nome: "Ignorar no robô (e ver o histórico)", grupo: "Monitor de NFs" },
+  // Pedidos e fretes (aba do Custo de Frete, 28/10): só administração vê; excluir pedido da lista é do TI. Ninguém além do TI por padrão.
+  { id: "pedidos_ver", nome: "Ver Pedidos e fretes", grupo: "Custo de Frete" },
+  { id: "pedidos_excluir", nome: "Excluir pedidos da lista", grupo: "Custo de Frete" },
   { id: "admin", nome: "Administrar usuários", grupo: "Portal" },
 ];
 const IDS_PERM = CATALOGO.map((c) => c.id);
@@ -396,7 +399,9 @@ async function rotear(ctx) {
   if (a === "token" && m === "GET") {
     const exp = Math.floor(Date.now() / 1000) + TOKEN_S;
     // "r" = pode ignorar NF no robô: a Azure confere este claim nas rotas /v1/portal/ignorar
-    const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, c: u.acessoCusto, r: !!(u.pode && u.pode.nf_ignorar_robo), exp });
+    // "pv"/"px" = Pedidos e fretes (ver / excluir): a Azure confere em /v1/portal/pedidos*
+    const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, c: u.acessoCusto, r: !!(u.pode && u.pode.nf_ignorar_robo),
+                                                   pv: !!(u.pode && u.pode.pedidos_ver), px: !!(u.pode && u.pode.pedidos_excluir), exp });
     return json({ token, exp });
   }
 
