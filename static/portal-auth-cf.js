@@ -105,7 +105,8 @@ window.PortalGateCF = (function () {
       pode(id) {
         if (!usuarioAtual) return false;
         if (usuarioAtual.pode && id in usuarioAtual.pode) return !!usuarioAtual.pode[id];
-        return ["logistica", "ti"].includes(usuarioAtual.perfil) && id !== "admin" || usuarioAtual.perfil === "ti";   // sessão antiga guardada
+        if (id === "admin" || id.startsWith("pedidos_")) return usuarioAtual.perfil === "ti";   // sessão antiga guardada
+        return ["logistica", "ti"].includes(usuarioAtual.perfil);
       },
       podeEditar() { return this.pode("nf_ignorar"); },
       rotulo() { return usuarioAtual ? (usuarioAtual.rotulo || usuarioAtual.perfil) : ""; },
