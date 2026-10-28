@@ -14,6 +14,7 @@
 <script src="./portal-auth-cf.js?v=20261027c"></script>
 <script src="./portal-auth.js?v=20261027"></script>
 <script src="./bandas-m3.js?v=20261026"></script>
+<script src="./pedidos-fretes.js?v=20261028b"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>
   // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
@@ -215,6 +216,7 @@
   <button class="tab" role="tab" data-t="cobertura" aria-selected="true">Cobertura</button>
   <button class="tab" role="tab" data-t="excel" aria-selected="false">Excel</button>
   <button class="tab" role="tab" data-t="regras" aria-selected="false">Regras da escolha</button>
+  <button class="tab" role="tab" data-t="pedidos" aria-selected="false">Pedidos e fretes</button>
   <button class="tab" role="tab" data-t="historico" aria-selected="false">Histórico</button>
 </nav>
 
@@ -271,6 +273,11 @@
   <section id="s-regras" data-s="regras" hidden>
     <h2>Regras da escolha</h2>
     <div id="bm-raiz"><div class="vazio">carregando…</div></div>
+  </section>
+
+  <section id="s-pedidos" data-s="pedidos" hidden>
+    <h2>Pedidos e fretes</h2>
+    <div id="pf-raiz"><div class="vazio">carregando…</div></div>
   </section>
 
   <section id="s-historico" data-s="historico" hidden>
@@ -703,6 +710,7 @@ function trocarAba(t){
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.t === t)));
   document.querySelectorAll("section[data-s]").forEach(s => s.hidden = s.dataset.s !== t);
   if(t === "regras" && window.BandasM3) BandasM3.montar($("#bm-raiz"), { api, toast, msgErro, regioes: REGIOES, nomeUF: NOME_UF });
+  if(t === "pedidos" && window.PedidosFretes) PedidosFretes.montar($("#pf-raiz"), { api, toast, msgErro });
   if(t === "historico") carregarHistorico();
   try{ history.replaceState(null, "", "#" + t); }catch(_){}
 }
@@ -719,7 +727,7 @@ document.addEventListener("keydown", e => { if(e.key === "Escape") document.quer
 async function iniciar(u){
   $("#eu").textContent = u && u.email ? u.email : "";
   const ok = await carregar();
-  const h = location.hash.slice(1); if(["excel","regras","historico"].includes(h)) trocarAba(h);
+  const h = location.hash.slice(1); if(["excel","regras","pedidos","historico"].includes(h)) trocarAba(h);
   return ok;
 }
 if(GATE){
