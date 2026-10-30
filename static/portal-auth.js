@@ -45,6 +45,10 @@ window.PortalGate = (function () {
   ];
   const FERRAMENTA_TI = { id: "usuarios", nome: "Usuários e permissões", icone: "👥", href: "./usuarios.html",
     desc: "Quem entra no portal, o perfil de cada pessoa e quais ferramentas ela pode abrir." };
+  // Administração (só TI): o card de usuários e o histórico de alterações da cobertura do Custo de Frete
+  const FERRAMENTAS_TI = [FERRAMENTA_TI,
+    { id: "historico", nome: "Histórico de alterações", icone: "🕘", href: "./historico.html",
+      desc: "Quem mudou a cobertura do Custo de Frete, o quê e quando, com o desfazer." }];
   const IDS = FERRAMENTAS.map((f) => f.id);
   function ferramentasDe(perfil, x) {
     if (perfil === "ti") return IDS.slice();
@@ -53,7 +57,7 @@ window.PortalGate = (function () {
     return x.acessoCusto === true ? ["monitor", "custo"] : ["monitor"];
   }
 
-  if (CF) return window.PortalGateCF.montar({ FERRAMENTAS, FERRAMENTA_TI, IDS, PERFIS, ferramentasDe });
+  if (CF) return window.PortalGateCF.montar({ FERRAMENTAS, FERRAMENTA_TI, FERRAMENTAS_TI, IDS, PERFIS, ferramentasDe });
 
   let auth = null, db = null, usuarioAtual = null, criando = false;
   if (ATIVO && SDK) {
@@ -119,6 +123,7 @@ window.PortalGate = (function () {
     // catálogo para o painel e para a tela de permissões
     ferramentas() { return FERRAMENTAS.slice(); },
     ferramentaTI() { return FERRAMENTA_TI; },
+    ferramentasTI() { return FERRAMENTAS_TI.slice(); },
     ferramentasDe,
     // ID token para a API da Azure (rotas /v1/cobertura/*). `forcar` renova o token
     async idToken(forcar) {

@@ -10,8 +10,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261027c"></script>
-<script src="./portal-auth.js?v=20261027"></script>
+<script src="./portal-auth-cf.js?v=20261030"></script>
+<script src="./portal-auth.js?v=20261030"></script>
 <script>
   // Mesma barra do portal: no Pages a página fica oculta até o Firebase confirmar o login.
   if (window.PortalGate && PortalGate.ativo()) {
@@ -108,7 +108,7 @@ function montar(u){
     : '<div class="vazio"><b>Nenhuma ferramenta liberada ainda</b>Peça ao TI para liberar o seu usuário.</div>';
   const adm = typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti";
   if(adm && minhas.length) h = '<h2 class="sec" style="margin-top:0">Ferramentas</h2>' + h;
-  if(adm) h += '<h2 class="sec">Administração</h2><div class="grid">' + card(PortalGate.ferramentaTI()) + "</div>";
+  if(adm) h += '<h2 class="sec">Administração</h2><div class="grid">' + (typeof PortalGate.ferramentasTI === "function" ? PortalGate.ferramentasTI() : [PortalGate.ferramentaTI()]).map(card).join("") + "</div>";
   $("#corpo").innerHTML = h;
 }
 function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }

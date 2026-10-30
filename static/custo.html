@@ -11,8 +11,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="./portal-auth-cf.js?v=20261027c"></script>
-<script src="./portal-auth.js?v=20261027"></script>
+<script src="./portal-auth-cf.js?v=20261030"></script>
+<script src="./portal-auth.js?v=20261030"></script>
 <script src="./bandas-m3.js?v=20261026"></script>
 <script src="./pedidos-fretes.js?v=20261028c"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
@@ -98,9 +98,6 @@
   .lt th,.lt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)} .lt th{color:var(--soft);font-size:13.5px}
   .drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--soft)}
   .drop.over,.drop:hover{border-color:var(--brand);color:var(--ink)}
-  .hist{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin:0 0 10px;background:var(--card)}
-  .hist .q{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:14.5px}
-  .hist .q b{font-size:15px} .hist .m{margin:6px 0 0;font-size:14px;color:var(--soft)}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
   .chip{font-size:13.5px;border:1px solid var(--line);border-radius:20px;padding:2px 10px}
   .chip.l{border-color:var(--brand);color:var(--brand)} .chip.b{border-color:var(--bl);color:var(--bl)}
@@ -217,7 +214,6 @@
   <button class="tab" role="tab" data-t="excel" aria-selected="false">Excel</button>
   <button class="tab" role="tab" data-t="regras" aria-selected="false">Regras da escolha</button>
   <button class="tab" role="tab" data-t="pedidos" aria-selected="false" hidden>Pedidos e fretes</button>
-  <button class="tab" role="tab" data-t="historico" aria-selected="false">Histórico</button>
 </nav>
 
 <main id="main">
@@ -280,11 +276,6 @@
     <div id="pf-raiz"><div class="vazio">carregando…</div></div>
   </section>
 
-  <section id="s-historico" data-s="historico" hidden>
-    <h2>Histórico de alterações</h2>
-    <p class="sub">Quem mudou o quê e quando. “Desfazer” prepara a reversão na aba Cobertura para você conferir antes de salvar.</p>
-    <div id="hist-corpo"><div class="vazio">carregando…</div></div>
-  </section>
 </main>
 
 <div class="bar" id="bar" hidden>
@@ -405,7 +396,6 @@ $("#ms-ok").onclick = async () => {
     const r = await api("PUT", "/v1/cobertura", { regras: aplicarFn(), base_versao: E.versao, motivo: $("#ms-motivo").value.trim() });
     fechar($("#m-salvar")); await carregar();
     toast(r.mudancas.length ? "Cobertura atualizada (" + r.mudancas.length + (r.mudancas.length === 1 ? " alteração" : " alterações") + "). Vale na API em até 1 minuto." : "Nada mudou.");
-    if(!$("#s-historico").hidden) carregarHistorico();
   }catch(e){
     fechar($("#m-salvar"));
     if(e.status === 409){ toast("As regras mudaram enquanto você editava. Recarreguei — refaça a alteração.", {erro:true, ms:9000}); await carregar(); }
@@ -683,27 +673,16 @@ window.__custoTeste = { lerPlanilha: (b) => lerPlanilha(b), importar };
 
 // ---------- Regras ----------
 
-// ---------- Histórico ----------
-let histCache = [];
-async function carregarHistorico(){
-  const box = $("#hist-corpo");
-  try{
-    histCache = (await api("GET", "/v1/cobertura/historico")).historico;
-    box.innerHTML = histCache.length ? histCache.map((h, i) => '<div class="hist"><div class="q"><b>' + dataBR(h.quando) + "</b><span>" + esc(h.usuario) + "</span>"
-      + '<span style="margin-left:auto"><button class="btn" data-desfazer="' + i + '" type="button">Desfazer</button></span></div>'
-      + (h.motivo ? '<p class="m">“' + esc(h.motivo) + "”</p>" : "")
-      + '<div class="chips">' + h.mudancas.map(m => '<span class="chip ' + (m.depois === false ? "b" : "l") + '">' + esc(m.nome) + " · " + esc(m.rotulo) + ": " + rot(m.antes) + " → " + rot(m.depois) + "</span>").join("") + "</div></div>").join("")
-      : '<div class="vazio">Nenhuma alteração registrada ainda.</div>';
-  }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; }
-}
-$("#hist-corpo").addEventListener("click", ev => {
-  const b = ev.target.closest("[data-desfazer]"); if(!b) return;
-  const h = histCache[+b.dataset.desfazer];
-  for(const m of h.mudancas){ const k = chave(m.transportadora, m.escopo, m.chave);
+// ---------- Desfazer vindo do Histórico (historico.html, só TI) ----------
+// A página do histórico guarda as mudanças a reverter; aqui elas viram pendências para conferir antes de salvar.
+function aplicarDesfazer(){
+  let ms = null; try{ ms = JSON.parse(sessionStorage.getItem("custo_desfazer") || "null"); sessionStorage.removeItem("custo_desfazer"); }catch(_){}
+  if(!Array.isArray(ms) || !ms.length) return;
+  for(const m of ms){ const k = chave(m.transportadora, m.escopo, m.chave);
     if(m.antes === null) des.delete(k); else des.set(k, { liberado: m.antes, motivo: "" }); }
   trocarAba("cobertura"); render(); agendar();
   toast("Reversão preparada: confira e clique em Salvar.");
-});
+}
 
 // ---------- abas e tema ----------
 // Pedidos e fretes: só administração (permissão pedidos_ver; TI sempre). Excluir: pedidos_excluir. Sem login (servidor local): libera.
@@ -714,7 +693,6 @@ function trocarAba(t){
   document.querySelectorAll("section[data-s]").forEach(s => s.hidden = s.dataset.s !== t);
   if(t === "regras" && window.BandasM3) BandasM3.montar($("#bm-raiz"), { api, toast, msgErro, regioes: REGIOES, nomeUF: NOME_UF });
   if(t === "pedidos" && window.PedidosFretes) PedidosFretes.montar($("#pf-raiz"), { api, toast, msgErro, podeExcluir: podePedidos("excluir") });
-  if(t === "historico") carregarHistorico();
   try{ history.replaceState(null, "", "#" + t); }catch(_){}
 }
 { const cab = () => document.documentElement.style.setProperty("--cab", document.querySelector("header").offsetHeight + "px"); cab(); addEventListener("resize", cab); }   // abas fixas logo abaixo do cabeçalho, qualquer que seja a altura dele
@@ -731,7 +709,8 @@ async function iniciar(u){
   $("#eu").textContent = u && u.email ? u.email : "";
   document.querySelector('.tab[data-t="pedidos"]').hidden = !podePedidos();
   const ok = await carregar();
-  const h = location.hash.slice(1); if(["excel","regras","pedidos","historico"].includes(h)) trocarAba(h);
+  const h = location.hash.slice(1); if(["excel","regras","pedidos"].includes(h)) trocarAba(h);
+  if(ok) aplicarDesfazer();
   return ok;
 }
 if(GATE){
