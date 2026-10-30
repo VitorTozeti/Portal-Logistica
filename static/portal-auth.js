@@ -45,10 +45,10 @@ window.PortalGate = (function () {
   ];
   const FERRAMENTA_TI = { id: "usuarios", nome: "Usuários e permissões", icone: "👥", href: "./usuarios.html",
     desc: "Quem entra no portal, o perfil de cada pessoa e quais ferramentas ela pode abrir." };
-  // Administração (só TI): o card de usuários e o histórico de alterações da cobertura do Custo de Frete
+  // Administração (só TI): o card de usuários e os pedidos escolhidos pela Azure com o frete simulado × real
   const FERRAMENTAS_TI = [FERRAMENTA_TI,
-    { id: "historico", nome: "Histórico de alterações", icone: "🕘", href: "./historico.html",
-      desc: "Quem mudou a cobertura do Custo de Frete, o quê e quando, com o desfazer." }];
+    { id: "pedidos", nome: "Pedidos e fretes", icone: "🚚", href: "./pedidos.html",
+      desc: "Pedidos da semana escolhidos pela Azure, frete simulado × real e a diferença." }];
   const IDS = FERRAMENTAS.map((f) => f.id);
   function ferramentasDe(perfil, x) {
     if (perfil === "ti") return IDS.slice();

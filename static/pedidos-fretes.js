@@ -1,4 +1,4 @@
-/* Pedidos e fretes — aba do Custo de Frete (custo.html). Só ADMINISTRAÇÃO (permissão `pedidos_ver`; TI sempre).
+/* Pedidos e fretes — ferramenta de Administração (pedidos.html). Só ADMINISTRAÇÃO (permissão `pedidos_ver`; TI sempre).
    Uso: PedidosFretes.montar(elementoRaiz, { api, toast, msgErro, podeExcluir })
      api(metodo, caminho, corpo) -> Promise (login do Portal), toast(msg, {erro}), msgErro(e) -> texto,
      podeExcluir = permissão `pedidos_excluir` (TI): mostra as caixinhas e o botão Excluir.
