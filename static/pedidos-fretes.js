@@ -64,14 +64,13 @@ function montar(raiz, ctx){
   if(raiz.dataset.pf === "1"){ if(raiz._pfAtualizar) raiz._pfAtualizar(); return; }
   raiz.dataset.pf = "1";
   const podeExcluir = !!ctx.podeExcluir;
-  let dados = null, carregando = false, pendente = false, tipo = "todos";
+  let dados = null, carregando = false, pendente = false, tipo = "nao";   // sem "Todos": produção ou teste, nunca misturados
   const sel = new Set();
   raiz.innerHTML = `
     <div class="pf-topo"><span class="pf-semana" id="pf-semana">Pedidos desta semana</span></div>
     <div class="pf-barra">
       <div class="pf-seg" role="group" aria-label="Tipo de pedido">
-        <button type="button" data-tipo="todos" aria-pressed="true">Todos</button>
-        <button type="button" data-tipo="nao" aria-pressed="false">Produção</button>
+        <button type="button" data-tipo="nao" aria-pressed="true">Produção</button>
         <button type="button" data-tipo="sim" aria-pressed="false">Teste</button>
       </div>
       <select id="pf-sit" aria-label="Situação"><option value="">Todas as situações</option><option value="ok">No esperado</option><option value="divergente">Divergente</option><option value="aguardando_real">Aguardando real</option><option value="sem_chave">Sem chave da NF</option></select>
