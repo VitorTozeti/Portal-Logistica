@@ -51,9 +51,9 @@ window.PortalGateCF = (function () {
     return e;
   }
 
-  // base = { FERRAMENTAS, FERRAMENTA_TI, IDS, PERFIS, ferramentasDe } vindos de portal-auth.js
+  // base = { FERRAMENTAS, FERRAMENTA_TI, FERRAMENTAS_TI, IDS, PERFIS, ferramentasDe } vindos de portal-auth.js
   function montar(base) {
-    const { FERRAMENTAS, FERRAMENTA_TI, IDS, PERFIS, ferramentasDe } = base;
+    const { FERRAMENTAS, FERRAMENTA_TI, FERRAMENTAS_TI, IDS, PERFIS, ferramentasDe } = base;
     let usuarioAtual = null, tokenCache = null;
     const ouvintes = new Set();
     let ultimoMapa = new Map(), timer = null;
@@ -116,6 +116,7 @@ window.PortalGateCF = (function () {
       podeFerramenta(id) { return !!usuarioAtual && (usuarioAtual.ferramentas || []).includes(id); },
       ferramentas() { return FERRAMENTAS.slice(); },
       ferramentaTI() { return FERRAMENTA_TI; },
+      ferramentasTI() { return (FERRAMENTAS_TI || [FERRAMENTA_TI]).slice(); },
       ferramentasDe,
 
       // Token para a API da Azure: o Worker devolve o JWT do Access (a Azure passa a validá-lo — ver CLOUDFLARE.md)

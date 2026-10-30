@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Histórico de alterações — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./portal-auth-cf.js?v=20261030"></script>
+<script src="./portal-auth.js?v=20261030"></script>
+<script>
+  // Só TI (mesma barra de usuarios.html): sem login vai para o login; sem perfil de administração volta ao painel.
+  if (window.PortalGate && PortalGate.ativo()) {
+    document.documentElement.classList.add("gate-pend");
+    PortalGate.pronto.then(function (u) {
+      if (!u) location.replace("./login.html?next=" + encodeURIComponent("./historico.html"));
+      else if (!(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti")) location.replace("./");
+      else document.documentElement.classList.remove("gate-pend");
+    });
+  }
+</script>
+<script>
+  (function(){
+    try{ var t = localStorage.getItem("portal_tema");
+      if(!t){ t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(_){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
+<style>
+  :root, :root[data-theme="dark"]{ --p1:#0e0d0d; --p2:#242424; --p3:#005b6b; --p4:#31cceb; --p5:#ffffff; }
+  :root[data-theme="light"]{ --p1:#eff3f9; --p2:#ffffff; --p3:#cbd5e1; --p4:#1d4ed8; --p5:#0f172a; }
+  :root{ --bg:var(--p1); --card:var(--p2); --ink:var(--p5); --line:var(--p3); --brand:var(--p4);
+    --bl:#f4a72c; --soft:color-mix(in srgb,var(--p5) 62%,transparent); }
+  *{box-sizing:border-box}
+  body{margin:0;font:16px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
+  html.gate-pend body > *{visibility:hidden}
+  html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand)}
+  header b{font-size:16px;color:var(--brand)}
+  .esp{margin-left:auto}
+  .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);
+    border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
+  .eu{font-size:14px;color:var(--soft);max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  button{font:inherit;color:var(--ink)}
+  .btn{font-size:15px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:8px 14px;cursor:pointer}
+  .btn:hover:not(:disabled){background:var(--line)}
+  .btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  main{width:100%;max-width:1100px;margin:0 auto;padding:22px 24px 60px;flex:1}
+  h2{font-size:17px;margin:0 0 4px} .sub{margin:0 0 16px;color:var(--soft);font-size:15px;line-height:1.5}
+  .vazio{padding:28px;text-align:center;color:var(--soft)}
+  .hist{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin:0 0 10px;background:var(--card)}
+  .hist .q{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:14.5px}
+  .hist .q b{font-size:15px} .hist .m{margin:6px 0 0;font-size:14px;color:var(--soft)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+  .chip{font-size:13.5px;border:1px solid var(--line);border-radius:20px;padding:2px 10px}
+  .chip.l{border-color:var(--brand);color:var(--brand)} .chip.b{border-color:var(--bl);color:var(--bl)}
+</style>
+<link rel="stylesheet" href="./ui.css?v=20261026c">
+</head>
+<body class="pagina">
+<header>
+  <a class="volta" href="./" aria-label="Voltar ao Painel de ferramentas" title="Voltar ao Painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span class="rot">Painel</span></a>
+  <span class="sep" aria-hidden="true"></span>
+  <b>Histórico de alterações</b>
+  <span class="esp"></span>
+  <span class="eu" id="eu"></span>
+  <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
+</header>
+<main>
+  <h2>Cobertura do Custo de Frete</h2>
+  <p class="sub">Quem mudou o quê e quando. “Desfazer” abre o Custo de Frete com a reversão pronta para conferir e salvar.</p>
+  <div id="hist-corpo"><div class="vazio">carregando…</div></div>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const AZURE = "https://ca-calculadora-frete.whitesky-9894e172.eastus.azurecontainerapps.io";
+const GATE = window.PortalGate && PortalGate.ativo();
+// Em servidor local (sem login) dá para apontar a API com ?api=http://127.0.0.1:8099 — só fora do Pages.
+const API = (!GATE && new URLSearchParams(location.search).get("api")) || AZURE;
+const dataBR = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString("pt-BR", {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"}); };
+const rot = v => v === null || v === undefined ? "padrão" : v ? "liberada" : "bloqueada";
+
+async function token(){ return GATE ? PortalGate.idToken() : "dev"; }
+async function api(metodo, caminho){
+  let r;
+  try{ r = await fetch(API + caminho, { method: metodo, headers: { "Authorization": "Bearer " + await token() } }); }
+  catch(e){ throw { status: 0, corpo: { erro: "Sem conexão com o servidor. Tente de novo." } }; }
+  let j = {}; try{ j = await r.json(); }catch(_){}
+  if(!r.ok) throw { status: r.status, corpo: j };
+  return j;
+}
+const msgErro = e => (e && e.corpo && e.corpo.erro) || "Algo deu errado. Tente de novo.";
+
+let histCache = [];
+async function carregarHistorico(){
+  const box = $("#hist-corpo");
+  try{
+    histCache = (await api("GET", "/v1/cobertura/historico")).historico;
+    box.innerHTML = histCache.length ? histCache.map((h, i) => '<div class="hist"><div class="q"><b>' + dataBR(h.quando) + "</b><span>" + esc(h.usuario) + "</span>"
+      + '<span style="margin-left:auto"><button class="btn" data-desfazer="' + i + '" type="button">Desfazer</button></span></div>'
+      + (h.motivo ? '<p class="m">“' + esc(h.motivo) + "”</p>" : "")
+      + '<div class="chips">' + h.mudancas.map(m => '<span class="chip ' + (m.depois === false ? "b" : "l") + '">' + esc(m.nome) + " · " + esc(m.rotulo) + ": " + rot(m.antes) + " → " + rot(m.depois) + "</span>").join("") + "</div></div>").join("")
+      : '<div class="vazio">Nenhuma alteração registrada ainda.</div>';
+  }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; }
+}
+// Desfazer: o custo.html lê "custo_desfazer" ao abrir e transforma em pendências na aba Cobertura.
+$("#hist-corpo").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-desfazer]"); if(!b) return;
+  const h = histCache[+b.dataset.desfazer];
+  try{ sessionStorage.setItem("custo_desfazer", JSON.stringify(h.mudancas.map(m => ({ transportadora: m.transportadora, escopo: m.escopo, chave: m.chave, antes: m.antes })))); }catch(_){}
+  location.href = "./custo.html" + location.search + "#cobertura";
+});
+
+function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
+$("#tema").onclick = () => { const n = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", n); try{ localStorage.setItem("portal_tema", n); }catch(_){} icone(); };
+icone();
+
+if(GATE) PortalGate.pronto.then(u => { if(u){ $("#eu").textContent = u.email || ""; carregarHistorico(); } });
+else { $("#eu").textContent = "servidor local"; carregarHistorico(); }
+})();
+</script>
+</body>
+</html>
