@@ -89,6 +89,12 @@ def coletar_cancelamentos(log_index: dict) -> list:
         print(f"  [CANC_FEED] HANA: {e}")
         return []
 
+    try:
+        import unilog_feed
+        da_unilog = unilog_feed.nfs_unilog()
+    except Exception as e:
+        print(f"  [CANC_FEED] estado da Unilog: {e}")
+        da_unilog = {}
     out = []
     try:
         for filial, bpl in BPL.items():
@@ -98,9 +104,10 @@ def coletar_cancelamentos(log_index: dict) -> list:
             canceladas = {sap_feed._limpar(str(r[0])) for r in cur.fetchall() if r[0]}
             canceladas.discard("")
             # candidatos = cancelada no SAP + está no log DA FILIAL + ainda não CANCELADO
+            # NF da Unilog: o robô cancela sozinho e o alerta vem pelo unilog_feed
             candidatos = sorted(
                 nf for nf in canceladas
-                if nf in log_f and log_f[nf]["status"] != "CANCELADO"
+                if nf in log_f and log_f[nf]["status"] != "CANCELADO" and nf not in da_unilog.get(filial, set())
             )
             if not candidatos:
                 continue
