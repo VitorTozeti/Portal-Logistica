@@ -143,7 +143,7 @@ function montar(raiz, ctx){
     pagina = pg; const novos = r.pedidos || [];
     vazias = novos.length ? 0 : vazias + 1;
     if(pagina >= MAX_SEMANAS || vazias >= MAX_VAZIAS || r.erro) acabou = true;
-    dados.pedidos = dados.pedidos.concat(novos); dados.total += r.total || 0; dados.truncado = dados.truncado || !!r.truncado;
+    dados.pedidos = dados.pedidos.concat(novos); dados.total += r.total || 0; dados.truncado = dados.truncado || !!r.truncado; dados.repetidas_ocultas = (dados.repetidas_ocultas || 0) + (r.repetidas_ocultas || 0);
     dados.resumo = resumir(dados.pedidos); dados.janela.desde = new Date(ini0 - 7 * 864e5 * pagina).toISOString();
     render();
   }
@@ -177,7 +177,7 @@ function montar(raiz, ctx){
       d.pedidos.map(p => {
         const s = SIT[p.situacao] || [p.situacao, "pf-espera"], c = p.diferenca > 0 ? "pf-pos" : p.diferenca < 0 ? "pf-neg" : "", n = nfNum(p.chave_nf);
         return `<tr class="${p.teste ? "pf-t" : ""}">` + (podeExcluir ? `<td class="ck"><input type="checkbox" data-id="${esc(p.id)}" aria-label="Selecionar" ${sel.has(p.id) ? "checked" : ""}></td>` : "") +
-          `<td>${esc(diaHora(p.criado_em))}</td>` +
+          `<td>${esc(diaHora(p.criado_em))}${p.repeticoes ? ` <span class="sub2" title="${p.repeticoes} clique${p.repeticoes > 1 ? "s" : ""} anterior${p.repeticoes > 1 ? "es" : ""} do mesmo pedido (${p.agrupado_por === "nf" ? "mesma NF" : p.agrupado_por === "impressao" ? "mesmos itens, valor e destino" : "mesmo valor, CEP, peso e dia"}) — vale o mais recente">×${p.repeticoes + 1}</span>` : ""}</td>` +
           `<td title="${esc(p.chave_nf || "sem chave da NF")}">${n ? esc(n) : '<span class="sub2">—</span>'}</td>` +
           `<td>${esc(p.cidade)}${p.uf ? " / " + esc(p.uf) : ""}</td><td class="num">${p.volumes || ""}</td>` +
           `<td>${esc(p.transportadora)}${p.transportadora_real && p.transportadora_real !== p.transportadora ? '<span class="sub2">levou: ' + esc(p.transportadora_real) + "</span>" : ""}</td>` +
@@ -188,7 +188,7 @@ function montar(raiz, ctx){
       }).join("") + "</tbody></table>";
     dica();
     $("#pf-rod").innerHTML = `<span>${nf(d.pedidos.length, 0)} de ${nf(d.total, 0)} pedidos${d.truncado ? " — refine a busca para ver o restante" : ""}</span>` +
-      `<span>Diferença = real − simulado, na mesma base de imposto. ⧉ = CT-e dividido entre NFs.</span>`;
+      `<span>Diferença = real − simulado, na mesma base de imposto. ⧉ = CT-e dividido entre NFs.${dados.repetidas_ocultas ? " ×N = pedido clicado N vezes (conta uma só); " + nf(dados.repetidas_ocultas, 0) + " repetida" + (dados.repetidas_ocultas > 1 ? "s" : "") + " oculta" + (dados.repetidas_ocultas > 1 ? "s" : "") + "." : ""}</span>`;
   }
 
   function renderSel(){
@@ -211,7 +211,8 @@ function montar(raiz, ctx){
     if(motivo.length < 3){ ctx.toast("Escreva o motivo da exclusão.", { erro: true }); return; }
     const bt = $("#pf-msim"); bt.disabled = true;
     try{
-      const r = await ctx.api("POST", "/v1/portal/pedidos/excluir", { ids: [...sel], motivo });
+      const todos = new Set(sel); for(const p of dados.pedidos) if(sel.has(p.id)) (p.ids_repetidos || []).forEach(i => todos.add(i));   // as repetidas saem junto, senão a mais antiga reapareceria
+      const r = await ctx.api("POST", "/v1/portal/pedidos/excluir", { ids: [...todos].slice(0, 200), motivo });
       ctx.toast(r.excluidos + " pedido" + (r.excluidos === 1 ? "" : "s") + " excluído" + (r.excluidos === 1 ? "" : "s") + (r.falhas ? " · " + r.falhas + " não deu" : "") + ".", { erro: !!r.falhas && !r.excluidos });
       sel.clear(); $("#pf-mdl").hidden = true; atualizar();
     }catch(e){ ctx.toast(ctx.msgErro(e), { erro: true }); }
