@@ -16,12 +16,14 @@
 <script src="./pedidos-fretes.js?v=20261030"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>
-  // Só TI (mesma barra de usuarios.html): sem login vai para o login; sem perfil de administração volta ao painel.
+  // Quem tem a ferramenta "Pedidos e fretes" (nível ver ou editar; TI sempre). No login antigo (Firebase) segue só administração.
   if (window.PortalGate && PortalGate.ativo()) {
     document.documentElement.classList.add("gate-pend");
     PortalGate.pronto.then(function (u) {
+      var cf = typeof PortalGate.modo === "function" && PortalGate.modo() === "cloudflare";
+      var ok = u && (cf ? PortalGate.pode("pedidos_ver") : (typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti"));
       if (!u) location.replace("./login.html?next=" + encodeURIComponent("./pedidos.html"));
-      else if (!(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti")) location.replace("./");
+      else if (!ok) location.replace("./");
       else document.documentElement.classList.remove("gate-pend");
     });
   }

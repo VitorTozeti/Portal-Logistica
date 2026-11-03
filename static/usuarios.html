@@ -86,6 +86,47 @@
   .toast{background:var(--card);border:1px solid var(--brand);border-radius:10px;padding:11px 14px;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
   .toast.erro{border-color:var(--alerta)}
   @media (max-width:640px){main{padding:16px 12px 60px} header{padding:12px 14px}}
+
+  .leg{min-width:0} .leg td,.leg th{font-size:13px;vertical-align:top}
+  .tools .fq{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--soft);flex-wrap:wrap}
+  .tools .fq select{max-width:190px}
+  select.nivel{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:13px;font-weight:700;min-width:104px}
+  select.nivel.n-editar{border-color:color-mix(in srgb,var(--brand) 70%,transparent);background:color-mix(in srgb,var(--brand) 16%,var(--bg))}
+  select.nivel.n-ver{border-color:color-mix(in srgb,var(--alerta) 55%,transparent);background:color-mix(in srgb,var(--alerta) 10%,var(--bg))}
+  select.nivel.n-nenhum{color:var(--soft);font-weight:600}
+  .ti-tudo{display:inline-block;font-size:12px;font-weight:800;padding:3px 12px;border-radius:20px;background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
+  .tag.pers{background:color-mix(in srgb,var(--alerta) 20%,transparent);color:var(--alerta)}
+  .st.venc{color:#ef4444;font-weight:700} .st.val{color:var(--alerta)}
+  details.menu{position:relative;display:inline-block}
+  details.menu>summary{list-style:none;cursor:pointer;user-select:none} details.menu>summary::-webkit-details-marker{display:none}
+  details.menu .pop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  details.menu .pop button:not(.btn){display:block;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:9px 10px;cursor:pointer;font-size:13.5px;font-weight:600}
+  details.menu .pop button:not(.btn):hover{background:var(--line)} details.menu .pop .perigo{color:var(--alerta)}
+  .tools details.menu.massa{margin-left:auto} .tools details.menu.massa .pop{padding:12px;min-width:300px}
+  .aviso-mig{padding:10px 14px;border-radius:10px;border:1px solid var(--alerta);margin:0 0 12px;font-size:13.5px}
+  .hl{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .hl li{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px}
+  .hl .hq{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline} .hl .hd{margin:4px 0 0;color:var(--soft)}
+  .tp{font-size:11px;font-weight:800;padding:1px 9px;border-radius:20px;border:1px solid var(--line);color:var(--soft)}
+  .tp-removeu{color:#ef4444;border-color:#ef4444} .tp-adicionou{color:#10b981;border-color:#10b981}
+  .niveis-add{display:inline-flex;gap:12px;flex-wrap:wrap} .niveis-add label{display:inline-flex;align-items:center;gap:6px}
+  @media (max-width:760px){
+    #tab,#tab thead,#tab tbody,#tab tr,#tab td{display:block;width:100%} #tab{min-width:0}
+    #tab thead{position:absolute;left:-9999px}
+    #tab tr{border-bottom:1px solid var(--line);padding:10px 12px}
+    #tab td{border:0;padding:5px 0;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:right}
+    #tab td[data-l]::before{content:attr(data-l);color:var(--soft);font-size:12px;font-weight:700;text-align:left;flex:none}
+    #tab td[data-l="Pessoa"]{display:block;text-align:left} #tab td[data-l="Pessoa"]::before{content:none}
+    #tab td:last-child{justify-content:flex-end}
+    #tab td.c{text-align:right}
+    details.menu .pop{right:0;left:auto}
+    .tools details.menu.massa{margin-left:0;width:100%} .tools details.menu.massa .pop{position:static;margin-top:8px}
+    .tools .fq{width:100%} .tools .fq select{flex:1;max-width:none}
+    #pf-corpo tr,#pf-corpo td{display:block} #pf-cab{display:none}
+    #pf-corpo td{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border:0}
+    #pf-corpo td[data-l]::before{content:attr(data-l);color:var(--soft);font-size:12px;font-weight:700}
+    #pf-corpo tr{border-bottom:1px solid var(--line);padding:8px 4px}
+  }
 </style>
 <link rel="stylesheet" href="./ui.css?v=20261026c">
 </head>
@@ -98,11 +139,20 @@
   <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
 </header>
 <main>
-  <h1>Quem entra e o que pode abrir</h1>
-  <p class="sub">Ferramentas: o que a pessoa abre. Perfil: o que ela pode fazer.</p>
+  <h1>Quem entra e o que pode fazer</h1>
+  <p class="sub">Cada pessoa tem um <b>perfil</b> (o modelo de acesso) e um <b>nível por ferramenta</b>: <b>Sem acesso</b>, <b>Ver</b> ou <b>Editar</b>. Ao trocar o perfil, os níveis do modelo são aplicados; depois dá para ajustar uma pessoa (ela fica marcada como "personalizado").</p>
 
-  <details class="add" id="perfis" hidden><summary>🛡️ Perfis e permissões</summary>
-    <p class="mini-sub">Marque o que cada perfil pode fazer. Sem nenhuma caixa do Monitor, a pessoa só vê as travadas e as que subiram. "Ignorar no robô" grava a nota no log do robô.</p>
+  <details class="add" id="legenda" open><summary>ℹ️ O que cada nível permite</summary>
+    <div class="scroll" style="margin-top:10px"><table class="leg"><thead><tr><th>Ferramenta</th><th>Ver</th><th>Editar</th></tr></thead><tbody>
+      <tr><td><b>📦 Monitor de NFs</b></td><td>Vê as notas que subiram e as travadas.</td><td>Também ignora e reativa notas (conforme as permissões do perfil).</td></tr>
+      <tr><td><b>💲 Custo de Frete</b></td><td>Lê cobertura, regras da escolha e histórico; simula e exporta.</td><td>Também altera cobertura e bandas e importa Excel.</td></tr>
+      <tr><td><b>🚚 Pedidos e fretes</b></td><td>Lê os pedidos, o simulado × real e os totais.</td><td>Também exclui pedidos da lista (vão para a lixeira).</td></tr>
+    </tbody></table></div>
+    <p class="mini-sub">O TI sempre edita tudo. "Sem acesso" = a ferramenta nem aparece no painel da pessoa.</p>
+  </details>
+
+  <details class="add" id="perfis" hidden><summary>🛡️ Perfis, permissões e modelo de níveis</summary>
+    <p class="mini-sub">Marque o que cada perfil pode fazer e o <b>nível padrão</b> de cada ferramenta (o modelo aplicado a quem entra no perfil). Sem nenhuma caixa do Monitor, a pessoa só vê as travadas e as que subiram. "Ignorar no robô" grava a nota no log do robô.</p>
     <div class="scroll" style="margin-top:10px"><table><thead id="pf-cab"></thead><tbody id="pf-corpo"></tbody></table></div>
     <div class="linha" style="margin-top:10px">
       <input id="pf-rotulo" placeholder="Nome do perfil (ex.: Faturamento)" aria-label="Nome do novo perfil" style="flex:1;min-width:200px">
@@ -114,20 +164,36 @@
     <textarea id="add-emails" rows="3" placeholder="Um ou vários e-mails (separe por vírgula, espaço ou linha)"></textarea>
     <div class="linha">
       <label>Perfil <select id="add-perfil" class="perfil"></select></label>
-      <span id="add-ferr" style="display:inline-flex;gap:12px;flex-wrap:wrap"></span>
+      <span id="add-niveis" class="niveis-add"></span>
+      <label>Acesso até <input type="date" id="add-validade" aria-label="Acesso até (opcional)"></label>
       <button class="btn pri" id="add-ok" type="button">Adicionar</button>
     </div>
   </details>
 
   <div class="tools">
     <input id="busca" type="search" placeholder="Buscar e-mail…" aria-label="Buscar e-mail">
-    <select id="filtro" aria-label="Filtrar"></select>
-    <span class="massa">
-      <button class="btn" id="m-tudo" type="button">Liberar tudo (filtrados)</button>
-      <button class="btn perigo" id="m-nada" type="button">Retirar tudo (filtrados)</button>
-    </span>
+    <select id="filtro" aria-label="Filtrar por perfil ou situação"></select>
+    <label class="fq">Quem tem <select id="f-nivel" aria-label="Nível"><option value="">qualquer nível</option><option value="editar">Editar</option><option value="ver">Ver</option><option value="nenhum">Sem acesso</option></select>
+      em <select id="f-ferr" aria-label="Ferramenta"><option value="">qualquer ferramenta</option></select></label>
+    <details class="menu massa" id="massa"><summary class="btn">Ações em massa ▾</summary>
+      <div class="pop">
+        <p class="mini-sub" style="margin:0 0 8px">Vale para as <b id="massa-n">0</b> pessoas do filtro (o TI não muda).</p>
+        <div class="linha" style="margin:0">
+          <select id="massa-ferr" aria-label="Ferramenta"></select>
+          <select id="massa-nivel" aria-label="Nível"><option value="editar">Editar</option><option value="ver">Ver</option><option value="nenhum">Sem acesso</option></select>
+          <button class="btn pri" id="massa-ok" type="button">Aplicar</button>
+        </div>
+        <button class="btn perigo" id="massa-zero" type="button" style="margin-top:10px">Retirar TODAS as ferramentas</button>
+      </div>
+    </details>
   </div>
-  <div class="scroll"><table><thead id="cab"></thead><tbody id="corpo"><tr><td class="vazio" colspan="9">carregando…</td></tr></tbody></table></div>
+  <div id="aviso-mig" class="aviso-mig" hidden></div>
+  <div class="scroll"><table id="tab"><thead id="cab"></thead><tbody id="corpo"><tr><td class="vazio" colspan="9">carregando…</td></tr></tbody></table></div>
+
+  <details class="add" id="hist" style="margin-top:16px"><summary>🕘 Histórico de acessos</summary>
+    <div class="linha" style="margin-top:10px"><input id="hist-q" type="search" placeholder="Filtrar por pessoa ou por quem alterou…" aria-label="Filtrar o histórico" style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px"></div>
+    <div id="hist-corpo" style="margin-top:10px"><p class="mini-sub">abra para carregar</p></div>
+  </details>
 </main>
 <div id="toasts" aria-live="polite"></div>
 <script>
@@ -135,55 +201,92 @@
 "use strict";
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };   // trocado pelos perfis do servidor (modo Cloudflare)
+let ROT = { logistica:"Logística", ti:"TI", leitor:"Somente leitura" };   // trocado pelos perfis do servidor
 let perfis = [], catalogo = [];
 const FERR = PortalGate.ferramentas();
 const IDS = FERR.map(f => f.id);
+const NOMEF = Object.fromEntries(FERR.map(f => [f.id, f.nome]));
+const NIVEL_ROT = { editar: "Editar", ver: "Ver", nenhum: "Sem acesso" };
+const MODELO_PADRAO = { monitor: "ver" };
 let lista = [], eu = "";
+const CF = typeof PortalGate.modo === "function" && PortalGate.modo() === "cloudflare" && typeof PortalGate.salvarPessoa === "function";
+
 function toast(m, erro){ const t = document.createElement("div"); t.className = "toast" + (erro ? " erro" : ""); t.textContent = m; $("#toasts").appendChild(t); setTimeout(() => t.remove(), erro ? 9000 : 4500); }
 const fmt = ms => ms ? new Date(ms).toLocaleString("pt-BR", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) : "";
-const falha = (p, e) => { console.error(e); toast(p + ((e && e.message) || e), true); };
+const fmtD = ms => ms ? new Date(ms).toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit", year:"2-digit"}) : "";
+const falha = (p, e) => { console.error(e); toast(p + msgErro(e), true); };
+const ERROS = { "migracao-pendente": "Falta atualizar o banco (db/schema.sql); o portal tenta fazer sozinho — tente de novo.", "perfil-em-uso": "Tem pessoas neste perfil.",
+  "perfil-do-sistema": "Perfil padrão não pode ser apagado.", "nome-invalido": "Nome inválido.", "sem-permissao": "Só o dono dos perfis pode mudar isso.",
+  "niveis-invalidos": "Níveis inválidos.", "validade-invalida": "Data de validade inválida.", "modelo-invalido": "Modelo inválido." };
+function msgErro(e){ return ERROS[e && e.message] || ((e && e.message) || String(e)); }
+const modeloDe = nome => { const p = perfis.find(x => x.nome === nome); return (p && p.modelo) || (nome === "ti" ? {monitor:"editar",custo:"editar",pedidos:"editar"} : MODELO_PADRAO); };
+const igualNiveis = (a, b) => IDS.every(id => (a[id] || null) === (b[id] || null));
+const personalizada = u => u.perfil !== "ti" && !igualNiveis(u.niveis || {}, modeloDe(u.perfil));
+const nivelDe = (u, id) => u.perfil === "ti" ? "editar" : ((u.niveis || {})[id] || "nenhum");
+const soNiveis = o => { const r = {}; for(const id of IDS) if(o[id] && o[id] !== "nenhum") r[id] = o[id]; return r; };
 
 function filtrados(){
-  const q = $("#busca").value.trim().toLowerCase(), f = $("#filtro").value;
+  const q = $("#busca").value.trim().toLowerCase(), f = $("#filtro").value, fn = $("#f-nivel").value, ff = $("#f-ferr").value;
   return lista.filter(u => (!q || u.email.includes(q)) &&
-    (!f || (f === "pendente" ? !u.ultimoAcesso : f === "semtudo" ? (u.perfil !== "ti" && !u.ferramentas.length) : u.perfil === f)));
+    (!f || (f === "pendente" ? !u.ultimoAcesso : f === "semtudo" ? (u.perfil !== "ti" && !IDS.some(id => nivelDe(u, id) !== "nenhum")) : f === "personalizado" ? personalizada(u) : f === "vencido" ? (u.validoAte && u.validoAte < Date.now()) : u.perfil === f)) &&
+    (!fn || (ff ? [ff] : IDS).some(id => fn === "nenhum" ? nivelDe(u, id) === "nenhum" : nivelDe(u, id) === fn)) &&
+    (!ff || fn || nivelDe(u, ff) !== "nenhum"));
+}
+function celulaNivel(u, f){
+  const ti = u.perfil === "ti", v = nivelDe(u, f.id);
+  if(ti) return '<td class="c" data-l="' + esc(f.nome) + '"><span class="ti-tudo">Editar</span></td>';
+  return '<td class="c" data-l="' + esc(f.nome) + '"><select class="nivel n-' + v + '" data-f="' + f.id + '" aria-label="' + esc(f.nome) + " para " + esc(u.email) + '">'
+    + ["nenhum", "ver", "editar"].map(n => '<option value="' + n + '"' + (n === v ? " selected" : "") + ">" + NIVEL_ROT[n] + "</option>").join("") + "</select></td>";
 }
 function desenhar(){
-  $("#cab").innerHTML = "<tr><th>Pessoa</th><th>Perfil</th>"
-    + FERR.map(f => '<th class="c">' + f.icone + " " + esc(f.nome) + '<span class="mini"><button type="button" data-col="' + f.id + '" data-v="1">todos</button>·<button type="button" data-col="' + f.id + '" data-v="0">nenhum</button></span></th>').join("")
-    + '<th style="text-align:right">Ações</th></tr>';
+  $("#cab").innerHTML = "<tr><th>Pessoa</th><th>Perfil</th>" + FERR.map(f => '<th class="c">' + f.icone + " " + esc(f.nome) + "</th>").join("") + '<th style="text-align:right">Ações</th></tr>';
   const l = filtrados();
+  $("#massa-n").textContent = l.filter(u => u.perfil !== "ti").length;
   $("#corpo").innerHTML = l.length ? l.map(u => {
-    const ti = u.perfil === "ti", voce = u.email === eu;
-    return '<tr data-em="' + esc(u.email) + '"><td><span class="em">' + esc(u.email) + (voce ? '<span class="tag">você</span>' : "") + "</span>"
-      + (u.ultimoAcesso ? '<span class="st">● Ativo · último acesso ' + fmt(u.ultimoAcesso) + "</span>" : '<span class="st pend">○ Ainda não criou a conta</span>') + "</td>"
-      + '<td><select class="perfil" data-perfil aria-label="Perfil de ' + esc(u.email) + '">' + Object.keys(ROT).map(p => '<option value="' + p + '"' + (u.perfil === p ? " selected" : "") + ">" + ROT[p] + "</option>").join("") + "</select></td>"
-      + FERR.map(f => '<td class="c"><input type="checkbox" data-f="' + f.id + '" aria-label="' + esc(f.nome) + " para " + esc(u.email) + '"' + (u.ferramentas.includes(f.id) ? " checked" : "") + (ti ? ' disabled title="O TI sempre tem acesso"' : "") + "></td>").join("")
-      + '<td><div class="acoes">' + (ti ? "" : '<button class="btn" data-tudo="1" type="button">Liberar tudo</button><button class="btn perigo" data-tudo="0" type="button">Retirar tudo</button>')
-      + (voce ? "" : '<button class="btn perigo" data-rm type="button">Remover</button>') + "</div></td></tr>";
+    const ti = u.perfil === "ti", voce = u.email === eu, venc = u.validoAte && u.validoAte < Date.now();
+    return '<tr data-em="' + esc(u.email) + '"><td data-l="Pessoa"><span class="em">' + esc(u.email) + (voce ? '<span class="tag">você</span>' : "") + (personalizada(u) ? '<span class="tag pers" title="Níveis diferentes do modelo do perfil">personalizado</span>' : "") + "</span>"
+      + (u.ultimoAcesso ? '<span class="st">● Ativo · último acesso ' + fmt(u.ultimoAcesso) + "</span>" : '<span class="st pend">○ Ainda não criou a conta</span>')
+      + (u.validoAte ? '<span class="st ' + (venc ? "venc" : "val") + '">' + (venc ? "⛔ Acesso vencido em " : "⏳ Acesso até ") + fmtD(u.validoAte) + "</span>" : "") + "</td>"
+      + '<td data-l="Perfil"><select class="perfil" data-perfil aria-label="Perfil de ' + esc(u.email) + '">' + Object.keys(ROT).map(p => '<option value="' + esc(p) + '"' + (u.perfil === p ? " selected" : "") + ">" + esc(ROT[p]) + "</option>").join("") + "</select></td>"
+      + FERR.map(f => celulaNivel(u, f)).join("")
+      + '<td><div class="acoes"><details class="menu"><summary class="btn" aria-label="Mais ações para ' + esc(u.email) + '">⋯</summary><div class="pop">'
+      + (ti ? "" : '<button type="button" data-a="modelo">Aplicar o modelo do perfil</button><button type="button" data-a="validade">Definir validade…</button>')
+      + (u.ultimoAcesso && !voce ? '<button type="button" data-a="senha">Redefinir senha</button>' : "")
+      + (voce ? "" : '<button type="button" class="perigo" data-a="rm">Remover do portal</button>') + "</div></details></div></td></tr>";
   }).join("") : '<tr><td class="vazio" colspan="' + (FERR.length + 3) + '">nenhuma pessoa encontrada</td></tr>';
 }
 function opcoesPerfil(){
   const ops = Object.keys(ROT).map(p => '<option value="' + esc(p) + '">' + esc(ROT[p]) + "</option>").join("");
   const add = $("#add-perfil"), antes = add.value; add.innerHTML = ops; add.value = ROT[antes] ? antes : (ROT.leitor ? "leitor" : Object.keys(ROT)[0]);
   const f = $("#filtro"), fa = f.value;
-  f.innerHTML = '<option value="">Todos</option>' + ops + '<option value="pendente">Sem conta ainda</option><option value="semtudo">Sem nenhuma ferramenta</option>';
+  f.innerHTML = '<option value="">Todos</option>' + ops + '<option value="pendente">Sem conta ainda</option><option value="semtudo">Sem nenhuma ferramenta</option><option value="personalizado">Personalizados</option><option value="vencido">Acesso vencido</option>';
   f.value = fa;
+  $("#f-ferr").innerHTML = '<option value="">qualquer ferramenta</option>' + FERR.map(x => '<option value="' + x.id + '">' + esc(x.nome) + "</option>").join("");
+  $("#massa-ferr").innerHTML = FERR.map(x => '<option value="' + x.id + '">' + esc(x.nome) + "</option>").join("");
+  niveisAdd();
 }
+function niveisAdd(){
+  const m = modeloDe($("#add-perfil").value);
+  $("#add-niveis").innerHTML = FERR.map(f => '<label>' + esc(f.nome) + ' <select class="nivel" data-addn="' + f.id + '">' + ["nenhum", "ver", "editar"].map(n => '<option value="' + n + '"' + ((m[f.id] || "nenhum") === n ? " selected" : "") + ">" + NIVEL_ROT[n] + "</option>").join("") + "</select></label>").join("");
+}
+$("#add-perfil").addEventListener("change", niveisAdd);
+
+// ---- perfis (modelo) ----
 function desenharPerfis(){
   $("#pf-cab").innerHTML = "<tr><th>Perfil</th>" + catalogo.map(c => '<th class="c"><span class="grp">' + esc(c.grupo) + "</span>" + esc(c.nome) + "</th>").join("")
+    + FERR.map(f => '<th class="c"><span class="grp">Modelo de nível</span>' + esc(f.nome) + "</th>").join("")
     + '<th class="c">Pessoas</th><th style="text-align:right">Ações</th></tr>';
   $("#pf-corpo").innerHTML = perfis.map(p => {
-    const ti = p.nome === "ti", tem = p.permissoes || [];
-    return '<tr data-pf="' + esc(p.nome) + '"><td><b>' + esc(p.rotulo) + '</b> <span class="mini">' + esc(p.nome) + (p.sistema ? " · padrão" : "") + "</span></td>"
-      + catalogo.map(c => '<td class="c"><input type="checkbox" data-pp="' + esc(c.id) + '"' + (tem.includes(c.id) ? " checked" : "") + (ti ? ' disabled title="O TI sempre pode tudo"' : "")
+    const ti = p.nome === "ti", tem = p.permissoes || [], m = p.modelo || {};
+    return '<tr data-pf="' + esc(p.nome) + '"><td data-l="Perfil"><b>' + esc(p.rotulo) + '</b> <span class="mini">' + esc(p.nome) + (p.sistema ? " · padrão" : "") + "</span></td>"
+      + catalogo.map(c => '<td class="c" data-l="' + esc(c.nome) + '"><input type="checkbox" data-pp="' + esc(c.id) + '"' + (tem.includes(c.id) ? " checked" : "") + (ti ? ' disabled title="O TI sempre pode tudo"' : "")
           + ' aria-label="' + esc(p.rotulo) + ": " + esc(c.nome) + '"></td>').join("")
-      + '<td class="c">' + (p.pessoas || 0) + "</td>"
+      + FERR.map(f => '<td class="c" data-l="Modelo: ' + esc(f.nome) + '"><select class="nivel n-' + (m[f.id] || "nenhum") + '" data-pm="' + f.id + '"' + (ti ? " disabled" : "") + ' aria-label="Nível padrão de ' + esc(f.nome) + " no perfil " + esc(p.rotulo) + '">'
+          + ["nenhum", "ver", "editar"].map(n => '<option value="' + n + '"' + (n === (m[f.id] || "nenhum") ? " selected" : "") + ">" + NIVEL_ROT[n] + "</option>").join("") + "</select></td>").join("")
+      + '<td class="c" data-l="Pessoas">' + (p.pessoas || 0) + "</td>"
       + '<td><div class="acoes">' + (p.sistema || p.pessoas ? "" : '<button class="btn perigo" data-pfrm type="button">Apagar</button>') + "</div></td></tr>";
   }).join("");
 }
-// resposta do servidor: { catalogo, perfis }
 function receber(r){ catalogo = r.catalogo || []; perfis = r.perfis || []; ROT = {}; perfis.forEach(p => { ROT[p.nome] = p.rotulo; }); }
 async function carregarPerfis(){
   if(typeof PortalGate.listarPerfis !== "function") { opcoesPerfil(); return; }
@@ -192,111 +295,153 @@ async function carregarPerfis(){
   opcoesPerfil();
   if(PortalGate.donoPerfis && PortalGate.donoPerfis()){ $("#perfis").hidden = false; desenharPerfis(); }
 }
-const ERRO_PF = { "migracao-pendente": "Falta rodar a migração do banco (db/schema.sql).", "perfil-em-uso": "Tem pessoas neste perfil.",
-  "perfil-do-sistema": "Perfil padrão não pode ser apagado.", "nome-invalido": "Nome inválido.", "sem-permissao": "Só o dono dos perfis pode mudar isso." };
-const msgPf = e => ERRO_PF[e && e.message] || ((e && e.message) || String(e));
 $("#pf-corpo").addEventListener("change", async e => {
-  const tr = e.target.closest("tr[data-pf]"); if(!tr || !e.target.matches("[data-pp]")) return;
-  const p = perfis.find(x => x.nome === tr.dataset.pf), id = e.target.dataset.pp;
-  if(id === "admin" && e.target.checked && !confirm("Quem tem o perfil " + p.rotulo + " vai poder administrar usuários. Continuar?")){ e.target.checked = false; return; }
-  const permissoes = (p.permissoes || []).filter(x => x !== id).concat(e.target.checked ? [id] : []);
-  try{ receber(await PortalGate.salvarPerfil(p.nome, { rotulo: p.rotulo, permissoes })); desenharPerfis(); toast("Perfil " + p.rotulo + " atualizado."); }
-  catch(x){ toast("Não foi possível salvar: " + msgPf(x), true); desenharPerfis(); }
+  const tr = e.target.closest("tr[data-pf]"); if(!tr) return;
+  const p = perfis.find(x => x.nome === tr.dataset.pf);
+  let dados;
+  if(e.target.matches("[data-pp]")){
+    const id = e.target.dataset.pp;
+    if(id === "admin" && e.target.checked && !confirm("Quem tem o perfil " + p.rotulo + " vai poder administrar usuários. Continuar?")){ e.target.checked = false; return; }
+    dados = { rotulo: p.rotulo, permissoes: (p.permissoes || []).filter(x => x !== id).concat(e.target.checked ? [id] : []) };
+  } else if(e.target.matches("[data-pm]")){
+    const modelo = Object.assign({}, p.modelo || {}); if(e.target.value === "nenhum") delete modelo[e.target.dataset.pm]; else modelo[e.target.dataset.pm] = e.target.value;
+    dados = { rotulo: p.rotulo, modelo };
+  } else return;
+  try{ receber(await PortalGate.salvarPerfil(p.nome, dados)); desenharPerfis(); desenhar(); toast("Perfil " + p.rotulo + " atualizado. O modelo vale para quem entrar no perfil daqui para frente."); }
+  catch(x){ toast("Não foi possível salvar: " + msgErro(x), true); desenharPerfis(); }
 });
 $("#pf-corpo").addEventListener("click", async e => {
   const tr = e.target.closest("tr[data-pf]"); if(!tr || !e.target.matches("[data-pfrm]")) return;
   const p = perfis.find(x => x.nome === tr.dataset.pf);
   if(!confirm("Apagar o perfil " + p.rotulo + "?")) return;
   try{ await PortalGate.removerPerfil(p.nome); await carregarPerfis(); toast("Perfil apagado."); }
-  catch(x){ toast("Não foi possível apagar: " + msgPf(x), true); }
+  catch(x){ toast("Não foi possível apagar: " + msgErro(x), true); }
 });
 $("#pf-criar").onclick = async () => {
   const rotulo = $("#pf-rotulo").value.trim();
-  const nome = rotulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
+  const nome = rotulo.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
   if(!/^[a-z][a-z0-9-]{1,29}$/.test(nome)){ toast("Dê um nome com pelo menos 2 letras.", true); return; }
   if(ROT[nome]){ toast("Já existe um perfil com esse nome.", true); return; }
-  try{ receber(await PortalGate.salvarPerfil(nome, { rotulo, permissoes: [] }));       // nasce só vendo; marque as caixas depois
+  try{ receber(await PortalGate.salvarPerfil(nome, { rotulo, permissoes: [], modelo: MODELO_PADRAO }));
        $("#pf-rotulo").value = "";
-       opcoesPerfil(); desenharPerfis(); desenhar(); toast("Perfil " + rotulo + " criado. Marque o que ele pode fazer."); }
-  catch(x){ toast("Não foi possível criar: " + msgPf(x), true); }
+       opcoesPerfil(); desenharPerfis(); desenhar(); toast("Perfil " + rotulo + " criado. Marque o que ele pode fazer e o nível de cada ferramenta."); }
+  catch(x){ toast("Não foi possível criar: " + msgErro(x), true); }
 };
+
+// ---- pessoas ----
 async function carregar(){
   try{ lista = await PortalGate.listarUsuarios(); desenhar(); }
   catch(e){ $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Sem permissão para listar usuários.</td></tr>'; }
 }
 const achar = em => lista.find(u => u.email === em);
-async function gravar(u, ferr, msg){
-  const antes = u.ferramentas; u.ferramentas = ferr; desenhar();
-  try{ await PortalGate.salvarFerramentas(u.email, ferr); if(msg) toast(msg); }
-  catch(e){ u.ferramentas = antes; desenhar(); falha("Não foi possível salvar: ", e); }
+async function gravarPessoa(u, dados, msg){
+  const antes = JSON.parse(JSON.stringify(u));
+  if(dados.niveis) u.niveis = dados.niveis;
+  if(dados.perfil) u.perfil = dados.perfil;
+  if(dados.validoAte !== undefined) u.validoAte = dados.validoAte || 0;
+  desenhar();
+  try{ await PortalGate.salvarPessoa(u.email, dados); if(msg) toast(msg); }
+  catch(e){ Object.assign(u, antes); desenhar(); falha("Não foi possível salvar: ", e); }
 }
 $("#corpo").addEventListener("change", async e => {
   const tr = e.target.closest("tr[data-em]"); if(!tr) return; const u = achar(tr.dataset.em);
-  if(e.target.matches("input[data-f]")){
-    const novo = IDS.filter(id => id === e.target.dataset.f ? e.target.checked : u.ferramentas.includes(id));
-    await gravar(u, novo, (e.target.checked ? "Liberado" : "Retirado") + ": " + FERR.find(f => f.id === e.target.dataset.f).nome + " — " + u.email);
+  if(e.target.matches("select[data-f]")){
+    const niveis = soNiveis(Object.assign({}, u.niveis, { [e.target.dataset.f]: e.target.value }));
+    await gravarPessoa(u, { niveis }, NOMEF[e.target.dataset.f] + ": " + NIVEL_ROT[e.target.value] + " — " + u.email);
   } else if(e.target.matches("select[data-perfil]")){
+    const novo = e.target.value;
     if(u.email === eu && !confirm("Você vai mudar o seu próprio perfil. Continuar?")){ desenhar(); return; }
-    try{ await PortalGate.salvarUsuario(u.email, e.target.value); u.perfil = e.target.value;
-         u.ferramentas = PortalGate.ferramentasDe(u.perfil, { ferramentas: u.ferramentas }); desenhar(); toast("Perfil atualizado."); }
-    catch(x){ toast("Não foi possível salvar: " + msgPf(x), true); desenhar(); }
+    if(personalizada(u) && !confirm(u.email + " tem níveis ajustados à mão. Trocar o perfil aplica o modelo de " + (ROT[novo] || novo) + " e descarta esses ajustes. Continuar?")){ desenhar(); return; }
+    await gravarPessoa(u, { perfil: novo, niveis: soNiveis(modeloDe(novo)) }, "Perfil " + (ROT[novo] || novo) + " aplicado a " + u.email + " (com o modelo de níveis).");
   }
 });
-$("#corpo").addEventListener("click", async e => {
-  const tr = e.target.closest("tr[data-em]"); if(!tr) return; const u = achar(tr.dataset.em);
-  if(e.target.matches("[data-tudo]")){
-    const dar = e.target.dataset.tudo === "1";
-    if(!dar && !confirm("Retirar TODAS as ferramentas de " + u.email + "? Ela ainda poderá entrar, mas verá o painel vazio.")) return;
-    await gravar(u, dar ? IDS.slice() : [], dar ? "Tudo liberado para " + u.email : "Todas as permissões retiradas de " + u.email);
-  } else if(e.target.matches("[data-rm]")){
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-a]");
+  if(!b){ document.querySelectorAll("details.menu[open]").forEach(d => { if(!d.contains(e.target)) d.open = false; }); return; }
+  const tr = b.closest("tr[data-em]"); if(!tr) return; const u = achar(tr.dataset.em);
+  b.closest("details").open = false;
+  if(b.dataset.a === "modelo"){
+    if(!confirm("Aplicar o modelo do perfil " + (ROT[u.perfil] || u.perfil) + " a " + u.email + "? Os ajustes à mão serão descartados.")) return;
+    await gravarPessoa(u, { niveis: soNiveis(modeloDe(u.perfil)) }, "Modelo aplicado a " + u.email + ".");
+  } else if(b.dataset.a === "validade"){
+    const atual = u.validoAte ? new Date(u.validoAte).toISOString().slice(0, 10) : "";
+    const r = prompt("Acesso de " + u.email + " vale até (AAAA-MM-DD). Deixe vazio para tirar a validade:", atual);
+    if(r === null) return;
+    if(r.trim() === ""){ await gravarPessoa(u, { validoAte: null }, "Validade removida de " + u.email + "."); return; }
+    const d = new Date(r.trim() + "T23:59:59-03:00");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(r.trim()) || isNaN(d)){ toast("Use o formato AAAA-MM-DD.", true); return; }
+    await gravarPessoa(u, { validoAte: d.getTime() }, "Acesso de " + u.email + " vale até " + fmtD(d.getTime()) + ".");
+  } else if(b.dataset.a === "senha"){
+    if(!confirm("Redefinir a senha de " + u.email + "? Ela precisará criar uma nova no próximo acesso.")) return;
+    try{ await PortalGate.salvarPessoa(u.email, { resetar_senha: true }); u.ultimoAcesso = 0; desenhar(); toast("Senha redefinida. " + u.email + " cria uma nova no próximo acesso."); }
+    catch(x){ falha("Não foi possível redefinir: ", x); }
+  } else if(b.dataset.a === "rm"){
     if(!confirm("Remover o acesso de " + u.email + " ao portal?")) return;
     try{ await PortalGate.removerUsuario(u.email); lista = lista.filter(x => x !== u); desenhar(); toast("Acesso removido."); }
     catch(x){ falha("Não foi possível remover: ", x); }
   }
 });
-$("#cab").addEventListener("click", async e => {
-  const b = e.target.closest("button[data-col]"); if(!b) return;
-  const alvo = filtrados().filter(u => u.perfil !== "ti"), dar = b.dataset.v === "1", nome = FERR.find(f => f.id === b.dataset.col).nome;
-  if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
-  if(!confirm((dar ? "Liberar " : "Retirar ") + nome + (dar ? " para " : " de ") + alvo.length + " pessoa(s) (TI não muda)?")) return;
-  await massa(alvo, u => IDS.filter(id => id === b.dataset.col ? dar : u.ferramentas.includes(id)), (dar ? "Liberado" : "Retirado") + ": " + nome + " (" + alvo.length + " pessoas)");
-});
+// ---- em massa ----
 async function massa(alvo, calc, msg){
-  const antes = alvo.map(u => u.ferramentas);
-  alvo.forEach(u => { u.ferramentas = calc(u); }); desenhar();
-  try{ await PortalGate.salvarFerramentasVarios(alvo.map(u => ({ email: u.email, ferramentas: u.ferramentas }))); toast(msg); }
-  catch(e){ alvo.forEach((u, i) => { u.ferramentas = antes[i]; }); desenhar(); falha("Não foi possível salvar: ", e); }
+  const antes = alvo.map(u => JSON.parse(JSON.stringify(u)));
+  alvo.forEach(u => { u.niveis = calc(u); }); desenhar();
+  try{ await PortalGate.salvarNiveisVarios(alvo.map(u => ({ email: u.email, niveis: u.niveis }))); toast(msg); }
+  catch(e){ alvo.forEach((u, i) => Object.assign(u, antes[i])); desenhar(); falha("Não foi possível salvar: ", e); }
 }
-$("#m-tudo").onclick = async () => {
-  const alvo = filtrados().filter(u => u.perfil !== "ti"); if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
-  if(!confirm("Liberar TODAS as ferramentas para " + alvo.length + " pessoa(s)?")) return;
-  await massa(alvo, () => IDS.slice(), "Tudo liberado para " + alvo.length + " pessoa(s).");
+$("#massa-ok").onclick = async () => {
+  const alvo = filtrados().filter(u => u.perfil !== "ti"), f = $("#massa-ferr").value, n = $("#massa-nivel").value;
+  if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
+  if(!confirm("Definir " + NOMEF[f] + " como \"" + NIVEL_ROT[n] + "\" para " + alvo.length + " pessoa(s)? (O TI não muda.)")) return;
+  $("#massa").open = false;
+  await massa(alvo, u => soNiveis(Object.assign({}, u.niveis, { [f]: n })), NOMEF[f] + ": " + NIVEL_ROT[n] + " para " + alvo.length + " pessoa(s).");
 };
-$("#m-nada").onclick = async () => {
-  const alvo = filtrados().filter(u => u.perfil !== "ti"); if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
-  if(!confirm("RETIRAR todas as permissões de " + alvo.length + " pessoa(s)? O TI não é afetado.")) return;
-  await massa(alvo, () => [], "Todas as permissões retiradas de " + alvo.length + " pessoa(s).");
+$("#massa-zero").onclick = async () => {
+  const alvo = filtrados().filter(u => u.perfil !== "ti");
+  if(!alvo.length){ toast("Ninguém para alterar com este filtro."); return; }
+  if(!confirm("RETIRAR todas as ferramentas de " + alvo.length + " pessoa(s)? Elas ainda poderão entrar, mas verão o painel vazio. O TI não muda.")) return;
+  $("#massa").open = false;
+  await massa(alvo, () => ({}), "Todas as ferramentas retiradas de " + alvo.length + " pessoa(s).");
 };
-$("#busca").addEventListener("input", desenhar); $("#filtro").addEventListener("change", desenhar);
-$("#add-ferr").innerHTML = FERR.map(f => '<label><input type="checkbox" data-addf="' + f.id + '"' + (f.id === "monitor" ? " checked" : "") + "> " + esc(f.nome) + "</label>").join("");
+["busca"].forEach(i => $("#" + i).addEventListener("input", desenhar));
+["filtro", "f-nivel", "f-ferr"].forEach(i => $("#" + i).addEventListener("change", desenhar));
+// ---- adicionar ----
 $("#add-ok").onclick = async () => {
   const todos = $("#add-emails").value.split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
   const ok = [...new Set(todos.filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))], ruins = todos.length - ok.length;
   if(!ok.length){ toast("Digite pelo menos um e-mail válido.", true); return; }
-  const ferr = [...document.querySelectorAll("[data-addf]")].filter(c => c.checked).map(c => c.dataset.addf);
-  try{ await PortalGate.salvarVarios(ok, $("#add-perfil").value); await PortalGate.salvarFerramentasVarios(ok.map(email => ({ email, ferramentas: ferr })));
-       $("#add-emails").value = ""; toast(ok.length + (ok.length === 1 ? " pessoa adicionada." : " pessoas adicionadas.") + (ruins ? " " + ruins + " inválido(s) ignorado(s)." : "")); carregar(); }
+  const niveis = {}; document.querySelectorAll("[data-addn]").forEach(s => { if(s.value !== "nenhum") niveis[s.dataset.addn] = s.value; });
+  const v = $("#add-validade").value, validoAte = v ? new Date(v + "T23:59:59-03:00").getTime() : undefined;
+  try{ await PortalGate.salvarNiveisVarios(ok.map(email => Object.assign({ email, perfil: $("#add-perfil").value, niveis }, validoAte ? { validoAte } : {})));
+       $("#add-emails").value = ""; $("#add-validade").value = ""; toast(ok.length + (ok.length === 1 ? " pessoa adicionada." : " pessoas adicionadas.") + (ruins ? " " + ruins + " inválido(s) ignorado(s)." : "")); carregar(); }
   catch(e){ falha("Não foi possível salvar: ", e); }
 };
+// ---- histórico de acessos ----
+let logCache = null;
+const ROT_TIPO = { adicionou: "Adicionou", alterou: "Alterou", removeu: "Removeu", perfil: "Perfil" };
+function desenharHist(){
+  const q = $("#hist-q").value.trim().toLowerCase(), box = $("#hist-corpo");
+  if(!logCache){ box.innerHTML = '<p class="mini-sub">carregando…</p>'; return; }
+  const l = logCache.filter(x => !q || x.alvo.toLowerCase().includes(q) || x.por.toLowerCase().includes(q)).slice(0, 100);
+  box.innerHTML = l.length ? '<ul class="hl">' + l.map(x => '<li><div class="hq"><b>' + fmt(x.em) + '</b><span class="tp tp-' + esc(x.tipo) + '">' + esc(ROT_TIPO[x.tipo] || x.tipo) + "</span><span>" + esc(x.por) + " → <b>" + esc(x.alvo) + "</b></span></div>"
+      + '<p class="hd">' + (x.detalhe || []).map(esc).join(" · ") + "</p></li>").join("") + "</ul>" : '<p class="mini-sub">Nenhuma alteração registrada' + (q ? " com esse filtro" : " ainda") + ".</p>";
+}
+$("#hist").addEventListener("toggle", async () => {
+  if(!$("#hist").open || logCache) return;
+  desenharHist();
+  try{ logCache = await PortalGate.listarAcessosLog(150); }catch(e){ $("#hist-corpo").innerHTML = '<p class="mini-sub">Não consegui carregar o histórico. ' + esc(msgErro(e)) + "</p>"; return; }
+  desenharHist();
+});
+$("#hist-q").addEventListener("input", desenharHist);
 function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
 $("#tema").onclick = () => { const n = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
   document.documentElement.setAttribute("data-theme", n); try{ localStorage.setItem("portal_tema", n); }catch(_){} icone(); };
 icone();
-if(window.PortalGate && PortalGate.ativo()){
+if(window.PortalGate && PortalGate.ativo() && CF){
+  ["salvarPessoa", "salvarNiveisVarios"].forEach(k => { const o = PortalGate[k]; PortalGate[k] = async function(){ const r = await o.apply(this, arguments); logCache = null; if($("#hist").open) $("#hist").dispatchEvent(new Event("toggle")); return r; }; });
   PortalGate.pronto.then(async u => { if(!u || !(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti")) return; eu = u.email; await carregarPerfis(); carregar(); });
 } else {
   opcoesPerfil();
-  $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Esta tela funciona só no portal publicado (login Firebase).</td></tr>';
+  $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Os níveis de acesso funcionam no portal da Cloudflare (pages.dev). Abra o portal por lá para administrar pessoas.</td></tr>';
 }
 })();
 </script>
