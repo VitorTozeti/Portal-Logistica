@@ -135,7 +135,7 @@ function montar(raiz, ctx){
     '<details><summary>Como a escolha funciona</summary><ul>' +
     '<li>Banda = quantos dias úteis a mais que a transportadora mais rápida a escolha aceita para pagar menos frete.</li>' +
     '<li>Três regras por estado: Capital, Interior e Distribuidor (cliente distribuidor, qualquer cidade).</li>' +
-    '<li>Sem banda salva, a API usa a ★ Recomendada: maior economia sem aumentar o prazo; se nenhuma economiza sem piorar, a que economiza piorando o prazo o mínimo; se nenhuma economiza, só a mais rápida.</li>' +
+    '<li>A ★ Recomendada é recalculada toda segunda-feira (ou em "Recalcular agora"), não a cada pedido. Sem banda salva, a API usa a ★ Recomendada: maior economia sem aumentar o prazo; se nenhuma economiza sem piorar, a que economiza piorando o prazo o mínimo; se nenhuma economiza, só a mais rápida.</li>' +
     '<li>Frete e economia comparados sem ICMS, como o motor da Azure. Transportadora bloqueada na Cobertura não entra.</li></ul></details>' +
     '<div class="aviso" id="bm-aviso" hidden></div>' +
     '<div class="exp"><div class="bm-esq"><input type="search" id="bm-q" placeholder="Filtrar estado…" aria-label="Filtrar estado por nome ou sigla">' +
@@ -221,6 +221,25 @@ function montar(raiz, ctx){
       : '<p class="bm-mudo">Nenhuma alteração registrada' + (histTodos ? "" : " neste estado") + ".</p>";
   }
 
+  // Padrão (★ Recomendada) = foto semanal da Azure (segunda 00h, Brasília); "Recalcular agora" refaz a foto (só quem edita o Custo)
+  const dcurta = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? m[3] + "/" + m[2] : "—"; };
+  const podeRecalcular = () => { const g = window.PortalGate; if(!g || !g.ativo || !g.ativo() || typeof g.pode !== "function") return true; return g.pode("custo_editar") !== false; };
+  function textoPadrao(){
+    const pi = est.padrao_info || {};
+    if(pi.modo === "continuo") return "Padrão (★): recalculado a cada pedido (modo contínuo ligado na Azure).";
+    const base = pi.ativo
+      ? "Padrão (★) da semana de <b>" + dcurta(pi.semana) + "</b> · atualiza toda segunda (próxima: <b>" + dcurta(pi.proxima) + "</b>). Bloqueios da Cobertura valem na hora; só a banda recomendada fica parada."
+      : "Padrão (★): ainda pela planilha de 23/10 — a foto da semana é calculada na primeira consulta da semana.";
+    return base + (podeRecalcular() ? ' <button type="button" class="btn" id="bm-recalc">Recalcular agora</button>' : "");
+  }
+  async function recalcularPadrao(){
+    const b = $("#bm-recalc"); if(b){ b.disabled = true; b.textContent = "Recalculando…"; }
+    try{
+      const r = await api("POST", "/v1/cobertura/banda/recalcular-padrao");
+      ctx.toast("Padrão recalculado (" + (r.regras || 0) + " regras).");
+      limparCache(); await carregarEstado();
+    }catch(e){ ctx.toast(msgErro(e), { erro: true }); if(b){ b.disabled = false; b.textContent = "Recalcular agora"; } }
+  }
   async function desenhar(){
     desenharLista();
     const pa = est.prazo_ajuste || {};
@@ -241,6 +260,7 @@ function montar(raiz, ctx){
       ? '<span class="bm-fonteb" title="' + esc(d.descricao || "") + '">Dados reais ' + esc(per.length ? mesBr(per[0]) + "–" + mesBr(per[1]) : "") + " · bloqueios considerados</span>"
       : '<span class="bm-fonteb bm-velha" title="' + esc(d.descricao || "") + '">Planilha de 23/10 · sem bloqueios</span>';
     h += '<div class="bm-cabuf"><h3>' + esc(nomeUF(uf)) + "</h3>" + selo + "</div>";
+    h += '<p class="bm-info" id="bm-padrao-info">' + textoPadrao() + "</p>";
     const at = pa.atualizacao || {};
     const dBr = iso => { const x = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return x ? x[3] + "/" + x[2] + "/" + x[1] : ""; };
     if(pa.gerado_em){
@@ -263,6 +283,7 @@ function montar(raiz, ctx){
       '<button type="button" class="btn pri" id="bm-sgo">Simular</button></div>' +
       '<div id="bm-sres" aria-live="polite"></div></section>';
     $("#bm-painel").innerHTML = h;
+    const rc = $("#bm-recalc"); if(rc) rc.onclick = recalcularPadrao;
     prepararSim();
     carregarHist();
     $("#bm-hist-todos").onchange = e => { histTodos = e.target.checked; carregarHist(); };
@@ -363,7 +384,7 @@ function montar(raiz, ctx){
     const minPiora = quadro.recomendada_tipo === "menor_piora";     // nenhuma economiza sem piorar o prazo: a recomendada piora o mínimo
     if(d.fonte === "recalculo" && !igual(melhorAgora, pad > 0 ? pad : null)){
       h += '<div class="bm-bloqbox" role="status">' + (minPiora ? "Melhor banda agora (economiza piorando o prazo o mínimo): " : "Melhor banda sem piorar o prazo agora: ") + (melhorAgora == null ? "<b>nenhuma</b>" : "<b>+" + fmtB(melhorAgora) + " d</b>") +
-           " (a ★ Recomendada da API segue " + (pad > 0 ? "+" + fmtB(pad) + " d" : "só a mais rápida") + ")." +
+           " (a ★ Recomendada da API, fixa até segunda, é " + (pad > 0 ? "+" + fmtB(pad) + " d" : "só a mais rápida") + ")." +
            (melhorAgora != null ? ' <button type="button" class="btn" data-fixar="' + s + '" data-v="' + melhorAgora + '">Fixar +' + fmtB(melhorAgora) + " d</button>" : "") + "</div>";
     }
     h += '<div class="bm-tab"><table><caption class="sr-only">Bandas de ' + nome + " em " + esc(nomeUF(uf)) + "</caption>" +
