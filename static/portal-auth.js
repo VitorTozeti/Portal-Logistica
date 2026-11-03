@@ -42,7 +42,7 @@ window.PortalGate = (function () {
       desc: "Notas que subiram e as travadas, com o problema e há quanto tempo, e as ações por nota." },
     { id: "custo", nome: "Custo de Frete", icone: "💲", href: "./custo.html",
       desc: "Libere ou bloqueie estados e cidades de cada transportadora, por tela ou Excel." },
-    { id: "pedidos", nome: "Pedidos e fretes", icone: "🚚", href: "./pedidos.html",
+    { id: "pedidos", nome: "Pedidos e fretes", icone: "🚚", href: "./pedidos.html", grupo: "adm",   // card na seção Administração do painel; nível por pessoa
       desc: "Pedidos escolhidos pela Azure, frete simulado × real e o total do histórico." },
   ];
   const FERRAMENTA_TI = { id: "usuarios", nome: "Usuários e permissões", icone: "👥", href: "./usuarios.html",
