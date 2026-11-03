@@ -109,6 +109,35 @@ def nfs_unilog() -> dict:
     return out
 
 
+# nome que a logística entende para cada situação (o robô guarda o nome da Unilog em status_desc)
+NOME_SITUACAO = {
+    "": "Enviada", "1": "Pendente", "2": "Integrada", "3": "Em conferência", "4": "Conferida",
+    "5": "Erro na integração", "21": "Cancelada", "22": "Embarcada",
+}
+
+
+def situacoes() -> dict:
+    """{filial: {nf_limpo: {...}}} com a situação atual de cada NF na Unilog e o histórico
+    de etapas (para o card e o painel de detalhe das notas que subiram)."""
+    if not ligado():
+        return {}
+    dados, _ = _ler()
+    out: dict = {}
+    for reg in (dados or {}).get("nfs", {}).values():
+        code = str(reg.get("status_code") or "")
+        if reg.get("etapa") == "RECUSADO":
+            nome = "Recusada"
+        else:
+            nome = NOME_SITUACAO.get(code, reg.get("status_desc") or code)
+        hist = [{"em": _iso(h.get("ts")), "evento": str(h.get("evento") or "")}
+                for h in reg.get("historico") or [] if h.get("ts")]
+        out.setdefault(reg.get("filial"), {})[_limpar(reg.get("serial"))] = {
+            "code": code, "nome": nome, "desde": _iso(reg.get("status_desde")),
+            "request_id": reg.get("request_id") or "", "historico": hist[-15:],
+        }
+    return out
+
+
 def _ev(filial, nf, cod, cat, desc, desde):
     return {
         "nf": nf, "filial": filial, "estado": "travada", "transportadora": "Unilog",

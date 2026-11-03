@@ -192,12 +192,12 @@ def _coletar_estado():
     travadas, ok_rows, nfs_no_log, log_index = [], [], set(), {}
     try:
         import unilog_feed
-        da_unilog = unilog_feed.nfs_unilog()
+        sit_unilog = unilog_feed.situacoes()
     except Exception as e:
         print(f"  [FEED] estado da Unilog indisponível: {e}", flush=True)
-        da_unilog = {}
+        sit_unilog = {}
     for filial, caminho in LOGS_MESTRE.items():
-        nfs_unilog_filial = da_unilog.get(filial, set())
+        nfs_unilog_filial = sit_unilog.get(filial, {})
         for r in _ler_csv(caminho):
             carrier = str(r.get("Carrier", "")).strip()
             nf = str(r.get("NF", "")).strip()
@@ -217,9 +217,10 @@ def _coletar_estado():
                 continue  # carga inicial manual, não entra como operação
             if not nf:
                 continue
-            res = classificar(r, _limpar_nf(nf) in nfs_unilog_filial)
-            if res == "CANCELADO":
-                continue
+            sit = nfs_unilog_filial.get(_limpar_nf(nf))
+            res = classificar(r, sit is not None)
+            if res == "CANCELADO" or (sit and sit["code"] == "21"):
+                continue  # cancelada na B4You (log) ou na Unilog (estado do robô)
             # "ignorada" de verdade = SÓ quando a Chave é IGNORADO (marca única do ignorar_notas.py
             # ao criar a linha do zero). "Dispensado Manualmente" no Msg_Erro NÃO conta — pega carga
             # histórica e dispensas de boleto/etc. que não são ignore operacional. (decisão do gestor)
@@ -230,6 +231,10 @@ def _coletar_estado():
                 "atualizado_em": _iso(str(r.get("Data_Processamento", ""))),
                 "ignorada": ignorada,
             }
+            if sit:
+                base.update(operador="Unilog", unilog_code=sit["code"], unilog_situacao=sit["nome"],
+                            unilog_desde=sit["desde"], unilog_request_id=sit["request_id"],
+                            unilog_historico=sit["historico"])
             if res is None:
                 ok_rows.append({**base, "estado": "subiu",
                                 "_ord": str(r.get("Data_Processamento", ""))})
@@ -352,8 +357,10 @@ async def rodar_feed_simulado() -> None:
             # não pode sobrescrever a travada.
             subiram = [ev for ev in subiram if ev["id"] not in travadas_atuais]
             for ev in subiram:
-                atual[ev["id"]] = "subiu"
-                if publicado.get(ev["id"]) != "subiu":
+                # a situação da Unilog entra na assinatura: mudou de etapa → republica
+                assinatura = "subiu" + (f"|{ev['unilog_code']}" if ev.get("operador") == "Unilog" else "")
+                atual[ev["id"]] = assinatura
+                if publicado.get(ev["id"]) != assinatura:
                     hub.publicar(ev)
 
             publicado = atual

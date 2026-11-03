@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portal da Logística — B4You</title>
+<title>Portal da Logística — Expedição</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- No GitHub Pages, a foto vem do container Azure: abrir DNS+TLS já no parse
@@ -148,6 +148,12 @@
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
   .nf.subiu .tag{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  .uni{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;
+    color:var(--ink2);background:color-mix(in srgb,var(--ink2) 12%,transparent)}
+  .uni.u22{color:#16a34a;background:color-mix(in srgb,#16a34a 14%,transparent)}
+  .uni.u34{color:#d97706;background:color-mix(in srgb,#d97706 14%,transparent)}
+  .hist{margin-top:10px;border-left:2px solid var(--line, #2a3a44);padding-left:10px}
+  .hist div{font-size:12px;margin:4px 0}.hist .em{color:var(--ink2);font-family:ui-monospace,monospace;margin-right:6px}
   .subdata{margin-left:auto;font-size:11px;color:var(--ink2);font-family:ui-monospace,monospace}
   .subdata + .carrier{margin-left:10px}
   .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
@@ -423,7 +429,7 @@
   <span class="sep" aria-hidden="true"></span>
   <span class="dot" id="dot"></span>
   <b>Portal da Logística</b>
-  <span class="so-desk" style="font-size:12px;color:var(--ink2)">· B4You</span>
+  <span class="so-desk" style="font-size:12px;color:var(--ink2)">· Expedição</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
   <div class="conta" id="conta">
@@ -523,9 +529,9 @@
     <span class="ft-brand">Portal da Logística <span class="ft-sep">·</span> Pharmaesthetics</span>
     <span class="ft-mid">
       <span id="ft-live" class="ft-pill">● conectando…</span>
-      <span class="ft-ro">somente leitura — não altera SAP/B4You</span>
+      <span class="ft-ro">somente leitura — não altera SAP nem o operador logístico</span>
     </span>
-    <span class="ft-ver">v0.1 · B4You</span>
+    <span class="ft-ver">v0.2 · B4You + Unilog</span>
   </div>
 </footer>
 
@@ -727,6 +733,13 @@
       + ((tempo || n.data_faturamento) ? `<div class="meta">${n.data_faturamento ? `<span>Faturada em ${esc(dataBR(n.data_faturamento))}</span> ` : ""}${tempo}</div>` : "")
       + `</div>`;
   }
+  // situação da NF na Unilog (só NF que o robô mandou à Unilog — campo operador)
+  function seloUnilog(n){
+    if(n.operador !== "Unilog") return "";
+    const c = String(n.unilog_code||"");
+    const cls = c==="22" ? "uni u22" : (c==="3"||c==="4") ? "uni u34" : "uni";
+    return `<span class="${cls}" title="Situação na Unilog">Unilog · ${esc(n.unilog_situacao||"Enviada")}</span>`;
+  }
   function cardSubiu(n){
     const selo = n.ignorada ? `<span class="grp ignorada">⊘ ignorada</span>` : "";
     const dt = dataBR(n.atualizado_em);
@@ -736,6 +749,7 @@
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + (fil ? `<span class="${filCls}">${esc(fil)}</span>` : "")
       + `<span class="tag">✓ subiu</span>`
+      + seloUnilog(n)
       + selo
       + (dt ? `<span class="subdata">${dt}</span>` : "")
       + `<span class="carrier">${esc(n.transportadora)}</span></div></div>`;
@@ -1037,10 +1051,20 @@
     { const f = Date.parse(n.data_faturamento), u = Date.parse(n.atualizado_em);
       if(f && u && u >= f) rows.push(["Faturar → subir", Math.round((u - f) / 864e5) + " dia(s)"]); }
     if(n.ignorada) rows.push(["Situação", "⊘ Ignorada (Chave IGNORADO)"]);
+    const uni = n.operador === "Unilog";
+    if(uni){
+      rows.push(["Operador", "Unilog"]);
+      rows.push(["Na Unilog", esc(n.unilog_situacao||"Enviada") + (n.unilog_desde ? " desde " + esc(dataBR(n.unilog_desde)) : "")]);
+      if(n.unilog_request_id) rows.push(["Pedido na Unilog", `<span style="font-family:ui-monospace,monospace">${esc(n.unilog_request_id)}</span>`]);
+    }
+    const hist = uni && (n.unilog_historico||[]).length
+      ? `<div class="hist">` + n.unilog_historico.slice().reverse().map(h =>
+          `<div><span class="em">${esc(h.em ? new Date(h.em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "")}</span>${esc(h.evento)}</div>`).join("") + `</div>` : "";
+    const embarcou = !uni || String(n.unilog_code) === "22";
     $("#dw-body").innerHTML =
       rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
-      + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ Processada com sucesso</div>`
-      + `<div class="ax">Nota enviada e confirmada.</div></div>`;
+      + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ ${embarcou ? "Processada com sucesso" : "Enviada à Unilog"}</div>`
+      + `<div class="ax">${uni ? (embarcou ? "Embarcada pela Unilog." : "Ainda não embarcou — o histórico mostra a etapa atual.") : "Nota enviada e confirmada."}</div>${hist}</div>`;
     abrirDrawer();
   }
 
