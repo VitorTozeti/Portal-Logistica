@@ -56,7 +56,28 @@ const CSS = `
 .pf-espera{background:color-mix(in srgb,var(--soft) 16%,transparent);color:var(--soft)}
 .pf-pos{color:var(--bq,#f87171);font-weight:700} .pf-neg{color:var(--at,#34d399);font-weight:700}
 .pf-rod{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--soft)}
-@media (max-width:640px){.pf-barra .esp{display:none} .pf-kpi .n{font-size:20px}}
+.pf-hist{margin-bottom:10px}
+.pf-hist:empty{display:none}
+.pf-k-hist{border-color:color-mix(in srgb,var(--brand) 35%,var(--line))}
+.pf-k-hist .n{color:var(--brand)}
+@media (max-width:900px){.pf-barra input{flex:1 1 100%} .pf-barra select{flex:1 1 150px;min-width:0}}
+@media (max-width:640px){
+  .pf-barra .esp{display:none}
+  .pf-seg{width:100%} .pf-seg button{flex:1}
+  .pf-barra .btn{flex:1 1 calc(50% - 4px)}
+  .pf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pf-kpi{padding:10px 12px} .pf-kpi .n{font-size:19px;overflow-wrap:anywhere} .pf-kpi .l{font-size:11px}
+  .pf-tab{border:0;background:transparent;overflow:visible}
+  .pf-tab table,.pf-tab thead,.pf-tab tbody,.pf-tab tr,.pf-tab td{display:block;width:100%}
+  .pf-tab thead{position:absolute;left:-9999px}
+  .pf-tab tr{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 10px;padding:6px 12px}
+  .pf-tab td{display:flex;justify-content:space-between;align-items:center;gap:12px;white-space:normal;text-align:right;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding:7px 0}
+  .pf-tab td:last-child{border-bottom:0}
+  .pf-tab td[data-l]::before{content:attr(data-l);color:var(--soft);font-size:12px;font-weight:700;text-align:left;flex:none}
+  .pf-tab td.ck{justify-content:flex-start;width:auto}
+  .pf-tab .sub2{display:inline;margin-left:6px}
+  .pf-rod{flex-direction:column}
+}
 `;
 
 function montar(raiz, ctx){
@@ -83,6 +104,7 @@ function montar(raiz, ctx){
       <button class="btn" id="pf-xls" type="button">⬇ Excel</button>
     </div>
     <div id="pf-faixa"></div>
+    <div class="pf-kpis pf-hist" id="pf-hist" aria-label="Todo o histórico guardado"></div>
     <div class="pf-kpis" id="pf-kpis"></div>
     <div id="pf-selbar"></div>
     <div class="pf-tab" id="pf-tab"><div class="vazio">carregando…</div></div>
@@ -120,8 +142,27 @@ function montar(raiz, ctx){
     if(erro){ $("#pf-tab").innerHTML = '<div class="vazio">' + esc(ctx.msgErro(erro)) + "</div>"; return; }
     for(const id of [...sel]) if(!dados.pedidos.some(p => p.id === id)) sel.delete(id);
     render();
+    carregarResumo();
   }
   raiz._pfAtualizar = atualizar;
+
+  // Total de TODOS os pedidos já feitos e do frete simulado: vem pronto da Azure (soma de dias guardados), não recalculado aqui.
+  let resumoHist = null, resumoEm = 0;
+  async function carregarResumo(){
+    if(Date.now() - resumoEm < 60000 && resumoHist) { pintarHist(); return; }
+    try{ resumoHist = await ctx.api("GET", "/v1/portal/pedidos/resumo"); resumoEm = Date.now(); }catch(e){ resumoHist = { erro: true }; }
+    pintarHist();
+  }
+  function pintarHist(){
+    const h = resumoHist, box = $("#pf-hist");
+    if(!box) return;
+    if(!h || h.erro || h.storage === false){ box.innerHTML = ""; return; }
+    const desde = h.desde ? new Date(h.desde + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "";
+    const porMes = (h.meses || []).map(m => m.mes.slice(5) + "/" + m.mes.slice(2, 4) + ": " + nf(m.pedidos, 0) + " pedidos · " + R(m.simulado)).join("\n");
+    box.innerHTML =
+      `<div class="pf-kpi pf-k-hist" title="${esc(porMes)}"><div class="l">Pedidos feitos (total)</div><div class="n">${nf(h.pedidos || 0, 0)}</div><div class="s">produção, sem cliques repetidos${desde ? " · desde " + desde : ""}</div></div>` +
+      `<div class="pf-kpi pf-k-hist" title="${esc(porMes)}"><div class="l">Frete simulado (total)</div><div class="n">${R(h.simulado || 0)}</div><div class="s">soma de todos os fretes escolhidos${h.dias ? " · " + nf(h.dias, 0) + " dias guardados" : ""}</div></div>`;
+  }
 
   // soma o resumo no navegador (mesma conta de portal_pedidos._resumo na Azure) porque as semanas chegam em páginas
   function resumir(ls){
@@ -152,7 +193,7 @@ function montar(raiz, ctx){
 
   function render(){
     const d = dados, rs = d.resumo || {};
-    if(d.janela && d.janela.desde){ const ini = new Date(d.janela.desde), fim = new Date(ini0 + 6 * 864e5);
+    if(d.janela && d.janela.desde){ const ini = pagina && d.pedidos.length ? new Date(d.pedidos[d.pedidos.length - 1].criado_em) : new Date(d.janela.desde), fim = new Date(ini0 + 6 * 864e5);
       $("#pf-semana").textContent = (pagina ? "De " : "Semana de ") + dia(ini) + " a " + dia(fim) + " · " + nf(d.total || 0, 0) + " pedido" + (d.total === 1 ? "" : "s"); }
     let faixa = "";
     if(d.storage === false) faixa = "A Azure não está guardando os pedidos agora (armazenamento desligado).";
@@ -177,14 +218,14 @@ function montar(raiz, ctx){
       d.pedidos.map(p => {
         const s = SIT[p.situacao] || [p.situacao, "pf-espera"], c = p.diferenca > 0 ? "pf-pos" : p.diferenca < 0 ? "pf-neg" : "", n = nfNum(p.chave_nf);
         return `<tr class="${p.teste ? "pf-t" : ""}">` + (podeExcluir ? `<td class="ck"><input type="checkbox" data-id="${esc(p.id)}" aria-label="Selecionar" ${sel.has(p.id) ? "checked" : ""}></td>` : "") +
-          `<td>${esc(diaHora(p.criado_em))}${p.repeticoes ? ` <span class="sub2" title="${p.repeticoes} clique${p.repeticoes > 1 ? "s" : ""} anterior${p.repeticoes > 1 ? "es" : ""} do mesmo pedido (${p.agrupado_por === "nf" ? "mesma NF" : p.agrupado_por === "impressao" ? "mesmos itens, valor e destino" : "mesmo valor, CEP, peso e dia"}) — vale o mais recente">×${p.repeticoes + 1}</span>` : ""}</td>` +
-          `<td title="${esc(p.chave_nf || "sem chave da NF")}">${n ? esc(n) : '<span class="sub2">—</span>'}</td>` +
-          `<td>${esc(p.cidade)}${p.uf ? " / " + esc(p.uf) : ""}</td><td class="num">${p.volumes || ""}</td>` +
-          `<td>${esc(p.transportadora)}${p.transportadora_real && p.transportadora_real !== p.transportadora ? '<span class="sub2">levou: ' + esc(p.transportadora_real) + "</span>" : ""}</td>` +
-          `<td class="num" title="${p.simulado_com_imposto ? "com imposto: " + R(p.simulado_com_imposto) : "sem imposto"}">${R(p.simulado)}</td>` +
-          `<td class="num" title="${p.real_compartilhado ? "CT-e dividido entre várias NFs (valor rateado)" : ""}">${R(p.real)}${p.real_compartilhado ? " ⧉" : ""}</td>` +
-          `<td class="num ${c}" title="${esc(BASE[p.base_comparacao] || "")}">${DIF(p.diferenca, p.diferenca_pct)}</td>` +
-          `<td><span class="pf-badge ${s[1]}">${esc(s[0])}</span></td></tr>`;
+          `<td data-l="Data">${esc(diaHora(p.criado_em))}${p.repeticoes ? ` <span class="sub2" title="${p.repeticoes} clique${p.repeticoes > 1 ? "s" : ""} anterior${p.repeticoes > 1 ? "es" : ""} do mesmo pedido (${p.agrupado_por === "nf" ? "mesma NF" : p.agrupado_por === "impressao" ? "mesmos itens, valor e destino" : "mesmo valor, CEP, peso e dia"}) — vale o mais recente">×${p.repeticoes + 1}</span>` : ""}</td>` +
+          `<td data-l="NF" title="${esc(p.chave_nf || "sem chave da NF")}">${n ? esc(n) : '<span class="sub2">—</span>'}</td>` +
+          `<td data-l="Destino">${esc(p.cidade)}${p.uf ? " / " + esc(p.uf) : ""}</td><td class="num" data-l="Volumes">${p.volumes || ""}</td>` +
+          `<td data-l="Transportadora">${esc(p.transportadora)}${p.transportadora_real && p.transportadora_real !== p.transportadora ? '<span class="sub2">levou: ' + esc(p.transportadora_real) + "</span>" : ""}</td>` +
+          `<td class="num" data-l="Simulado" title="${p.simulado_com_imposto ? "com imposto: " + R(p.simulado_com_imposto) : "sem imposto"}">${R(p.simulado)}</td>` +
+          `<td class="num" data-l="Real cobrado" title="${p.real_compartilhado ? "CT-e dividido entre várias NFs (valor rateado)" : ""}">${R(p.real)}${p.real_compartilhado ? " ⧉" : ""}</td>` +
+          `<td class="num ${c}" data-l="Diferença" title="${esc(BASE[p.base_comparacao] || "")}">${DIF(p.diferenca, p.diferenca_pct)}</td>` +
+          `<td data-l="Situação"><span class="pf-badge ${s[1]}">${esc(s[0])}</span></td></tr>`;
       }).join("") + "</tbody></table>";
     dica();
     $("#pf-rod").innerHTML = `<span>${nf(d.pedidos.length, 0)} de ${nf(d.total, 0)} pedidos${d.truncado ? " — refine a busca para ver o restante" : ""}</span>` +
