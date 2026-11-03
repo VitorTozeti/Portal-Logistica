@@ -64,7 +64,9 @@ function montar(raiz, ctx){
   if(raiz.dataset.pf === "1"){ if(raiz._pfAtualizar) raiz._pfAtualizar(); return; }
   raiz.dataset.pf = "1";
   const podeExcluir = !!ctx.podeExcluir;
-  let dados = null, carregando = false, pendente = false, tipo = "nao";   // sem "Todos": produção ou teste, nunca misturados
+  let dados = null, carregando = false, pendente = false, tipo = "nao";
+  let pagina = 0, acabou = false, vazias = 0, ini0 = null;   // rolagem infinita: 1 semana por vez, da atual para trás
+  const MAX_SEMANAS = 52, MAX_VAZIAS = 4;   // sem "Todos": produção ou teste, nunca misturados
   const sel = new Set();
   raiz.innerHTML = `
     <div class="pf-topo"><span class="pf-semana" id="pf-semana">Pedidos desta semana</span></div>
@@ -84,6 +86,7 @@ function montar(raiz, ctx){
     <div class="pf-kpis" id="pf-kpis"></div>
     <div id="pf-selbar"></div>
     <div class="pf-tab" id="pf-tab"><div class="vazio">carregando…</div></div>
+    <div id="pf-mais" style="text-align:center;color:var(--soft);font-size:13.5px;padding:10px 0"></div>
     <div class="pf-rod" id="pf-rod"></div>
     <div class="mdl" id="pf-mdl" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="pf-mt">
       <h3 id="pf-mt">Excluir pedidos</h3><div id="pf-mres"></div>
@@ -94,8 +97,9 @@ function montar(raiz, ctx){
     </div></div>`;
   const $ = s => raiz.querySelector(s);
 
-  function consulta(){
-    const p = new URLSearchParams({ teste: tipo, limite: "1000" });   // sem `desde`: a Azure usa segunda 00h (Brasília)
+  function consulta(pg){
+    const p = new URLSearchParams({ teste: tipo, limite: "1000" });   // pg 0 sem `desde`: a Azure usa segunda 00h (Brasília)
+    if(pg > 0){ p.set("desde", new Date(ini0 - 7 * 864e5 * pg).toISOString()); p.set("ate", new Date(ini0 - 7 * 864e5 * (pg - 1) - 1).toISOString()); }
     if($("#pf-sit").value) p.set("situacao", $("#pf-sit").value);
     if($("#pf-transp").value) p.set("transportadora", $("#pf-transp").value);
     if($("#pf-q").value.trim()) p.set("q", $("#pf-q").value.trim());   // nº da NF está dentro da chave: a busca por trecho acha
@@ -108,8 +112,10 @@ function montar(raiz, ctx){
     carregando = true; pendente = false; $("#pf-ok").disabled = true;
     if(!dados) $("#pf-tab").innerHTML = '<div class="vazio">carregando…</div>';
     let erro = null;
-    try{ dados = await ctx.api("GET", consulta()); }catch(e){ erro = e; }
+    try{ dados = await ctx.api("GET", consulta(0)); }catch(e){ erro = e; }
     carregando = false; $("#pf-ok").disabled = false;
+    pagina = 0; vazias = 0; acabou = true;
+    if(!erro && dados.janela && dados.janela.desde){ ini0 = new Date(dados.janela.desde).getTime(); acabou = false; }
     if(pendente) return atualizar();
     if(erro){ $("#pf-tab").innerHTML = '<div class="vazio">' + esc(ctx.msgErro(erro)) + "</div>"; return; }
     for(const id of [...sel]) if(!dados.pedidos.some(p => p.id === id)) sel.delete(id);
@@ -117,10 +123,37 @@ function montar(raiz, ctx){
   }
   raiz._pfAtualizar = atualizar;
 
+  // soma o resumo no navegador (mesma conta de portal_pedidos._resumo na Azure) porque as semanas chegam em páginas
+  function resumir(ls){
+    const prod = ls.filter(l => !l.teste), cr = prod.filter(l => l.real_comparavel != null);
+    const sim = cr.reduce((a, l) => a + (l.simulado_com_imposto || l.simulado), 0), real = cr.reduce((a, l) => a + l.real_comparavel, 0);
+    return { pedidos: ls.length, testes: ls.length - prod.length, producao: prod.length, simulado_producao: prod.reduce((a, l) => a + l.simulado, 0),
+      com_real: cr.length, sem_chave: prod.filter(l => l.situacao === "sem_chave").length, aguardando_real: prod.filter(l => l.situacao === "aguardando_real").length,
+      divergentes: prod.filter(l => l.situacao === "divergente").length, simulado_com_real: sim, real_comparavel: real, diferenca: real - sim,
+      diferenca_pct: sim ? Math.round((real - sim) / sim * 1000) / 10 : null };
+  }
+  async function carregarMais(){
+    if(carregando || acabou || !dados) return;
+    carregando = true; const pg = pagina + 1, tipoAntes = tipo;
+    $("#pf-mais").textContent = "carregando semanas anteriores…";
+    let r = null;
+    try{ r = await ctx.api("GET", consulta(pg)); }catch(e){ carregando = false; $("#pf-mais").innerHTML = '<button class="btn" type="button" id="pf-mais-bt">Não consegui carregar — tentar de novo</button>'; $("#pf-mais-bt").onclick = carregarMais; return; }
+    carregando = false;
+    if(tipoAntes !== tipo || pendente){ if(pendente) atualizar(); return; }   // filtro mudou no meio: a lista nova já recomeçou
+    pagina = pg; const novos = r.pedidos || [];
+    vazias = novos.length ? 0 : vazias + 1;
+    if(pagina >= MAX_SEMANAS || vazias >= MAX_VAZIAS || r.erro) acabou = true;
+    dados.pedidos = dados.pedidos.concat(novos); dados.total += r.total || 0; dados.truncado = dados.truncado || !!r.truncado;
+    dados.resumo = resumir(dados.pedidos); dados.janela.desde = new Date(ini0 - 7 * 864e5 * pagina).toISOString();
+    render();
+  }
+  const olho = new IntersectionObserver(es => { if(es.some(e => e.isIntersecting)) carregarMais(); }, { rootMargin: "400px" });
+  const dica = () => { $("#pf-mais").textContent = acabou ? (pagina ? "Chegou ao fim do histórico." : "") : "role para carregar as semanas anteriores"; olho.disconnect(); if(!acabou) olho.observe($("#pf-mais")); };
+
   function render(){
     const d = dados, rs = d.resumo || {};
-    if(d.janela && d.janela.desde){ const ini = new Date(d.janela.desde), fim = new Date(ini.getTime() + 6 * 864e5);
-      $("#pf-semana").textContent = "Semana de " + dia(ini) + " a " + dia(fim) + " · " + nf(d.total || 0, 0) + " pedido" + (d.total === 1 ? "" : "s"); }
+    if(d.janela && d.janela.desde){ const ini = new Date(d.janela.desde), fim = new Date(ini0 + 6 * 864e5);
+      $("#pf-semana").textContent = (pagina ? "De " : "Semana de ") + dia(ini) + " a " + dia(fim) + " · " + nf(d.total || 0, 0) + " pedido" + (d.total === 1 ? "" : "s"); }
     let faixa = "";
     if(d.storage === false) faixa = "A Azure não está guardando os pedidos agora (armazenamento desligado).";
     else if(d.erro) faixa = d.erro;
@@ -136,7 +169,7 @@ function montar(raiz, ctx){
     if(atual && !nomes.includes(atual)) nomes.push(atual);
     tsel.innerHTML = '<option value="">Todas as transportadoras</option>' + nomes.map(n => `<option ${n === atual ? "selected" : ""}>${esc(n)}</option>`).join("");
     renderSel();
-    if(!(d.pedidos || []).length){ $("#pf-tab").innerHTML = '<div class="vazio">Nenhum pedido nesta semana com estes filtros.</div>'; $("#pf-rod").textContent = ""; return; }
+    if(!(d.pedidos || []).length){ $("#pf-tab").innerHTML = '<div class="vazio">Nenhum pedido nesta semana com estes filtros.</div>'; $("#pf-rod").textContent = ""; dica(); return; }
     const todos = d.pedidos.every(p => sel.has(p.id));
     $("#pf-tab").innerHTML = '<table><thead><tr>' + (podeExcluir ? `<th class="ck"><input type="checkbox" id="pf-all" aria-label="Selecionar todos" ${todos ? "checked" : ""}></th>` : "") +
       '<th>Data</th><th>NF</th><th>Destino</th><th class="num">Vol.</th><th>Transportadora</th>' +
@@ -153,6 +186,7 @@ function montar(raiz, ctx){
           `<td class="num ${c}" title="${esc(BASE[p.base_comparacao] || "")}">${DIF(p.diferenca, p.diferenca_pct)}</td>` +
           `<td><span class="pf-badge ${s[1]}">${esc(s[0])}</span></td></tr>`;
       }).join("") + "</tbody></table>";
+    dica();
     $("#pf-rod").innerHTML = `<span>${nf(d.pedidos.length, 0)} de ${nf(d.total, 0)} pedidos${d.truncado ? " — refine a busca para ver o restante" : ""}</span>` +
       `<span>Diferença = real − simulado, na mesma base de imposto. ⧉ = CT-e dividido entre NFs.</span>`;
   }
@@ -197,11 +231,11 @@ function montar(raiz, ctx){
     const linhas = dados.pedidos.map(p => [p.criado_em, p.teste ? "Sim" : "Não", nfNum(p.chave_nf), p.chave_nf, p.uf, p.cidade, p.volumes, p.peso, p.transportadora, p.transportadora_real,
       p.simulado, p.simulado_com_imposto, p.real, p.real_comparavel, p.diferenca, p.diferenca_pct, BASE[p.base_comparacao] || "", (SIT[p.situacao] || [p.situacao])[0]]);
     if(typeof XLSX !== "undefined"){
-      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab].concat(linhas)), "Pedidos da semana");
-      XLSX.writeFile(wb, "pedidos-e-fretes-semana.xlsx"); return;
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab].concat(linhas)), "Pedidos");
+      XLSX.writeFile(wb, "pedidos-e-fretes.xlsx"); return;
     }
     const csv = [cab].concat(linhas).map(l => l.map(v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"').join(";")).join("\r\n");
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = "pedidos-e-fretes-semana.csv"; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = "pedidos-e-fretes.csv"; a.click();
   }
 
   raiz.querySelectorAll(".pf-seg button").forEach(b => b.onclick = () => {
