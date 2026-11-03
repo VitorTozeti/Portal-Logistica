@@ -103,12 +103,15 @@ function montar(u){
   $("#eu").innerHTML = '<span class="av" aria-hidden="true">' + esc(ini) + '</span><span class="tx">' + esc(u.email || "") + "</span>";
   const hr = new Date().getHours(), sau = hr < 12 ? "Bom dia" : hr < 18 ? "Boa tarde" : "Boa noite";
   $("#ola").textContent = nome ? sau + ", " + nome.charAt(0).toUpperCase() + nome.slice(1) : "Painel de ferramentas";
-  const minhas = PortalGate.ferramentas().filter(f => PortalGate.podeFerramenta(f.id));
+  const todas = PortalGate.ferramentas().filter(f => PortalGate.podeFerramenta(f.id));
+  const minhas = todas.filter(f => f.grupo !== "adm");           // ferramentas de administração (ex.: Pedidos e fretes) vão para a seção Administração
   let h = minhas.length ? '<div class="grid">' + minhas.map(card).join("") + "</div>"
     : '<div class="vazio"><b>Nenhuma ferramenta liberada ainda</b>Peça ao TI para liberar o seu usuário.</div>';
   const adm = typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti";
-  if(adm && minhas.length) h = '<h2 class="sec" style="margin-top:0">Ferramentas</h2>' + h;
-  if(adm) h += '<h2 class="sec">Administração</h2><div class="grid">' + (typeof PortalGate.ferramentasTI === "function" ? PortalGate.ferramentasTI() : [PortalGate.ferramentaTI()]).map(card).join("") + "</div>";
+  const cartasAdm = (adm ? (typeof PortalGate.ferramentasTI === "function" ? PortalGate.ferramentasTI() : [PortalGate.ferramentaTI()]) : []).concat(todas.filter(f => f.grupo === "adm"));
+  if(cartasAdm.length && minhas.length) h = '<h2 class="sec" style="margin-top:0">Ferramentas</h2>' + h;
+  if(cartasAdm.length && !minhas.length && !adm) h = "";           // só tem ferramenta de administração: não mostra o aviso de "nenhuma ferramenta"
+  if(cartasAdm.length) h += '<h2 class="sec"' + (minhas.length ? "" : ' style="margin-top:0"') + '>Administração</h2><div class="grid">' + cartasAdm.map(card).join("") + "</div>";
   $("#corpo").innerHTML = h;
 }
 function icone(){ $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙"; }
