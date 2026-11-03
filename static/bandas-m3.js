@@ -138,6 +138,7 @@ function montar(raiz, ctx){
     '<button type="button" class="btn" id="bm-desfazer">Desfazer</button>' +
     '<button type="button" class="btn pri" id="bm-salvar" disabled>Salvar</button></div></div>';
 
+  const regAbertas = new Set();
   let est = null, base = new Map(), des = new Map(), uf = "SP", cache = {}, vez = 0, q = "";
   let bloqUF = new Set();          // transportadoras (nome curto) bloqueadas no ESTADO aberto
   const REG = ctx.regioes || null, NOME = ctx.nomeUF || {};
@@ -175,15 +176,17 @@ function montar(raiz, ctx){
     for(const [rn, l] of grupos()){
       const vis = l.filter(u => !f || semAcento(u).includes(f) || semAcento(nomeUF(u)).includes(f));
       if(!vis.length) continue;
-      h += "<h4>" + esc(rn) + "</h4>";
+      h += '<details class="reg" data-reg="' + esc(rn) + '"' + (f || regAbertas.has(rn) || vis.includes(uf) ? " open" : "") + "><summary>" + esc(rn) + '<span class="rn-n">' + vis.length + "</span></summary>";
       for(const u of vis){
         const n = nSalvas(u);
         h += '<button type="button" class="ufb" role="option" data-uf="' + u + '" aria-current="' + (u === uf) + '"><span class="sg">' + u + '</span><span class="nm">' + esc(nomeUF(u)) + "</span>" +
           (pendUF(u) ? '<span class="mm" title="alterações ainda não salvas"></span>' : "") +
           (n ? '<span class="ex" title="' + n + ' de 3 regras com banda salva (as outras usam a recomendada)">' + n + "/3 salvas</span>" : "") + "</button>";
       }
+      h += "</details>";
     }
     $("#bm-ufs").innerHTML = h || '<div class="bm-vazio-uf">Nenhum estado encontrado.</div>';
+    $("#bm-ufs").querySelectorAll("details.reg").forEach(d => d.addEventListener("toggle", () => { if(!q.trim()) d.open ? regAbertas.add(d.dataset.reg) : regAbertas.delete(d.dataset.reg); }));
     $("#bm-ufs").querySelectorAll(".ufb").forEach(b => b.onclick = () => { uf = b.dataset.uf; desenhar(); });
   }
 
