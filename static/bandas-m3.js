@@ -127,7 +127,7 @@ function montar(raiz, ctx){
     '<details><summary>Como a escolha funciona</summary><ul>' +
     '<li>Banda = quantos dias úteis a mais que a transportadora mais rápida a escolha aceita para pagar menos frete.</li>' +
     '<li>Três regras por estado: Capital, Interior e Distribuidor (cliente distribuidor, qualquer cidade).</li>' +
-    '<li>Sem banda salva, a API usa a ★ Recomendada: maior economia sem aumentar o prazo.</li>' +
+    '<li>Sem banda salva, a API usa a ★ Recomendada: maior economia sem aumentar o prazo; se nenhuma economiza sem piorar, a que economiza piorando o prazo o mínimo; se nenhuma economiza, só a mais rápida.</li>' +
     '<li>Frete e economia comparados sem ICMS, como o motor da Azure. Transportadora bloqueada na Cobertura não entra.</li></ul></details>' +
     '<div class="aviso" id="bm-aviso" hidden></div>' +
     '<div class="exp"><div class="bm-esq"><input type="search" id="bm-q" placeholder="Filtrar estado…" aria-label="Filtrar estado por nome ou sigla">' +
@@ -316,9 +316,10 @@ function montar(raiz, ctx){
     }
     h += '<div class="bm-esc"><span class="bm-atual">Escolhida: <b>' + esc(rotEf) + "</b></span></div>";
     // recalculado com os bloqueios: a melhor banda de AGORA pode ser outra que a recomendada da planilha (padrao da API)
-    const melhorAgora = quadro.sugestao;
+    const melhorAgora = quadro.recomendada !== undefined ? quadro.recomendada : quadro.sugestao;
+    const minPiora = quadro.recomendada_tipo === "menor_piora";     // nenhuma economiza sem piorar o prazo: a recomendada piora o mínimo
     if(d.fonte === "recalculo" && !igual(melhorAgora, pad > 0 ? pad : null)){
-      h += '<div class="bm-bloqbox" role="status">Melhor banda sem piorar o prazo agora: ' + (melhorAgora == null ? "<b>nenhuma</b>" : "<b>+" + fmtB(melhorAgora) + " d</b>") +
+      h += '<div class="bm-bloqbox" role="status">' + (minPiora ? "Melhor banda agora (economiza piorando o prazo o mínimo): " : "Melhor banda sem piorar o prazo agora: ") + (melhorAgora == null ? "<b>nenhuma</b>" : "<b>+" + fmtB(melhorAgora) + " d</b>") +
            " (a ★ Recomendada da API segue " + (pad > 0 ? "+" + fmtB(pad) + " d" : "só a mais rápida") + ")." +
            (melhorAgora != null ? ' <button type="button" class="btn" data-fixar="' + s + '" data-v="' + melhorAgora + '">Fixar +' + fmtB(melhorAgora) + " d</button>" : "") + "</div>";
     }
@@ -336,8 +337,8 @@ function montar(raiz, ctx){
       .map(([t, v]) => bloqUF.has(t) ? '<s class="bm-mixb" title="Bloqueada: este resultado conta com ela">' + esc(t) + " " + fmtP(v) + "</s>" : esc(t) + " " + fmtP(v)).join(" · ") +
       (d.fonte !== "recalculo" && emBloq(b) >= 0.005 ? ' <span class="bm-tag" title="Parte dos pedidos desta banda iria para transportadora hoje bloqueada">⚠ ' + fmtP(emBloq(b)) + " bloqueada</span>" : "");
     h += '<tr data-seg="' + s + '" data-b="" class="bm-rec' + (salva == null ? " bm-sel" : "") + '"><td><label><input type="radio" name="bm-' + s + '" value=""' + (salva == null ? " checked" : "") +
-         '><span>★ Recomendada<span class="bm-sub">' + (pad > 0 ? "+" + fmtB(pad) + " d · padrão da API" : "só a mais rápida · padrão da API") + "</span></span></label></td>" +
-         (lr ? col(lr) + '<td class="bm-mix">' + mixDe(lr) + "</td>" : '<td colspan="6" style="text-align:left;color:var(--soft)">' + (pad > 0 ? "Sem números para esta banda." : "Nenhuma banda economiza sem piorar o prazo aqui: usa só a transportadora mais rápida.") + "</td>") + "</tr>";
+         '><span>★ Recomendada<span class="bm-sub">' + (pad > 0 ? "+" + fmtB(pad) + " d · padrão da API" + (minPiora && igual(melhorAgora, pad) ? " · piora o prazo o mínimo" : "") : "só a mais rápida · padrão da API") + "</span></span></label></td>" +
+         (lr ? col(lr) + '<td class="bm-mix">' + mixDe(lr) + "</td>" : '<td colspan="6" style="text-align:left;color:var(--soft)">' + (pad > 0 ? "Sem números para esta banda." : "Nenhuma banda economiza aqui: usa só a transportadora mais rápida.") + "</td>") + "</tr>";
     for(const b of quadro.bandas){
       const sel = igual(salva, b.banda);
       h += '<tr data-seg="' + s + '" data-b="' + b.banda + '" class="' + (sel ? "bm-sel " : "") + (igual(pad, b.banda) ? "bm-estr" : "") + '">' +
