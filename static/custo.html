@@ -97,6 +97,9 @@
   .lt th,.lt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)} .lt th{color:var(--soft);font-size:13.5px}
   .drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--soft)}
   .drop.over,.drop:hover{border-color:var(--brand);color:var(--ink)}
+  .hist-f{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .hist-f .btn[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+  .hist .tp{font-size:12px;font-weight:800;padding:2px 9px;border-radius:9999px;border:1px solid var(--line);color:var(--soft)}
   .hist{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin:0 0 10px;background:var(--card)}
   .hist .q{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:14.5px}
   .hist .q b{font-size:15px} .hist .m{margin:6px 0 0;font-size:14px;color:var(--soft)}
@@ -283,6 +286,11 @@
   <section id="s-historico" data-s="historico" hidden>
     <h2>Histórico de alterações</h2>
     <p class="sub">Quem mudou o quê e quando. “Desfazer” prepara a reversão na aba Cobertura para você conferir antes de salvar.</p>
+    <div class="hist-f" id="hist-f" role="group" aria-label="Tipo de histórico">
+      <button class="btn" type="button" data-hf="todos" aria-pressed="true">Todos</button>
+      <button class="btn" type="button" data-hf="cobertura" aria-pressed="false">Cobertura</button>
+      <button class="btn" type="button" data-hf="banda" aria-pressed="false">Regra de escolha</button>
+    </div>
     <div id="hist-corpo"><div class="vazio">carregando…</div></div>
   </section>
 </main>
@@ -687,18 +695,37 @@ window.__custoTeste = { lerPlanilha: (b) => lerPlanilha(b), importar };
 // ---------- Regras ----------
 
 // ---------- Histórico ----------
-let histCache = [];
+let histCache = [], histBanda = [], histFiltro = "todos", histBandaErro = "";
+const PERF_ROT = { ti: "TI", logistica: "Logística" };
+const SEG_ROT = { CAPITAL: "Capital", INTERIOR: "Interior", DISTRIBUIDOR: "Distribuidor" };
+const bandaRot = b => b == null ? "padrão (★)" : "+" + String(b).replace(".", ",") + " d";
 async function carregarHistorico(){
   const box = $("#hist-corpo");
-  try{
-    histCache = (await api("GET", "/v1/cobertura/historico")).historico;
-    box.innerHTML = histCache.length ? histCache.map((h, i) => '<div class="hist"><div class="q"><b>' + dataBR(h.quando) + "</b><span>" + esc(h.usuario) + "</span>"
+  let falhaCob = null;
+  try{ histCache = (await api("GET", "/v1/cobertura/historico")).historico; }catch(e){ falhaCob = e; histCache = []; }
+  try{ histBanda = (await api("GET", "/v1/cobertura/banda/historico?limite=200")).historico || []; histBandaErro = ""; }catch(e){ histBanda = []; histBandaErro = msgErro(e); }
+  if(falhaCob && histBandaErro){ box.innerHTML = '<div class="vazio">' + esc(msgErro(falhaCob)) + "</div>"; return; }
+  renderHistorico();
+}
+function renderHistorico(){
+  const box = $("#hist-corpo");
+  $("#hist-f").querySelectorAll("[data-hf]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.hf === histFiltro)));
+  const itens = [];
+  if(histFiltro !== "banda") histCache.forEach((h, i) => itens.push({ t: "cobertura", h, i }));
+  if(histFiltro !== "cobertura") histBanda.forEach(h => itens.push({ t: "banda", h }));
+  itens.sort((a, b) => String(b.h.quando).localeCompare(String(a.h.quando)));
+  const aviso = histBandaErro && histFiltro !== "cobertura" ? '<div class="aviso" style="margin:0 0 10px">Não consegui carregar o histórico da regra de escolha. ' + esc(histBandaErro) + "</div>" : "";
+  box.innerHTML = aviso + (itens.length ? itens.map(({ t, h, i }) => t === "cobertura"
+    ? '<div class="hist"><div class="q"><b>' + dataBR(h.quando) + '</b><span class="tp">Cobertura</span><span>' + esc(h.usuario) + "</span>"
       + '<span style="margin-left:auto"><button class="btn" data-desfazer="' + i + '" type="button">Desfazer</button></span></div>'
       + (h.motivo ? '<p class="m">“' + esc(h.motivo) + "”</p>" : "")
-      + '<div class="chips">' + h.mudancas.map(m => '<span class="chip ' + (m.depois === false ? "b" : "l") + '">' + esc(m.nome) + " · " + esc(m.rotulo) + ": " + rot(m.antes) + " → " + rot(m.depois) + "</span>").join("") + "</div></div>").join("")
-      : '<div class="vazio">Nenhuma alteração registrada ainda.</div>';
-  }catch(e){ box.innerHTML = '<div class="vazio">' + esc(msgErro(e)) + "</div>"; }
+      + '<div class="chips">' + h.mudancas.map(m => '<span class="chip ' + (m.depois === false ? "b" : "l") + '">' + esc(m.nome) + " · " + esc(m.rotulo) + ": " + rot(m.antes) + " → " + rot(m.depois) + "</span>").join("") + "</div></div>"
+    : '<div class="hist"><div class="q"><b>' + dataBR(h.quando) + '</b><span class="tp">Regra de escolha</span><span>' + esc(h.usuario) + (PERF_ROT[h.perfil] ? " · " + PERF_ROT[h.perfil] : "") + "</span></div>"
+      + (h.motivo ? '<p class="m">“' + esc(h.motivo) + "”</p>" : "")
+      + '<div class="chips">' + (h.mudancas || []).map(m => '<span class="chip l">' + esc(m.uf) + " · " + esc(SEG_ROT[m.segmento] || m.segmento) + ": " + bandaRot(m.antes) + " → " + bandaRot(m.depois) + "</span>").join("") + "</div></div>").join("")
+    : '<div class="vazio">Nenhuma alteração registrada ainda.</div>');
 }
+$("#hist-f").addEventListener("click", ev => { const b = ev.target.closest("[data-hf]"); if(!b) return; histFiltro = b.dataset.hf; renderHistorico(); });
 $("#hist-corpo").addEventListener("click", ev => {
   const b = ev.target.closest("[data-desfazer]"); if(!b) return;
   const h = histCache[+b.dataset.desfazer];
