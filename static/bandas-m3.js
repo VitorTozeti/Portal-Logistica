@@ -57,6 +57,14 @@ const CSS = `
 .bm-tab tr.bm-rec .bm-sub{display:block;font-size:12.5px;font-weight:400;color:var(--soft)}
 .bm-tab tr.bm-rec.bm-sel .bm-sub{color:var(--ink)}
 .bm-pos{color:var(--at)} .bm-neg{color:var(--bq)}
+.bm-quem{color:var(--soft);font-size:13.5px}
+.bm-perf{display:inline-block;font-size:12px;font-weight:800;padding:1px 8px;border-radius:9999px;border:1px solid var(--line);margin-left:4px;color:var(--ink)}
+.bm-perf.ti{border-color:var(--brand);color:var(--brand)}
+.bm-hl{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+.bm-hl li{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+.bm-hl .bm-hq{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.bm-hl .bm-hm{margin:4px 0 0;color:var(--soft);font-size:13.5px}
+.bm-hl .bm-hd{margin:4px 0 0;font-size:13.5px}
 .bm-tab td.bm-mix{white-space:normal;text-align:left;min-width:160px;font-size:13px;color:var(--soft)}
 .bm-bloqbox{margin:8px 0;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.5;
   background:color-mix(in srgb,var(--alerta) 14%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 55%,transparent)}
@@ -144,6 +152,12 @@ function montar(raiz, ctx){
   const REG = ctx.regioes || null, NOME = ctx.nomeUF || {};
   const nomeUF = u => NOME[u] || u;
   const semAcento = t => String(t).toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  const PERF = { ti: "TI", logistica: "Logística" };
+  const quemTxt = (email, perfil) => esc(String(email || "").split("@")[0] || "—") +
+    (PERF[perfil] ? ' <span class="bm-perf ' + esc(perfil) + '">' + PERF[perfil] + "</span>" : "");
+  const dataHora = iso => { const d = new Date(iso); return isNaN(d) ? esc(iso || "") : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); };
+  const regraDe = (u, sg) => (est.regras || []).find(r => r.uf === u && r.segmento === sg);
+  let histCache = null;
   const chave = (u, s) => u + "|" + s;
   const salvo = (u, s) => { const b = base.get(chave(u, s)); return b === undefined ? null : b; };
   const desejado = (u, s) => { const k = chave(u, s); return des.has(k) ? des.get(k) : salvo(u, s); };
@@ -166,7 +180,7 @@ function montar(raiz, ctx){
     if(!est.ufs.includes(uf)) uf = est.ufs[0];
     await desenhar();
   }
-  const limparCache = () => { cache = {}; };
+  const limparCache = () => { cache = {}; histCache = null; };
   // uma UF por vez (só a que está aberta): 1 chamada por clique, longe do limite de 5/s da API
   async function impacto(u){ if(!cache[u]) cache[u] = await apiGet("/v1/cobertura/banda/impacto?uf=" + encodeURIComponent(u)); return cache[u]; }
 
@@ -188,6 +202,23 @@ function montar(raiz, ctx){
     $("#bm-ufs").innerHTML = h || '<div class="bm-vazio-uf">Nenhum estado encontrado.</div>';
     $("#bm-ufs").querySelectorAll("details.reg").forEach(d => d.addEventListener("toggle", () => { if(!q.trim()) d.open ? regAbertas.add(d.dataset.reg) : regAbertas.delete(d.dataset.reg); }));
     $("#bm-ufs").querySelectorAll(".ufb").forEach(b => b.onclick = () => { uf = b.dataset.uf; desenhar(); });
+  }
+
+  let histTodos = false;
+  const regTxt = b => b == null ? "padrão (★)" : "+" + fmtB(b) + " d";
+  async function carregarHist(){
+    const box = $("#bm-hist-corpo"); if(!box) return;
+    if(!histCache){
+      try{ histCache = (await apiGet("/v1/cobertura/banda/historico?limite=200")).historico || []; }
+      catch(e){ box.innerHTML = '<p class="bm-mudo">Não consegui carregar o histórico. ' + esc(msgErro(e)) + "</p>"; return; }
+    }
+    const alvo = $("#bm-hist-corpo"); if(!alvo) return;
+    const ev = histCache.map(h => ({ h, ms: (h.mudancas || []).filter(m => histTodos || m.uf === uf) })).filter(x => x.ms.length).slice(0, 30);
+    alvo.innerHTML = ev.length ? '<ul class="bm-hl">' + ev.map(({ h, ms }) =>
+      '<li><div class="bm-hq"><b>' + dataHora(h.quando) + "</b><span>" + quemTxt(h.usuario, h.perfil) + "</span></div>" +
+      '<p class="bm-hd">' + ms.map(m => esc((histTodos ? m.uf + " " : "") + (SEG.find(x => x[0] === m.segmento) || [0, m.segmento])[1]) + ": " + regTxt(m.antes) + " → " + regTxt(m.depois)).join(" · ") + "</p>" +
+      (h.motivo ? '<p class="bm-hm">Motivo: ' + esc(h.motivo) + "</p>" : "") + "</li>").join("") + "</ul>"
+      : '<p class="bm-mudo">Nenhuma alteração registrada' + (histTodos ? "" : " neste estado") + ".</p>";
   }
 
   async function desenhar(){
@@ -220,6 +251,9 @@ function montar(raiz, ctx){
     if(bloq.length) h += '<div class="bm-chips"><span>Bloqueios da Cobertura em ' + esc(nomeUF(uf)) + ':</span>' +
       bloq.map(b => '<span class="bm-chip" title="Bloqueada em ' + esc(b.onde) + '">✕ ' + esc(b.curto) + " · " + esc(b.onde === uf ? "estado inteiro" : b.onde) + "</span>").join("") + "</div>";
     h += SEG.map(([s, nome, desc]) => cardRegra(d, s, nome, desc, bloq)).join("");
+    h += '<section class="bm-card" id="bm-hist"><h4>Histórico das regras · ' + esc(nomeUF(uf)) + '</h4>' +
+      '<label class="bm-ck"><input type="checkbox" id="bm-hist-todos"' + (histTodos ? " checked" : "") + '> mostrar todos os estados</label>' +
+      '<div id="bm-hist-corpo" aria-live="polite"><p class="bm-mudo">carregando…</p></div></section>';
     h += '<section class="bm-card bm-sim"><h4>Simular um pedido neste estado</h4>' +
       '<p class="bm-mudo">Motor da Azure sem e com os bloqueios atuais, na banda já salva.</p>' +
       '<div class="bm-form"><label class="bm-f">Cidade<select id="bm-sc" aria-label="Cidade do pedido"><option value="' + CAPITAIS[uf] + '">Capital</option></select></label>' +
@@ -230,6 +264,8 @@ function montar(raiz, ctx){
       '<div id="bm-sres" aria-live="polite"></div></section>';
     $("#bm-painel").innerHTML = h;
     prepararSim();
+    carregarHist();
+    $("#bm-hist-todos").onchange = e => { histTodos = e.target.checked; carregarHist(); };
     const mob = $("#bm-mob"); if(mob) mob.onchange = () => { uf = mob.value; desenhar(); };
     for(const [s] of SEG){
       raiz.querySelectorAll('input[name="bm-' + s + '"]').forEach(r => r.onchange = () => escolher(s, r.value === "" ? null : Number(r.value)));
@@ -314,7 +350,14 @@ function montar(raiz, ctx){
       const nomes = [...new Set(bloq.map(b => b.curto))].join(", ");
       h += '<div class="bm-bloqbox" role="status"><b>' + esc(nomes) + " bloqueada.</b> A API já respeita. Esta tabela ainda é a planilha de 23/10: o nome riscado no mix mostra quanto dependia dela.</div>";
     }
-    h += '<div class="bm-esc"><span class="bm-atual">Escolhida: <b>' + esc(rotEf) + "</b></span></div>";
+    const reg = salva != null ? regraDe(uf, s) : null;
+    h += '<div class="bm-esc"><span class="bm-atual">Escolhida: <b>' + esc(rotEf) + "</b></span>" +
+      (reg && reg.atualizado_por ? '<span class="bm-quem">por ' + quemTxt(reg.atualizado_por, reg.atualizado_por_perfil) + (reg.atualizado_em ? " em " + dataHora(reg.atualizado_em) : "") + "</span>" : "") + "</div>";
+    const bSalva = salva != null ? quadro.bandas.find(x => igual(x.banda, salva)) : null;
+    const recB = (quadro.recomendada != null) ? quadro.bandas.find(x => igual(x.banda, quadro.recomendada)) : null;
+    if(bSalva && recB && !igual(salva, recB.banda) && bSalva.economia_rs < recB.economia_rs - 0.5){
+      h += '<div class="bm-bloqbox" role="status">A banda salva (+' + fmtB(salva) + " d) economiza " + fmtR(recB.economia_rs - bSalva.economia_rs) + " a menos que a recomendada (+" + fmtB(recB.banda) + " d).</div>";
+    }
     // recalculado com os bloqueios: a melhor banda de AGORA pode ser outra que a recomendada da planilha (padrao da API)
     const melhorAgora = quadro.recomendada !== undefined ? quadro.recomendada : quadro.sugestao;
     const minPiora = quadro.recomendada_tipo === "menor_piora";     // nenhuma economiza sem piorar o prazo: a recomendada piora o mínimo
