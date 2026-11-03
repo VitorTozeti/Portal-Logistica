@@ -97,6 +97,13 @@
   .lt th,.lt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)} .lt th{color:var(--soft);font-size:13.5px}
   .drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--soft)}
   .drop.over,.drop:hover{border-color:var(--brand);color:var(--ink)}
+  /* nível "Ver" no Custo de Frete (03/11/2026): lê tudo, não altera nada. A Azure também barra a gravação (403); isto é só UX. */
+  .so-leitura #bar{display:none!important}
+  .so-leitura .st[data-ue],.so-leitura .st[data-cc],.so-leitura .tab-cid th.ck,.so-leitura .tab-cid td.ck,.so-leitura .massa,.so-leitura #b-sel-todas{pointer-events:none}
+  .so-leitura .tab-cid td.ck,.so-leitura .tab-cid th.ck,.so-leitura .massa,.so-leitura #b-sel-todas,.so-leitura #card-importar,.so-leitura .bm-esc-edit{display:none!important}
+  .so-leitura .bm-tab tbody tr{pointer-events:none} .so-leitura .bm-tab input[type=radio],.so-leitura [data-fixar]{pointer-events:none;opacity:.55}
+  .so-leitura [data-fixar]{display:none}
+  .aviso-leitura{margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:13.5px;font-weight:600;border:1px solid var(--brand);background:color-mix(in srgb,var(--brand) 10%,transparent)}
   .hist-f{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
   .hist-f .btn[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
   .hist .tp{font-size:12px;font-weight:800;padding:2px 9px;border-radius:9999px;border:1px solid var(--line);color:var(--soft)}
@@ -269,7 +276,7 @@
         <p class="sub" style="margin-top:6px">Gera <i>cobertura-transportadoras.xlsx</i> com três abas: <b>Cobertura</b> (transportadora × estado, Sim/Não), <b>Cidades</b> (exceções) e <b>Leia-me</b>.</p>
         <button class="btn pri" id="b-exportar" type="button">⬇ Baixar planilha</button>
       </div>
-      <div class="card">
+      <div class="card" id="card-importar">
         <b>2. Importar</b>
         <p class="sub" style="margin-top:6px">A planilha vale como o estado completo: o que não estiver nela volta ao padrão (liberado).</p>
         <label class="drop" id="drop" for="arq">Arraste o arquivo aqui ou clique para escolher<input type="file" id="arq" accept=".xlsx,.xls" hidden></label>
@@ -755,6 +762,13 @@ document.addEventListener("keydown", e => { if(e.key === "Escape") document.quer
 // ---------- início ----------
 async function iniciar(u){
   $("#eu").textContent = u && u.email ? u.email : "";
+  // nível "Ver": só leitura (Cloudflare). Sem a informação (login antigo/servidor local) segue como antes.
+  if(GATE && typeof PortalGate.modo === "function" && PortalGate.modo() === "cloudflare" && typeof PortalGate.pode === "function" && !PortalGate.pode("custo_editar")){
+    document.body.classList.add("so-leitura");
+    const a = document.createElement("div"); a.className = "aviso-leitura"; a.id = "aviso-leitura";
+    a.textContent = "Seu acesso ao Custo de Frete é só de leitura: você vê tudo, mas não altera. Para editar, peça ao TI.";
+    $("#tabs").insertAdjacentElement("afterend", a);
+  }
   const ok = await carregar();
   const h = location.hash.slice(1); if(["excel","regras","historico"].includes(h)) trocarAba(h);
   return ok;

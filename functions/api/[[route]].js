@@ -8,7 +8,18 @@
 // Login: e-mail + senha (PBKDF2 no próprio Worker). Quem não está em `usuarios` não entra.
 // Administradores iniciais (BOOT) são sempre TI, igual a boot() em firestore.rules.
 
-const FERRAMENTAS = ["monitor", "custo"];
+const FERRAMENTAS = ["monitor", "custo", "pedidos"];
+// NÍVEL por ferramenta e por pessoa (03/11/2026): ausente = sem acesso · "ver" = abre e lê · "editar" = também altera
+// (Monitor: ignorar/reativar NF · Custo: cobertura e bandas · Pedidos: excluir da lista). TI é sempre "editar" em tudo.
+const NIVEIS = ["ver", "editar"];
+// Modelo de cada perfil: os níveis que a tela aplica ao escolher o perfil de uma pessoa (a pessoa pode ser ajustada depois
+// e fica "personalizada"). Guardado em perfis.modelo (JSON); sem a coluna/valor, valem estes.
+const MODELO_BASE = {
+  ti: { monitor: "editar", custo: "editar", pedidos: "editar" },
+  logistica: { monitor: "editar" },
+  leitor: { monitor: "ver" },
+  faturamento: { monitor: "ver" },
+};
 const BOOT = ["v.tozeti@pharmaesthetics.com.br", "m.milani@pharmaesthetics.com.br"];
 // Perfis: o que cada um PODE FAZER (as ferramentas que a pessoa ABRE continuam por pessoa). Ficam na tabela `perfis` do D1;
 // enquanto a tabela não existir (migração não rodada), valem estes. `ti` sempre pode tudo (não dá para tirar e ficar sem admin).
@@ -142,17 +153,51 @@ function ferramentasDe(perfil, row) {
   return row.acesso_custo ? ["monitor", "custo"] : ["monitor"];
 }
 
+// objeto {ferramenta: "ver"|"editar"} válido (ids e níveis desconhecidos caem fora)
+function limparNiveis(x) {
+  const o = {};
+  if (x && typeof x === "object") for (const f of FERRAMENTAS) if (NIVEIS.includes(x[f])) o[f] = x[f];
+  return o;
+}
+// Pessoa sem `niveis` gravado (antes de 03/11): deriva do que ela já tinha — ninguém perde nem ganha acesso na virada.
+function niveisLegado(perfil, row, P) {
+  const f = ferramentasDe(perfil, row), perms = (P[perfil] && P[perfil].perms) || [], n = {};
+  if (f.includes("monitor")) n.monitor = perms.includes("nf_ignorar") ? "editar" : "ver";
+  if (f.includes("custo")) n.custo = "editar";
+  if (perms.includes("pedidos_excluir")) n.pedidos = "editar"; else if (perms.includes("pedidos_ver")) n.pedidos = "ver";
+  return n;
+}
+function niveisDe(perfil, row, P) {
+  if (perfil === "ti") return { monitor: "editar", custo: "editar", pedidos: "editar" };
+  if (row && row.niveis) { try { return limparNiveis(JSON.parse(row.niveis)); } catch (_) {} }
+  return niveisLegado(perfil, row || {}, P);
+}
+// permissões efetivas = as do PERFIL, ajustadas pelo NÍVEL da pessoa em cada ferramenta
+function efetivas(perfil, permsPerfil, niveis) {
+  if (perfil === "ti") return IDS_PERM.slice();
+  const s = new Set(permsPerfil);
+  if (niveis.monitor !== "editar") { s.delete("nf_ignorar"); s.delete("nf_ignorar_robo"); }     // só ver o Monitor: sem ações
+  if (niveis.pedidos) { s.add("pedidos_ver"); if (niveis.pedidos === "editar") s.add("pedidos_excluir"); else s.delete("pedidos_excluir"); }
+  return [...s];
+}
+const ordemFerr = (niveis) => FERRAMENTAS.filter((f) => niveis[f]);
+
 // mapa nome -> {rotulo, perms, sistema}. Lido do D1 (1 consulta por requisição); sem a tabela, PERFIS_BASE.
 async function lerPerfis(db) {
   let P;
   try {
     const rows = (await db.prepare("SELECT * FROM perfis").all()).results;
     P = {};
-    for (const r of rows) P[r.nome] = { rotulo: r.rotulo, perms: permsDaLinha(r), sistema: !!r.sistema };
+    for (const r of rows) {
+      let modelo = null;
+      if (r.modelo) { try { modelo = limparNiveis(JSON.parse(r.modelo)); } catch (_) {} }
+      P[r.nome] = { rotulo: r.rotulo, perms: permsDaLinha(r), sistema: !!r.sistema, modelo: modelo || limparNiveis(MODELO_BASE[r.nome] || { monitor: "ver" }) };
+    }
   } catch (_) {
     P = JSON.parse(JSON.stringify(PERFIS_BASE));
   }
-  P.ti = { ...(P.ti || PERFIS_BASE.ti), perms: IDS_PERM.slice(), sistema: true };
+  P.ti = { ...(P.ti || PERFIS_BASE.ti), perms: IDS_PERM.slice(), sistema: true, modelo: limparNiveis(MODELO_BASE.ti) };
+  for (const n of Object.keys(P)) if (!P[n].modelo) P[n].modelo = limparNiveis(MODELO_BASE[n] || { monitor: "ver" });
   return P;
 }
 const perfisDo = async (ctx) => (ctx.perfis ||= await lerPerfis(ctx.env.DB));
@@ -161,22 +206,28 @@ const perfisDo = async (ctx) => (ctx.perfis ||= await lerPerfis(ctx.env.DB));
 async function perfilDe(db, email, P) {
   const row = await db.prepare("SELECT * FROM usuarios WHERE email = ?").bind(email).first();
   if (BOOT.includes(email)) {
-    return { email, perfil: "ti", rotulo: P.ti.rotulo, ferramentas: FERRAMENTAS.slice(), acessoCusto: true, pode: podeDe(IDS_PERM),
+    const n = niveisDe("ti", row, P);
+    return { email, perfil: "ti", rotulo: P.ti.rotulo, ferramentas: FERRAMENTAS.slice(), niveis: n, acessoCusto: true, pode: { ...podeDe(IDS_PERM), custo_editar: true },
              donoPerfis: email === DONO_PERFIS, temSenha: !!(row && row.senha), ultimoAcesso: row ? row.ultimo_acesso : 0 };
   }
   if (!row || !P[row.perfil]) return null;
-  const ferramentas = ferramentasDe(row.perfil, row);
-  return { email, perfil: row.perfil, rotulo: P[row.perfil].rotulo, ferramentas, acessoCusto: ferramentas.includes("custo"),
-           pode: podeDe(P[row.perfil].perms), donoPerfis: email === DONO_PERFIS,
+  const niveis = niveisDe(row.perfil, row, P), ferramentas = ordemFerr(niveis);
+  const pode = { ...podeDe(efetivas(row.perfil, P[row.perfil].perms, niveis)), custo_editar: niveis.custo === "editar" };
+  // acesso com validade (valido_ate em ms): vencido = não entra mais (o TI renova na tela). TI/BOOT nunca vencem.
+  const expirado = !!(row.valido_ate && row.valido_ate < Date.now() && row.perfil !== "ti");
+  return { email, perfil: row.perfil, rotulo: P[row.perfil].rotulo, ferramentas, niveis, acessoCusto: ferramentas.includes("custo"),
+           pode, donoPerfis: email === DONO_PERFIS, expirado, validoAte: row.valido_ate || 0,
            temSenha: !!row.senha, ultimoAcesso: row.ultimo_acesso || 0 };
 }
-const publico = (u) => ({ email: u.email, perfil: u.perfil, rotulo: u.rotulo, ferramentas: u.ferramentas, acessoCusto: u.acessoCusto, pode: u.pode, donoPerfis: u.donoPerfis });
+const publico = (u) => ({ email: u.email, perfil: u.perfil, rotulo: u.rotulo, ferramentas: u.ferramentas, niveis: u.niveis, acessoCusto: u.acessoCusto, pode: u.pode,
+                          donoPerfis: u.donoPerfis, validoAte: u.validoAte || 0 });
 
 async function sessaoAtual(ctx) {
   const p = await verificar(ctx.env.SESSION_SECRET, lerCookie(ctx.request));
   if (!p) return { erro: erro(401, "sem-sessao") };
   const u = await perfilDe(ctx.env.DB, p.e, await perfisDo(ctx));
   if (!u) return { erro: erro(403, "sem-acesso") };
+  if (u.expirado) return { erro: erro(403, "acesso-expirado") };
   return { u };
 }
 // permissão do PERFIL: um id de CATALOGO (ex.: "nf_ignorar", "admin")
@@ -184,36 +235,105 @@ function exigir(u, permissao) {
   if (!u.pode || !u.pode[permissao]) throw new Falha(403, "sem-permissao");
 }
 
-async function gravarUsuario(db, email, body, P) {
+// Colunas/tabela novas (03/11/2026). Em vez de exigir migração manual, o Worker cria o que falta na 1ª vez que precisa
+// (ALTER ... ADD COLUMN é aditivo e seguro) e repete a operação uma vez.
+const FALTA_ESTRUTURA = /no such (table|column)|has no column named|no column named/i;
+let migrada = false;
+async function autoMigrar(db) {
+  if (migrada) return;
+  const cmds = [
+    "ALTER TABLE usuarios ADD COLUMN niveis TEXT",
+    "ALTER TABLE usuarios ADD COLUMN valido_ate INTEGER",
+    "ALTER TABLE perfis ADD COLUMN modelo TEXT",
+    `CREATE TABLE IF NOT EXISTS acessos_log (id INTEGER PRIMARY KEY AUTOINCREMENT, alvo TEXT NOT NULL, por TEXT NOT NULL,
+       tipo TEXT NOT NULL, detalhe TEXT, em INTEGER NOT NULL)`,
+  ];
+  for (const c of cmds) {
+    try { await db.prepare(c).run(); } catch (e) { if (!/duplicate column|already exists/i.test(String(e && e.message))) throw e; }
+  }
+  migrada = true;
+}
+async function comMigracao(db, fn) {
+  try { return await fn(); }
+  catch (e) {
+    if (!FALTA_ESTRUTURA.test(String(e && e.message))) throw e;
+    try { await autoMigrar(db); } catch (_) { throw new Falha(409, "migracao-pendente"); }
+    return await fn();
+  }
+}
+
+// histórico de acessos: quem mudou o acesso de quem. Best-effort: nunca derruba a operação.
+async function logAcesso(db, por, alvo, tipo, detalhe) {
+  const gravar = () => db.prepare("INSERT INTO acessos_log (alvo, por, tipo, detalhe, em) VALUES (?,?,?,?,?)")
+    .bind(alvo, por, tipo, JSON.stringify(detalhe || []), Date.now()).run();
+  try { await comMigracao(db, gravar); } catch (e) { console.warn("acessos_log:", e && e.message); }
+}
+const ROT_FERR = { monitor: "Monitor de NFs", custo: "Custo de Frete", pedidos: "Pedidos e fretes" };
+const ROT_NIVEL = (n) => (n === "editar" ? "Editar" : n === "ver" ? "Ver" : "Sem acesso");
+const dataBR = (ms) => (ms ? new Date(ms).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "sem validade");
+function resumoMudanca(antes, depois) {
+  const l = [];
+  if (antes.perfil !== depois.perfil) l.push(`Perfil: ${antes.perfil || "—"} → ${depois.perfil}`);
+  for (const f of FERRAMENTAS) if (antes.niveis[f] !== depois.niveis[f]) l.push(`${ROT_FERR[f]}: ${ROT_NIVEL(antes.niveis[f])} → ${ROT_NIVEL(depois.niveis[f])}`);
+  if ((antes.validoAte || 0) !== (depois.validoAte || 0)) l.push(`Validade: ${dataBR(antes.validoAte)} → ${dataBR(depois.validoAte)}`);
+  return l;
+}
+
+async function gravarUsuario(db, email, body, P, por) {
   const atual = await db.prepare("SELECT * FROM usuarios WHERE email = ?").bind(email).first();
   let perfil = atual ? atual.perfil : "leitor";
   if (body.perfil !== undefined) {
     if (!P[body.perfil]) throw new Falha(400, "perfil-invalido");
     perfil = body.perfil;
   }
+  const niveisAntes = atual ? niveisDe(atual.perfil, atual, P) : {};
   let ferramentas = atual ? atual.ferramentas : null;
   let acesso = atual ? atual.acesso_custo : 0;
-  if (body.ferramentas !== undefined) {
+  let niveis;                                   // undefined = não mexer na coluna `niveis`
+  if (body.niveis !== undefined) {
+    if (!body.niveis || typeof body.niveis !== "object" || Array.isArray(body.niveis)) throw new Falha(400, "niveis-invalidos");
+    niveis = limparNiveis(body.niveis);
+  } else if (body.ferramentas !== undefined) {
     if (!Array.isArray(body.ferramentas) || body.ferramentas.length > 20) throw new Falha(400, "ferramentas-invalidas");
     const lista = body.ferramentas.filter((i) => FERRAMENTAS.includes(i));
-    ferramentas = JSON.stringify(lista);
-    acesso = lista.includes("custo") ? 1 : 0;
+    if (atual && atual.niveis) {              // telas antigas em cache: mantém o nível que a pessoa já tinha em cada ferramenta
+      niveis = {}; for (const f of lista) niveis[f] = niveisAntes[f] || (f === "monitor" ? "ver" : "editar");
+    } else {
+      ferramentas = JSON.stringify(lista);
+      acesso = lista.includes("custo") ? 1 : 0;
+    }
   } else if (typeof body.acessoCusto === "boolean") {
     acesso = body.acessoCusto ? 1 : 0;
   }
+  if (niveis !== undefined) { ferramentas = JSON.stringify(ordemFerr(niveis)); acesso = niveis.custo ? 1 : 0; }
+  let validoAte;                                // undefined = não mexer
+  if (body.validoAte !== undefined) {
+    validoAte = body.validoAte === null || body.validoAte === 0 ? null : Number(body.validoAte);
+    if (validoAte !== null && !(validoAte > 0)) throw new Falha(400, "validade-invalida");
+  }
   const senha = body.resetar_senha === true ? null : (atual ? atual.senha : null);
   const ultimo = atual ? atual.ultimo_acesso : null;
+  const cols = ["email", "perfil", "ferramentas", "acesso_custo", "ultimo_acesso", "senha"], vals = [email, perfil, ferramentas, acesso, ultimo, senha];
+  if (niveis !== undefined) { cols.push("niveis"); vals.push(JSON.stringify(niveis)); }
+  if (validoAte !== undefined) { cols.push("valido_ate"); vals.push(validoAte); }
+  const sql = `INSERT INTO usuarios (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})
+     ON CONFLICT(email) DO UPDATE SET ${cols.filter((c) => c !== "email" && c !== "ultimo_acesso").map((c) => `${c} = excluded.${c}`).join(", ")}`;
   try {
-    await db.prepare(
-      `INSERT INTO usuarios (email, perfil, ferramentas, acesso_custo, ultimo_acesso, senha) VALUES (?,?,?,?,?,?)
-       ON CONFLICT(email) DO UPDATE SET perfil = excluded.perfil, ferramentas = excluded.ferramentas,
-         acesso_custo = excluded.acesso_custo, senha = excluded.senha`
-    ).bind(email, perfil, ferramentas, acesso, ultimo, senha).run();
+    await comMigracao(db, () => db.prepare(sql).bind(...vals).run());
   } catch (e) {
     // a tabela antiga só aceita logistica/ti/leitor (CHECK); perfil novo exige a migração de db/schema.sql
     if (/CHECK constraint/i.test(String(e && e.message))) throw new Falha(409, "migracao-pendente");
     throw e;
   }
+  // histórico: só o que mudou de verdade
+  const depoisRow = { ...(atual || {}), perfil, niveis: niveis !== undefined ? JSON.stringify(niveis) : (atual && atual.niveis) || null,
+                      ferramentas, acesso_custo: acesso };
+  const depois = { perfil, niveis: niveisDe(perfil, depoisRow, P), validoAte: validoAte !== undefined ? (validoAte || 0) : (atual && atual.valido_ate) || 0 };
+  const antes = { perfil: atual ? atual.perfil : null, niveis: niveisAntes, validoAte: (atual && atual.valido_ate) || 0 };
+  const mudou = resumoMudanca(antes, depois);
+  if (!atual) mudou.unshift("Pessoa adicionada");
+  if (body.resetar_senha === true) mudou.push("Senha redefinida");
+  if (mudou.length && por) await logAcesso(db, por, email, atual ? "alterou" : "adicionou", mudou);
 }
 
 // ---------- perfis (só DONO_PERFIS altera) ----------
@@ -223,9 +343,9 @@ async function listarPerfis(ctx) {
   try {
     for (const r of (await ctx.env.DB.prepare("SELECT perfil, COUNT(*) AS n FROM usuarios GROUP BY perfil").all()).results) uso[r.perfil] = r.n;
   } catch (_) {}
-  const perfis = Object.entries(P).map(([nome, x]) => ({ nome, rotulo: x.rotulo, permissoes: x.perms, sistema: x.sistema, pessoas: uso[nome] || 0 }))
+  const perfis = Object.entries(P).map(([nome, x]) => ({ nome, rotulo: x.rotulo, permissoes: x.perms, modelo: x.modelo, sistema: x.sistema, pessoas: uso[nome] || 0 }))
     .sort((a, b) => (b.sistema - a.sistema) || a.rotulo.localeCompare(b.rotulo));
-  return { catalogo: CATALOGO, perfis };
+  return { catalogo: CATALOGO, ferramentas: FERRAMENTAS.map((id) => ({ id, nome: ROT_FERR[id] })), perfis };
 }
 async function gravarPerfil(ctx, nome, body) {
   if (!NOME_PERFIL.test(nome)) throw new Falha(400, "nome-invalido");
@@ -235,12 +355,21 @@ async function gravarPerfil(ctx, nome, body) {
   let perms = body.permissoes !== undefined ? [...new Set(body.permissoes.filter((i) => IDS_PERM.includes(i)))] : ((P[nome] && P[nome].perms) || []);
   if (nome === "ti") perms = IDS_PERM.slice();
   const sistema = P[nome] && P[nome].sistema ? 1 : 0;
+  let modelo;                                  // undefined = não mexer
+  if (body.modelo !== undefined) {
+    if (!body.modelo || typeof body.modelo !== "object" || Array.isArray(body.modelo)) throw new Falha(400, "modelo-invalido");
+    modelo = nome === "ti" ? limparNiveis(MODELO_BASE.ti) : limparNiveis(body.modelo);
+  }
+  const cols = ["nome", "rotulo", "editar_nfs", "admin", "sistema", "permissoes"];
+  const vals = [nome, rotulo, perms.includes("nf_ignorar") ? 1 : 0, perms.includes("admin") ? 1 : 0, sistema, JSON.stringify(perms)];
+  if (modelo !== undefined) { cols.push("modelo"); vals.push(JSON.stringify(modelo)); }
   try {
-    await ctx.env.DB.prepare(
-      `INSERT INTO perfis (nome, rotulo, editar_nfs, admin, sistema, permissoes) VALUES (?,?,?,?,?,?)
-       ON CONFLICT(nome) DO UPDATE SET rotulo = excluded.rotulo, editar_nfs = excluded.editar_nfs, admin = excluded.admin,
-         permissoes = excluded.permissoes`
-    ).bind(nome, rotulo, perms.includes("nf_ignorar") ? 1 : 0, perms.includes("admin") ? 1 : 0, sistema, JSON.stringify(perms)).run();
+    await comMigracao(ctx.env.DB, () => ctx.env.DB.prepare(
+      `INSERT INTO perfis (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})
+       ON CONFLICT(nome) DO UPDATE SET ${cols.filter((c) => c !== "nome").map((c) => `${c} = excluded.${c}`).join(", ")}`
+    ).bind(...vals).run());
+    await logAcesso(ctx.env.DB, ctx.u ? ctx.u.email : "", "perfil:" + nome, "perfil", [
+      "Perfil salvo" + (body.permissoes !== undefined ? " (permissões)" : "") + (modelo !== undefined ? " (modelo de níveis)" : "")]);
   } catch (e) {
     if (/no such (table|column)|has no column/i.test(String(e && e.message))) throw new Falha(409, "migracao-pendente");
     throw e;
@@ -296,6 +425,7 @@ async function login(ctx, body) {
 
   const u = await perfilDe(db, email, await perfisDo(ctx));
   if (!u) { await registrarFalha(db, kE); await registrarFalha(db, kI); return erro(401, "credenciais"); }
+  if (u.expirado) return erro(403, "acesso-expirado");
   if (!u.temSenha) return erro(409, "primeiro-acesso");
 
   const row = await db.prepare("SELECT senha FROM usuarios WHERE email = ?").bind(email).first();
@@ -350,7 +480,7 @@ const logStmt = (db, nfId, acao, tipo, motivo, por, em) =>
 async function saude(env) {
   const r = { db: !!env.DB, session_secret: !!env.SESSION_SECRET, token_secret: !!env.TOKEN_SECRET, tabelas: {} };
   if (env.DB) {
-    for (const t of ["usuarios", "acoes", "acoes_log", "tentativas", "perfis"]) {
+    for (const t of ["usuarios", "acoes", "acoes_log", "tentativas", "perfis", "acessos_log"]) {
       try { await env.DB.prepare(`SELECT 1 FROM ${t} LIMIT 1`).all(); r.tabelas[t] = "ok"; }
       catch (e) { r.tabelas[t] = String(e && e.message || e).slice(0, 120); }
     }
@@ -400,12 +530,24 @@ async function rotear(ctx) {
     const exp = Math.floor(Date.now() / 1000) + TOKEN_S;
     // "r" = pode ignorar NF no robô: a Azure confere este claim nas rotas /v1/portal/ignorar
     // "pv"/"px" = Pedidos e fretes (ver / excluir): a Azure confere em /v1/portal/pedidos*
+    // "ce" = nível EDITAR no Custo de Frete (ver = só leitura): a Azure barra a gravação de cobertura e banda sem ele
     const token = await assinar(env.TOKEN_SECRET, { e: u.email, p: u.perfil, c: u.acessoCusto, r: !!(u.pode && u.pode.nf_ignorar_robo),
-                                                   pv: !!(u.pode && u.pode.pedidos_ver), px: !!(u.pode && u.pode.pedidos_excluir), exp });
+                                                   pv: !!(u.pode && u.pode.pedidos_ver), px: !!(u.pode && u.pode.pedidos_excluir),
+                                                   ce: !!(u.pode && u.pode.custo_editar), exp });
     return json({ token, exp });
   }
 
+  if (a === "acessos-log" && m === "GET") {
+    exigir(u, "admin");
+    const lim = Math.min(Math.max(parseInt(new URL(request.url).searchParams.get("limite") || "100", 10) || 100, 1), 300);
+    let rows = [];
+    try { rows = (await env.DB.prepare("SELECT alvo, por, tipo, detalhe, em FROM acessos_log ORDER BY em DESC, id DESC LIMIT ?").bind(lim).all()).results; }
+    catch (e) { if (!FALTA_ESTRUTURA.test(String(e && e.message))) throw e; }          // tabela ainda não criada: histórico vazio
+    return json(rows.map((r) => { let d = []; try { d = JSON.parse(r.detalhe || "[]"); } catch (_) {} return { alvo: r.alvo, por: r.por, tipo: r.tipo, detalhe: d, em: r.em }; }));
+  }
+
   if (a === "perfis") {
+    ctx.u = u;
     if (!b && m === "GET") { exigir(u, "admin"); return json(await listarPerfis(ctx)); }
     if (u.email !== DONO_PERFIS) throw new Falha(403, "sem-permissao");
     if (b && m === "PUT") { await gravarPerfil(ctx, b, await corpo()); return json(await listarPerfis(ctx)); }
@@ -419,18 +561,22 @@ async function rotear(ctx) {
       const rows = (await env.DB.prepare("SELECT * FROM usuarios ORDER BY email").all()).results;
       return json(rows.map((r) => {
         const f = ferramentasDe(r.perfil, r);
-        return { email: r.email, perfil: r.perfil, ferramentas: f, acessoCusto: f.includes("custo"), ultimoAcesso: r.ultimo_acesso || 0 };
+        const n = niveisDe(r.perfil, r, P);
+        return { email: r.email, perfil: r.perfil, ferramentas: ordemFerr(n), niveis: n, acessoCusto: !!n.custo, ultimoAcesso: r.ultimo_acesso || 0,
+                 validoAte: r.valido_ate || 0, personalizado: !!r.niveis };
       }));
     }
     if (b === "lote" && m === "POST") {
       const body = await corpo();
       if (!Array.isArray(body.itens) || body.itens.length > 100) throw new Falha(400, "lote-invalido");
-      for (const it of body.itens) await gravarUsuario(env.DB, normEmail(it.email), it, P);
+      for (const it of body.itens) await gravarUsuario(env.DB, normEmail(it.email), it, P, u.email);
       return json({ ok: true });
     }
-    if (b && m === "PUT") { await gravarUsuario(env.DB, normEmail(b), await corpo(), P); return json({ ok: true }); }
+    if (b && m === "PUT") { await gravarUsuario(env.DB, normEmail(b), await corpo(), P, u.email); return json({ ok: true }); }
     if (b && m === "DELETE") {
-      await env.DB.prepare("DELETE FROM usuarios WHERE email = ?").bind(normEmail(b)).run();
+      const alvo = normEmail(b);
+      await env.DB.prepare("DELETE FROM usuarios WHERE email = ?").bind(alvo).run();
+      await logAcesso(env.DB, u.email, alvo, "removeu", ["Acesso removido do portal"]);
       return json(null, 204);
     }
   }
