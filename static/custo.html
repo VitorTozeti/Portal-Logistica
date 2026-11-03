@@ -162,8 +162,8 @@
   .ufs h4{margin:0 -6px;padding:12px 16px 6px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);position:sticky;top:0;background:var(--card);z-index:1}
   .ufs details.reg>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;margin:0 -6px;padding:12px 16px 6px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);position:sticky;top:0;background:var(--card);z-index:1}
   .ufs details.reg>summary::-webkit-details-marker{display:none}
-  .ufs details.reg>summary::before{content:"B8";transition:transform .15s}
-  .ufs details.reg[open]>summary::before{transform:rotate(90deg)}
+  .ufs details.reg>summary::before{content:"";inline-size:7px;block-size:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s;flex:none;margin:0 2px 0 0}
+  .ufs details.reg[open]>summary::before{transform:rotate(45deg)}
   .ufs details.reg>summary .rn-n{margin-left:auto;font-weight:600;letter-spacing:0;color:var(--soft)}
   .ufs details.reg>summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
   .ufb{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;border:0;border-radius:10px;background:none;padding:6px 10px;margin:1px 0;cursor:pointer;color:var(--ink);font-family:inherit;transition:background .12s}
