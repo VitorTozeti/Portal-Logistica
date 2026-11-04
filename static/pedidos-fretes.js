@@ -58,6 +58,10 @@ const CSS = `
 :root[data-theme="light"] .pf-aviso{color:#92400e}
 .pf-espera{background:color-mix(in srgb,var(--soft) 16%,transparent);color:var(--soft)}
 .pf-pos{color:var(--bq,#f87171);font-weight:700} .pf-neg{color:var(--at,#34d399);font-weight:700}
+.pf-pl{font:inherit;font-size:11.5px;font-weight:800;border:1px solid var(--line);background:transparent;color:var(--soft);border-radius:7px;padding:1px 6px;cursor:pointer;margin-left:4px}
+.pf-pl:hover{color:var(--brand);border-color:var(--brand)}
+.pf-pbox{max-width:min(760px,94vw);width:100%}
+.pf-pre{max-height:60vh;overflow:auto;background:var(--bg,transparent);border:1px solid var(--line);border-radius:10px;padding:12px;font:12.5px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;margin:0}
 .pf-rod{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--soft)}
 .pf-hist{margin-bottom:10px}
 .pf-hist:empty{display:none}
@@ -113,6 +117,11 @@ function montar(raiz, ctx){
     <div class="pf-tab" id="pf-tab"><div class="vazio">carregando…</div></div>
     <div id="pf-mais" style="text-align:center;color:var(--soft);font-size:13.5px;padding:10px 0"></div>
     <div class="pf-rod" id="pf-rod"></div>
+    <div class="mdl" id="pf-pmdl" hidden><div class="box pf-pbox" role="dialog" aria-modal="true" aria-labelledby="pf-pt">
+      <h3 id="pf-pt">O que o SAP mandou para a Azure</h3><p class="sub" id="pf-psub" style="margin:0 0 8px"></p>
+      <pre id="pf-pre" class="pf-pre">carregando…</pre>
+      <div class="acoes"><button class="btn" id="pf-pcop" type="button">Copiar</button><button class="btn pri" id="pf-pfec" type="button">Fechar</button></div>
+    </div></div>
     <div class="mdl" id="pf-mdl" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="pf-mt">
       <h3 id="pf-mt">Excluir pedidos</h3><div id="pf-mres"></div>
       <label style="display:block;margin-top:12px;font-size:13px;font-weight:600">Motivo (obrigatório)
@@ -228,7 +237,7 @@ function montar(raiz, ctx){
           `<td class="num" data-l="Simulado" title="${p.simulado_com_imposto ? "com imposto: " + R(p.simulado_com_imposto) : "sem imposto"}">${R(p.simulado)}</td>` +
           `<td class="num" data-l="Real cobrado" title="${p.real_compartilhado ? "CT-e dividido entre várias NFs (valor rateado)" : ""}">${R(p.real)}${p.real_compartilhado ? " ⧉" : ""}</td>` +
           `<td class="num ${c}" data-l="Diferença" title="${esc(BASE[p.base_comparacao] || "")}">${DIF(p.diferenca, p.diferenca_pct)}</td>` +
-          `<td data-l="Situação"><span class="pf-badge ${s[1]}">${esc(s[0])}</span></td></tr>`;
+          `<td data-l="Situação"><span class="pf-badge ${s[1]}">${esc(s[0])}</span> <button type="button" class="pf-pl" data-payload="${esc(p.id)}" title="Ver o que o SAP mandou para a Azure neste pedido" aria-label="Ver payload do SAP">{ }</button></td></tr>`;
       }).join("") + "</tbody></table>";
     dica();
     $("#pf-rod").innerHTML = `<span>${nf(d.pedidos.length, 0)} de ${nf(d.total, 0)} pedidos${d.truncado ? " — refine a busca para ver o restante" : ""}</span>` +
@@ -263,6 +272,19 @@ function montar(raiz, ctx){
     bt.disabled = false;
   };
 
+  // corpo cru que o SAP mandou (Azure guarda desde 04/11/2026): ajuda a conferir o campo da chave do pedido
+  $("#pf-tab").addEventListener("click", async e => {
+    const b = e.target.closest("[data-payload]"); if(!b) return;
+    const id = b.dataset.payload, p = (dados.pedidos || []).find(x => x.id === id) || {};
+    $("#pf-psub").textContent = diaHora(p.criado_em) + " · " + (p.cidade || "") + (p.uf ? " / " + p.uf : "") + " · " + (p.transportadora || "");
+    $("#pf-pre").textContent = "carregando…"; $("#pf-pmdl").hidden = false;
+    try{
+      const r = await ctx.api("GET", "/v1/portal/pedidos/payload?id=" + encodeURIComponent(id));
+      $("#pf-pre").textContent = r.tem ? (typeof r.payload === "string" ? r.payload : JSON.stringify(r.payload, null, 2)) : "Sem o corpo deste pedido: " + (r.motivo || "não guardado") + ".";
+    }catch(x){ $("#pf-pre").textContent = "Não consegui buscar: " + ctx.msgErro(x); }
+  });
+  $("#pf-pfec").onclick = () => { $("#pf-pmdl").hidden = true; };
+  $("#pf-pcop").onclick = async () => { try{ await navigator.clipboard.writeText($("#pf-pre").textContent); ctx.toast("Copiado."); }catch(_){ ctx.toast("Não deu para copiar.", { erro: true }); } };
   $("#pf-tab").addEventListener("change", e => {
     const t = e.target;
     if(t.id === "pf-all"){ for(const p of dados.pedidos) t.checked ? sel.add(p.id) : sel.delete(p.id); render(); return; }
