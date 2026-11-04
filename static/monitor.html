@@ -148,6 +148,10 @@
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
   .nf.subiu .tag{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  /* filtro de operador (04/11/2026): durante a transição B4You -> Unilog dá para olhar cada um separado */
+  .opbar{max-width:1440px;width:100%;margin:0 auto;padding:16px 28px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .opbar .rot{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+  @media (max-width:440px){.opbar{padding:12px 12px 0}}
   .uni{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;
     color:var(--ink2);background:color-mix(in srgb,var(--ink2) 12%,transparent)}
   .uni.u22{color:#16a34a;background:color-mix(in srgb,#16a34a 14%,transparent)}
@@ -493,6 +497,14 @@
   </div>
 </div>
 
+<div class="opbar" id="opbar" role="group" aria-label="Filtrar por operador logístico">
+  <span class="rot">Operador</span>
+  <span id="seg-op" class="seg">
+    <span class="chip todas" role="button" tabindex="0" data-op="todos" aria-pressed="true">Todos <span class="n">0</span></span>
+    <span class="chip" role="button" tabindex="0" data-op="B4You" aria-pressed="false" title="Notas do fluxo antigo (B4You) e travas do SAP que não são da Unilog">B4You <span class="n">0</span></span>
+    <span class="chip" role="button" tabindex="0" data-op="Unilog" aria-pressed="false" title="Notas que o robô mandou à Unilog e alertas da Unilog">Unilog <span class="n">0</span></span>
+  </span>
+</div>
 <main>
   <div class="col">
     <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span></h2>
@@ -592,6 +604,10 @@
   // ===== estado dos filtros (um por coluna) =====
   const filtroTravadas = new Set();  // categorias DESLIGADAS (o resto aparece)
   let   filtroFilial   = "todas";    // "todas" | "Varejo" | "Atacado"
+  // operador: "todos" | "B4You" | "Unilog" (guardado na aba); Unilog = NF que o robô mandou à Unilog ou alerta dela
+  let   filtroOperador = (() => { try{ return sessionStorage.getItem("portal_operador") || "todos"; }catch(_){ return "todos"; } })();
+  const opDe = n => (n.operador === "Unilog" || n.grupo === "UNILOG") ? "Unilog" : "B4You";
+  const passaOp = n => filtroOperador === "todos" || opDe(n) === filtroOperador;
   let   filtroDe       = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte inicial)
   let   filtroAte      = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte final)
   let   filtroIgnoradas = "todas";   // "todas" | "so" (só ignoradas) | "sem" (oculta ignoradas)
@@ -784,7 +800,8 @@
   function renderTravadas(){
     renderOcultasChip();
     // lista-base: as visíveis (sem as ocultas) ou, no modo "ocultas", só as ocultas
-    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas);
+    sincronizarOperador();
+    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas && passaOp(n));
     const cont = new Map();
     for(const n of base){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
     const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
@@ -810,6 +827,7 @@
   }
 
   function passaFiltrosSubiram(n){
+    if(!passaOp(n)) return false;
     if(filtroFilial !== "todas" && (n.filial||"") !== filtroFilial) return false;
     if(filtroIgnoradas === "so"  && !n.ignorada) return false;
     if(filtroIgnoradas === "sem" &&  n.ignorada) return false;
@@ -823,8 +841,8 @@
     return true;
   }
   function sincronizarChipsFilial(){
-    const nCont = { todas: risen.size, Varejo: 0, Atacado: 0 };
-    for(const n of risen.values()){ if(n.filial==="Varejo") nCont.Varejo++; else if(n.filial==="Atacado") nCont.Atacado++; }
+    const nCont = { todas: 0, Varejo: 0, Atacado: 0 };
+    for(const n of risen.values()){ if(!passaOp(n)) continue; nCont.todas++; if(n.filial==="Varejo") nCont.Varejo++; else if(n.filial==="Atacado") nCont.Atacado++; }
     for(const chip of document.querySelectorAll("#seg-filial .chip")){
       const k = chip.dataset.fil;
       chip.setAttribute("aria-pressed", String(filtroFilial===k));
@@ -847,7 +865,7 @@
     // ignoradas, busca por NF, data) ou já se pediu "mostrar mais" (janelaSemanal=false) — filtrar
     // = procurar no histórico inteiro. Ex.: "só ignoradas" (2 notas antigas) aparece na hora, sem
     // precisar clicar "mostrar mais". Sem filtro nenhum, a janela mantém a tela inicial enxuta.
-    const usaJanela = janelaSemanal && filtroFilial==="todas" && filtroIgnoradas==="todas"
+    const usaJanela = janelaSemanal && filtroFilial==="todas" && filtroIgnoradas==="todas" && filtroOperador==="todos"
                       && !buscaNF && !filtroDe && !filtroAte;
     const pool = usaJanela ? vis.filter(dentroJanela) : vis;
     const mostra = pool.slice(0, limiteSubiram);        // exibe em blocos (ordem desc preservada)
@@ -859,11 +877,26 @@
       html += `<button class="maisbtn" type="button" data-mais="1">▾ mostrar mais (${restante})</button>`;
     html += `<button class="vertodas" type="button" id="btn-historico">ver todas as notas subidas (histórico completo)</button>`;
     if(html !== _upHTML){ $("#up").innerHTML = html; _upHTML = html; }   // só reescreve o DOM se mudou (evita piscar)
-    const semFiltro = filtroFilial==="todas" && !filtroDe && !filtroAte && filtroIgnoradas==="todas" && !buscaNF;
+    const semFiltro = filtroOperador==="todos" && filtroFilial==="todas" && !filtroDe && !filtroAte && filtroIgnoradas==="todas" && !buscaNF;
     $("#c-up").textContent = semFiltro ? total : `${total}/${risen.size}`;
   }
 
   function render(){ renderTravadas(); renderSubiram(); }
+  function sincronizarOperador(){
+    const c = { todos: 0, B4You: 0, Unilog: 0 };
+    for(const n of stuck.values()){ if(ocultas.has(n.id)) continue; c.todos++; c[opDe(n)]++; }
+    for(const n of risen.values()){ c.todos++; c[opDe(n)]++; }
+    for(const chip of document.querySelectorAll("#seg-op .chip")){
+      chip.setAttribute("aria-pressed", String(filtroOperador === chip.dataset.op));
+      const el = chip.querySelector(".n"); if(el) el.textContent = c[chip.dataset.op] ?? 0;
+    }
+  }
+  function escolherOperador(op){
+    filtroOperador = op; try{ sessionStorage.setItem("portal_operador", op); }catch(_){}
+    limiteSubiram = PASSO_SUBIRAM; limiteTravadas = PASSO_TRAVADAS; _upHTML = null; _stuckHTML = null; render();
+  }
+  $("#seg-op").addEventListener("click", e => { const c = e.target.closest(".chip[data-op]"); if(c) escolherOperador(c.dataset.op); });
+  $("#seg-op").addEventListener("keydown", e => { const c = e.target.closest(".chip[data-op]"); if(c && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); escolherOperador(c.dataset.op); } });
   // coalesce renders: no snapshot inicial chegam milhares de eventos SSE; 1 render por frame evita travar
   let _renderPend = false, _upHTML = "", _stuckHTML = "";
   function agendarRender(){

@@ -142,7 +142,7 @@ def _ev(filial, nf, cod, cat, desc, desde):
     return {
         "nf": nf, "filial": filial, "estado": "travada", "transportadora": "Unilog",
         "problema_codigo": cod, "problema_categoria": cat, "problema_descricao": desc,
-        "travada_desde": _iso(desde), "grupo": "UNILOG",
+        "travada_desde": _iso(desde), "grupo": "UNILOG", "operador": "Unilog",
     }
 
 
