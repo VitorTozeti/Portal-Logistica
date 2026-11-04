@@ -64,6 +64,8 @@ window.PortalGateCF = (function () {
       rotulo: x.rotulo || "",
       doc: true,
       ferramentas: ferramentasDe(x.perfil, x),
+      niveis: x.niveis || null,
+      validoAte: x.validoAte || 0,
       acessoCusto: ferramentasDe(x.perfil, x).includes("custo"),
       pode: x.pode || null,
       donoPerfis: x.donoPerfis === true,
@@ -114,6 +116,13 @@ window.PortalGateCF = (function () {
       donoPerfis() { return !!usuarioAtual && usuarioAtual.donoPerfis === true; },
       podeCusto() { return !!usuarioAtual && usuarioAtual.acessoCusto === true; },
       podeFerramenta(id) { return !!usuarioAtual && (usuarioAtual.ferramentas || []).includes(id); },
+      // nível da pessoa numa ferramenta: "ver" | "editar" | null (sem acesso). Sessão antiga guardada (sem `niveis`): quem abre, edita.
+      nivel(id) {
+        if (!usuarioAtual) return null;
+        if (usuarioAtual.niveis) return usuarioAtual.niveis[id] || null;
+        return (usuarioAtual.ferramentas || []).includes(id) ? "editar" : null;
+      },
+      podeEditarFerramenta(id) { return this.nivel(id) === "editar"; },
       ferramentas() { return FERRAMENTAS.slice(); },
       ferramentaTI() { return FERRAMENTA_TI; },
       ferramentasTI() { return (FERRAMENTAS_TI || [FERRAMENTA_TI]).slice(); },
@@ -163,7 +172,8 @@ window.PortalGateCF = (function () {
       // ---- usuários (só o perfil ti; o Worker barra os demais) ----
       async listarUsuarios() {
         const l = await req("GET", "/usuarios");
-        return l.map((x) => ({ email: x.email, perfil: x.perfil, ferramentas: ferramentasDe(x.perfil, x), ultimoAcesso: x.ultimoAcesso || 0 }))
+        return l.map((x) => ({ email: x.email, perfil: x.perfil, ferramentas: ferramentasDe(x.perfil, x), niveis: x.niveis || {}, validoAte: x.validoAte || 0,
+                              personalizado: !!x.personalizado, ultimoAcesso: x.ultimoAcesso || 0 }))
                 .sort((a, b) => a.email.localeCompare(b.email));
       },
       async salvarUsuario(email, perfil) {
@@ -174,6 +184,16 @@ window.PortalGateCF = (function () {
         const f = (lista || []).filter((i) => IDS.includes(i));
         await req("PUT", "/usuarios/" + encodeURIComponent(email.trim().toLowerCase()), { ferramentas: f, acessoCusto: f.includes("custo") });
       },
+      // ---- níveis por ferramenta (03/11/2026): { monitor: "ver"|"editar", custo: ..., pedidos: ... }; ferramenta ausente = sem acesso ----
+      async salvarPessoa(email, dados) {          // dados: { perfil?, niveis?, validoAte? (ms | null), resetar_senha? }
+        guardado.limpar();
+        await req("PUT", "/usuarios/" + encodeURIComponent(email.trim().toLowerCase()), dados);
+      },
+      async salvarNiveisVarios(itens) {           // itens: [{ email, niveis?, perfil?, validoAte? }]
+        guardado.limpar();
+        await req("POST", "/usuarios/lote", { itens: itens.map((it) => ({ ...it, email: it.email.trim().toLowerCase() })) });
+      },
+      async listarAcessosLog(limite) { return req("GET", "/acessos-log?limite=" + (limite || 100)); },
       async salvarFerramentasVarios(itens) {
         await req("POST", "/usuarios/lote", { itens: itens.map((it) => {
           const f = (it.ferramentas || []).filter((i) => IDS.includes(i));

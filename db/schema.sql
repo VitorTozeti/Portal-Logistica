@@ -68,3 +68,17 @@ CREATE TABLE IF NOT EXISTS tentativas (
   n INTEGER NOT NULL DEFAULT 0,
   ate INTEGER NOT NULL DEFAULT 0
 );
+
+-- 03/11/2026 (níveis de acesso por ferramenta, modelo de perfil, validade e histórico de acessos).
+-- O Worker CRIA ISTO SOZINHO na primeira gravação que precisar (functions/api, autoMigrar) — rodar à mão só se preferir.
+--   ALTER TABLE usuarios ADD COLUMN niveis TEXT;        -- JSON {"monitor":"ver|editar","custo":"...","pedidos":"..."}; ausente = deriva do que a pessoa já tinha
+--   ALTER TABLE usuarios ADD COLUMN valido_ate INTEGER; -- ms epoch; vencido = 403 "acesso-expirado" (TI nunca vence)
+--   ALTER TABLE perfis ADD COLUMN modelo TEXT;          -- JSON de níveis padrão aplicados ao escolher o perfil da pessoa
+CREATE TABLE IF NOT EXISTS acessos_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  alvo TEXT NOT NULL,              -- e-mail da pessoa alterada (ou "perfil:<nome>")
+  por TEXT NOT NULL,               -- e-mail de quem alterou
+  tipo TEXT NOT NULL,              -- adicionou | alterou | removeu | perfil
+  detalhe TEXT,                    -- JSON: lista de frases ("Custo de Frete: Ver → Editar")
+  em INTEGER NOT NULL
+);

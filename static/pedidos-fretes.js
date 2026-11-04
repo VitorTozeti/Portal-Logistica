@@ -15,8 +15,11 @@ const sinal = v => v > 0 ? "+" : v < 0 ? "−" : "";
 const DIF = (v, p) => v == null ? "—" : sinal(v) + "R$ " + nf(Math.abs(v), 2) + (p == null ? "" : " (" + sinal(p) + nf(Math.abs(p), 1) + "%)");
 const diaHora = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); };
 const dia = d => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-const nfNum = chave => chave && chave.length === 44 ? String(parseInt(chave.slice(25, 34), 10)) : "";
-const SIT = { teste: ["Teste", "pf-teste"], sem_chave: ["Sem chave da NF", "pf-aviso"], aguardando_real: ["Aguardando real", "pf-espera"],
+const nfNum = chave => chave && chave.length === 44 && /^\d+$/.test(chave) ? String(parseInt(chave.slice(25, 34), 10)) : "";
+// o SAP passou a mandar a CHAVE DO PEDIDO no campo da NF (03/11/2026): chave de 44 dígitos = NF (mostra o nº da NF); outra = pedido (mostra a chave)
+const refPedido = chave => nfNum(chave) || chave || "";
+const rotChave = p => p.chave_tipo === "pedido" ? "Pedido" : p.chave_tipo === "nf" ? "NF" : "";
+const SIT = { teste: ["Teste", "pf-teste"], sem_chave: ["Sem chave", "pf-aviso"], aguardando_real: ["Aguardando real", "pf-espera"],
   ok: ["No esperado", "pf-ok"], divergente: ["Divergente", "pf-erro"] };
 const BASE = { com_imposto: "simulado com imposto × real", sem_imposto: "simulado × real", sem_imposto_aprox: "simulado × real sem ICMS (≈ 12%)" };
 
@@ -55,8 +58,33 @@ const CSS = `
 :root[data-theme="light"] .pf-aviso{color:#92400e}
 .pf-espera{background:color-mix(in srgb,var(--soft) 16%,transparent);color:var(--soft)}
 .pf-pos{color:var(--bq,#f87171);font-weight:700} .pf-neg{color:var(--at,#34d399);font-weight:700}
+.pf-pl{font:inherit;font-size:11.5px;font-weight:800;border:1px solid var(--line);background:transparent;color:var(--soft);border-radius:7px;padding:1px 6px;cursor:pointer;margin-left:4px}
+.pf-pl:hover{color:var(--brand);border-color:var(--brand)}
+.pf-pbox{max-width:min(760px,94vw);width:100%}
+.pf-pre{max-height:60vh;overflow:auto;background:var(--bg,transparent);border:1px solid var(--line);border-radius:10px;padding:12px;font:12.5px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;margin:0}
 .pf-rod{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--soft)}
-@media (max-width:640px){.pf-barra .esp{display:none} .pf-kpi .n{font-size:20px}}
+.pf-hist{margin-bottom:10px}
+.pf-hist:empty{display:none}
+.pf-k-hist{border-color:color-mix(in srgb,var(--brand) 35%,var(--line))}
+.pf-k-hist .n{color:var(--brand)}
+@media (max-width:900px){.pf-barra input{flex:1 1 100%} .pf-barra select{flex:1 1 150px;min-width:0}}
+@media (max-width:640px){
+  .pf-barra .esp{display:none}
+  .pf-seg{width:100%} .pf-seg button{flex:1}
+  .pf-barra .btn{flex:1 1 calc(50% - 4px)}
+  .pf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pf-kpi{padding:10px 12px} .pf-kpi .n{font-size:19px;overflow-wrap:anywhere} .pf-kpi .l{font-size:11px}
+  .pf-tab{border:0;background:transparent;overflow:visible}
+  .pf-tab table,.pf-tab thead,.pf-tab tbody,.pf-tab tr,.pf-tab td{display:block;width:100%}
+  .pf-tab thead{position:absolute;left:-9999px}
+  .pf-tab tr{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 10px;padding:6px 12px}
+  .pf-tab td{display:flex;justify-content:space-between;align-items:center;gap:12px;white-space:normal;text-align:right;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding:7px 0}
+  .pf-tab td:last-child{border-bottom:0}
+  .pf-tab td[data-l]::before{content:attr(data-l);color:var(--soft);font-size:12px;font-weight:700;text-align:left;flex:none}
+  .pf-tab td.ck{justify-content:flex-start;width:auto}
+  .pf-tab .sub2{display:inline;margin-left:6px}
+  .pf-rod{flex-direction:column}
+}
 `;
 
 function montar(raiz, ctx){
@@ -77,17 +105,23 @@ function montar(raiz, ctx){
       </div>
       <select id="pf-sit" aria-label="Situação"><option value="">Todas as situações</option><option value="ok">No esperado</option><option value="divergente">Divergente</option><option value="aguardando_real">Aguardando real</option><option value="sem_chave">Sem chave da NF</option></select>
       <select id="pf-transp" aria-label="Transportadora"><option value="">Todas as transportadoras</option></select>
-      <input id="pf-q" placeholder="Buscar NF, chave, cidade ou CEP" aria-label="Buscar">
+      <input id="pf-q" placeholder="Buscar NF, pedido, chave, cidade ou CEP" aria-label="Buscar">
       <span class="esp"></span>
       <button class="btn" id="pf-ok" type="button">↻ Atualizar</button>
       <button class="btn" id="pf-xls" type="button">⬇ Excel</button>
     </div>
     <div id="pf-faixa"></div>
+    <div class="pf-kpis pf-hist" id="pf-hist" aria-label="Todo o histórico guardado"></div>
     <div class="pf-kpis" id="pf-kpis"></div>
     <div id="pf-selbar"></div>
     <div class="pf-tab" id="pf-tab"><div class="vazio">carregando…</div></div>
     <div id="pf-mais" style="text-align:center;color:var(--soft);font-size:13.5px;padding:10px 0"></div>
     <div class="pf-rod" id="pf-rod"></div>
+    <div class="mdl" id="pf-pmdl" hidden><div class="box pf-pbox" role="dialog" aria-modal="true" aria-labelledby="pf-pt">
+      <h3 id="pf-pt">O que o SAP mandou para a Azure</h3><p class="sub" id="pf-psub" style="margin:0 0 8px"></p>
+      <pre id="pf-pre" class="pf-pre">carregando…</pre>
+      <div class="acoes"><button class="btn" id="pf-pcop" type="button">Copiar</button><button class="btn pri" id="pf-pfec" type="button">Fechar</button></div>
+    </div></div>
     <div class="mdl" id="pf-mdl" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="pf-mt">
       <h3 id="pf-mt">Excluir pedidos</h3><div id="pf-mres"></div>
       <label style="display:block;margin-top:12px;font-size:13px;font-weight:600">Motivo (obrigatório)
@@ -120,8 +154,27 @@ function montar(raiz, ctx){
     if(erro){ $("#pf-tab").innerHTML = '<div class="vazio">' + esc(ctx.msgErro(erro)) + "</div>"; return; }
     for(const id of [...sel]) if(!dados.pedidos.some(p => p.id === id)) sel.delete(id);
     render();
+    carregarResumo();
   }
   raiz._pfAtualizar = atualizar;
+
+  // Total de TODOS os pedidos já feitos e do frete simulado: vem pronto da Azure (soma de dias guardados), não recalculado aqui.
+  let resumoHist = null, resumoEm = 0;
+  async function carregarResumo(){
+    if(Date.now() - resumoEm < 60000 && resumoHist) { pintarHist(); return; }
+    try{ resumoHist = await ctx.api("GET", "/v1/portal/pedidos/resumo"); resumoEm = Date.now(); }catch(e){ resumoHist = { erro: true }; }
+    pintarHist();
+  }
+  function pintarHist(){
+    const h = resumoHist, box = $("#pf-hist");
+    if(!box) return;
+    if(!h || h.erro || h.storage === false){ box.innerHTML = ""; return; }
+    const desde = h.desde ? new Date(h.desde + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "";
+    const porMes = (h.meses || []).map(m => m.mes.slice(5) + "/" + m.mes.slice(2, 4) + ": " + nf(m.pedidos, 0) + " pedidos · " + R(m.simulado)).join("\n");
+    box.innerHTML =
+      `<div class="pf-kpi pf-k-hist" title="${esc(porMes)}"><div class="l">Pedidos feitos (total)</div><div class="n">${nf(h.pedidos || 0, 0)}</div><div class="s">produção, sem cliques repetidos${desde ? " · desde " + desde : ""}</div></div>` +
+      `<div class="pf-kpi pf-k-hist" title="${esc(porMes)}"><div class="l">Frete simulado (total)</div><div class="n">${R(h.simulado || 0)}</div><div class="s">soma de todos os fretes escolhidos${h.dias ? " · " + nf(h.dias, 0) + " dias guardados" : ""}</div></div>`;
+  }
 
   // soma o resumo no navegador (mesma conta de portal_pedidos._resumo na Azure) porque as semanas chegam em páginas
   function resumir(ls){
@@ -143,7 +196,7 @@ function montar(raiz, ctx){
     pagina = pg; const novos = r.pedidos || [];
     vazias = novos.length ? 0 : vazias + 1;
     if(pagina >= MAX_SEMANAS || vazias >= MAX_VAZIAS || r.erro) acabou = true;
-    dados.pedidos = dados.pedidos.concat(novos); dados.total += r.total || 0; dados.truncado = dados.truncado || !!r.truncado;
+    dados.pedidos = dados.pedidos.concat(novos); dados.total += r.total || 0; dados.truncado = dados.truncado || !!r.truncado; dados.repetidas_ocultas = (dados.repetidas_ocultas || 0) + (r.repetidas_ocultas || 0);
     dados.resumo = resumir(dados.pedidos); dados.janela.desde = new Date(ini0 - 7 * 864e5 * pagina).toISOString();
     render();
   }
@@ -152,7 +205,7 @@ function montar(raiz, ctx){
 
   function render(){
     const d = dados, rs = d.resumo || {};
-    if(d.janela && d.janela.desde){ const ini = new Date(d.janela.desde), fim = new Date(ini0 + 6 * 864e5);
+    if(d.janela && d.janela.desde){ const ini = pagina && d.pedidos.length ? new Date(d.pedidos[d.pedidos.length - 1].criado_em) : new Date(d.janela.desde), fim = new Date(ini0 + 6 * 864e5);
       $("#pf-semana").textContent = (pagina ? "De " : "Semana de ") + dia(ini) + " a " + dia(fim) + " · " + nf(d.total || 0, 0) + " pedido" + (d.total === 1 ? "" : "s"); }
     let faixa = "";
     if(d.storage === false) faixa = "A Azure não está guardando os pedidos agora (armazenamento desligado).";
@@ -172,23 +225,23 @@ function montar(raiz, ctx){
     if(!(d.pedidos || []).length){ $("#pf-tab").innerHTML = '<div class="vazio">Nenhum pedido nesta semana com estes filtros.</div>'; $("#pf-rod").textContent = ""; dica(); return; }
     const todos = d.pedidos.every(p => sel.has(p.id));
     $("#pf-tab").innerHTML = '<table><thead><tr>' + (podeExcluir ? `<th class="ck"><input type="checkbox" id="pf-all" aria-label="Selecionar todos" ${todos ? "checked" : ""}></th>` : "") +
-      '<th>Data</th><th>NF</th><th>Destino</th><th class="num">Vol.</th><th>Transportadora</th>' +
+      '<th>Data</th><th>NF / Pedido</th><th>Destino</th><th class="num">Vol.</th><th>Transportadora</th>' +
       '<th class="num">Simulado</th><th class="num">Real cobrado</th><th class="num">Diferença</th><th>Situação</th></tr></thead><tbody>' +
       d.pedidos.map(p => {
-        const s = SIT[p.situacao] || [p.situacao, "pf-espera"], c = p.diferenca > 0 ? "pf-pos" : p.diferenca < 0 ? "pf-neg" : "", n = nfNum(p.chave_nf);
+        const s = SIT[p.situacao] || [p.situacao, "pf-espera"], c = p.diferenca > 0 ? "pf-pos" : p.diferenca < 0 ? "pf-neg" : "", n = refPedido(p.chave_nf);
         return `<tr class="${p.teste ? "pf-t" : ""}">` + (podeExcluir ? `<td class="ck"><input type="checkbox" data-id="${esc(p.id)}" aria-label="Selecionar" ${sel.has(p.id) ? "checked" : ""}></td>` : "") +
-          `<td>${esc(diaHora(p.criado_em))}</td>` +
-          `<td title="${esc(p.chave_nf || "sem chave da NF")}">${n ? esc(n) : '<span class="sub2">—</span>'}</td>` +
-          `<td>${esc(p.cidade)}${p.uf ? " / " + esc(p.uf) : ""}</td><td class="num">${p.volumes || ""}</td>` +
-          `<td>${esc(p.transportadora)}${p.transportadora_real && p.transportadora_real !== p.transportadora ? '<span class="sub2">levou: ' + esc(p.transportadora_real) + "</span>" : ""}</td>` +
-          `<td class="num" title="${p.simulado_com_imposto ? "com imposto: " + R(p.simulado_com_imposto) : "sem imposto"}">${R(p.simulado)}</td>` +
-          `<td class="num" title="${p.real_compartilhado ? "CT-e dividido entre várias NFs (valor rateado)" : ""}">${R(p.real)}${p.real_compartilhado ? " ⧉" : ""}</td>` +
-          `<td class="num ${c}" title="${esc(BASE[p.base_comparacao] || "")}">${DIF(p.diferenca, p.diferenca_pct)}</td>` +
-          `<td><span class="pf-badge ${s[1]}">${esc(s[0])}</span></td></tr>`;
+          `<td data-l="Data">${esc(diaHora(p.criado_em))}${p.repeticoes ? ` <span class="sub2" title="${p.repeticoes} clique${p.repeticoes > 1 ? "s" : ""} anterior${p.repeticoes > 1 ? "es" : ""} do mesmo pedido (${p.agrupado_por === "nf" ? "mesma NF ou pedido" : p.agrupado_por === "impressao" ? "mesmos itens, valor e destino" : "mesmo valor, CEP, peso e dia"}) — vale o mais recente">×${p.repeticoes + 1}</span>` : ""}</td>` +
+          `<td data-l="NF / Pedido" title="${esc(p.chave_nf || "sem chave")}">${n ? esc(n) + (rotChave(p) === "Pedido" ? '<span class="sub2">pedido</span>' : "") : '<span class="sub2">—</span>'}</td>` +
+          `<td data-l="Destino">${esc(p.cidade)}${p.uf ? " / " + esc(p.uf) : ""}</td><td class="num" data-l="Volumes">${p.volumes || ""}</td>` +
+          `<td data-l="Transportadora">${esc(p.transportadora)}${p.transportadora_real && p.transportadora_real !== p.transportadora ? '<span class="sub2">levou: ' + esc(p.transportadora_real) + "</span>" : ""}</td>` +
+          `<td class="num" data-l="Simulado" title="${p.simulado_com_imposto ? "com imposto: " + R(p.simulado_com_imposto) : "sem imposto"}">${R(p.simulado)}</td>` +
+          `<td class="num" data-l="Real cobrado" title="${p.real_compartilhado ? "CT-e dividido entre várias NFs (valor rateado)" : ""}">${R(p.real)}${p.real_compartilhado ? " ⧉" : ""}</td>` +
+          `<td class="num ${c}" data-l="Diferença" title="${esc(BASE[p.base_comparacao] || "")}">${DIF(p.diferenca, p.diferenca_pct)}</td>` +
+          `<td data-l="Situação"><span class="pf-badge ${s[1]}">${esc(s[0])}</span> <button type="button" class="pf-pl" data-payload="${esc(p.id)}" title="Ver o que o SAP mandou para a Azure neste pedido" aria-label="Ver payload do SAP">{ }</button></td></tr>`;
       }).join("") + "</tbody></table>";
     dica();
     $("#pf-rod").innerHTML = `<span>${nf(d.pedidos.length, 0)} de ${nf(d.total, 0)} pedidos${d.truncado ? " — refine a busca para ver o restante" : ""}</span>` +
-      `<span>Diferença = real − simulado, na mesma base de imposto. ⧉ = CT-e dividido entre NFs.</span>`;
+      `<span>Diferença = real − simulado, na mesma base de imposto. ⧉ = CT-e dividido entre NFs.${dados.repetidas_ocultas ? " ×N = pedido clicado N vezes (conta uma só); " + nf(dados.repetidas_ocultas, 0) + " repetida" + (dados.repetidas_ocultas > 1 ? "s" : "") + " oculta" + (dados.repetidas_ocultas > 1 ? "s" : "") + "." : ""}</span>`;
   }
 
   function renderSel(){
@@ -211,13 +264,27 @@ function montar(raiz, ctx){
     if(motivo.length < 3){ ctx.toast("Escreva o motivo da exclusão.", { erro: true }); return; }
     const bt = $("#pf-msim"); bt.disabled = true;
     try{
-      const r = await ctx.api("POST", "/v1/portal/pedidos/excluir", { ids: [...sel], motivo });
+      const todos = new Set(sel); for(const p of dados.pedidos) if(sel.has(p.id)) (p.ids_repetidos || []).forEach(i => todos.add(i));   // as repetidas saem junto, senão a mais antiga reapareceria
+      const r = await ctx.api("POST", "/v1/portal/pedidos/excluir", { ids: [...todos].slice(0, 200), motivo });
       ctx.toast(r.excluidos + " pedido" + (r.excluidos === 1 ? "" : "s") + " excluído" + (r.excluidos === 1 ? "" : "s") + (r.falhas ? " · " + r.falhas + " não deu" : "") + ".", { erro: !!r.falhas && !r.excluidos });
       sel.clear(); $("#pf-mdl").hidden = true; atualizar();
     }catch(e){ ctx.toast(ctx.msgErro(e), { erro: true }); }
     bt.disabled = false;
   };
 
+  // corpo cru que o SAP mandou (Azure guarda desde 04/11/2026): ajuda a conferir o campo da chave do pedido
+  $("#pf-tab").addEventListener("click", async e => {
+    const b = e.target.closest("[data-payload]"); if(!b) return;
+    const id = b.dataset.payload, p = (dados.pedidos || []).find(x => x.id === id) || {};
+    $("#pf-psub").textContent = diaHora(p.criado_em) + " · " + (p.cidade || "") + (p.uf ? " / " + p.uf : "") + " · " + (p.transportadora || "");
+    $("#pf-pre").textContent = "carregando…"; $("#pf-pmdl").hidden = false;
+    try{
+      const r = await ctx.api("GET", "/v1/portal/pedidos/payload?id=" + encodeURIComponent(id));
+      $("#pf-pre").textContent = r.tem ? (typeof r.payload === "string" ? r.payload : JSON.stringify(r.payload, null, 2)) : "Sem o corpo deste pedido: " + (r.motivo || "não guardado") + ".";
+    }catch(x){ $("#pf-pre").textContent = "Não consegui buscar: " + ctx.msgErro(x); }
+  });
+  $("#pf-pfec").onclick = () => { $("#pf-pmdl").hidden = true; };
+  $("#pf-pcop").onclick = async () => { try{ await navigator.clipboard.writeText($("#pf-pre").textContent); ctx.toast("Copiado."); }catch(_){ ctx.toast("Não deu para copiar.", { erro: true }); } };
   $("#pf-tab").addEventListener("change", e => {
     const t = e.target;
     if(t.id === "pf-all"){ for(const p of dados.pedidos) t.checked ? sel.add(p.id) : sel.delete(p.id); render(); return; }
@@ -227,8 +294,8 @@ function montar(raiz, ctx){
 
   function exportar(){
     if(!dados || !(dados.pedidos || []).length){ ctx.toast("Nada para exportar.", { erro: true }); return; }
-    const cab = ["Data", "Teste", "NF", "Chave", "UF", "Cidade", "Volumes", "Peso kg", "Transportadora", "Quem levou", "Simulado (sem imposto)", "Simulado (com imposto)", "Real cobrado", "Real comparável", "Diferença R$", "Diferença %", "Base", "Situação"];
-    const linhas = dados.pedidos.map(p => [p.criado_em, p.teste ? "Sim" : "Não", nfNum(p.chave_nf), p.chave_nf, p.uf, p.cidade, p.volumes, p.peso, p.transportadora, p.transportadora_real,
+    const cab = ["Data", "Teste", "NF / Pedido", "Chave", "UF", "Cidade", "Volumes", "Peso kg", "Transportadora", "Quem levou", "Simulado (sem imposto)", "Simulado (com imposto)", "Real cobrado", "Real comparável", "Diferença R$", "Diferença %", "Base", "Situação"];
+    const linhas = dados.pedidos.map(p => [p.criado_em, p.teste ? "Sim" : "Não", refPedido(p.chave_nf), p.chave_nf, p.uf, p.cidade, p.volumes, p.peso, p.transportadora, p.transportadora_real,
       p.simulado, p.simulado_com_imposto, p.real, p.real_comparavel, p.diferenca, p.diferenca_pct, BASE[p.base_comparacao] || "", (SIT[p.situacao] || [p.situacao])[0]]);
     if(typeof XLSX !== "undefined"){
       const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab].concat(linhas)), "Pedidos");

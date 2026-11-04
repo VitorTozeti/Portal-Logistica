@@ -1,0 +1,156 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>teste worker</title>
+<pre id="out">rodando…</pre>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script type="module">
+const out = [];
+const log = (ok, nome, det) => out.push((ok ? "OK    " : "FALHA ") + nome + (ok ? "" : "  -> " + JSON.stringify(det)));
+try {
+  const SQL = await initSqlJs({ locateFile: f => "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/" + f });
+  const db = new SQL.Database();
+  // schema ANTIGO (antes das colunas novas): o Worker tem de se migrar sozinho
+  db.run(`CREATE TABLE usuarios (email TEXT PRIMARY KEY, perfil TEXT NOT NULL, ferramentas TEXT, acesso_custo INTEGER NOT NULL DEFAULT 0, ultimo_acesso INTEGER, senha TEXT);
+    CREATE TABLE acoes (id TEXT PRIMARY KEY, tipo TEXT NOT NULL, motivo TEXT, nf TEXT, filial TEXT, em INTEGER NOT NULL);
+    CREATE TABLE acoes_log (id INTEGER PRIMARY KEY AUTOINCREMENT, nf_id TEXT NOT NULL, acao TEXT NOT NULL, tipo TEXT, motivo TEXT, por TEXT NOT NULL, em INTEGER NOT NULL);
+    CREATE TABLE perfis (nome TEXT PRIMARY KEY, rotulo TEXT NOT NULL, editar_nfs INTEGER NOT NULL DEFAULT 0, admin INTEGER NOT NULL DEFAULT 0, sistema INTEGER NOT NULL DEFAULT 0, permissoes TEXT);
+    CREATE TABLE tentativas (chave TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, ate INTEGER NOT NULL DEFAULT 0);
+    INSERT INTO perfis (nome, rotulo, editar_nfs, admin, sistema, permissoes) VALUES
+      ('ti','TI',1,1,1,NULL),('logistica','Logística',1,0,1,'["nf_ignorar","nf_ver_ocultas","nf_ignorar_robo"]'),
+      ('leitor','Somente leitura',0,0,1,'[]'),('faturamento','Faturamento',0,0,0,'[]'),('pedidosv','Pedidos',0,0,0,'["pedidos_ver"]');
+    INSERT INTO usuarios (email, perfil, ferramentas, acesso_custo, ultimo_acesso) VALUES
+      ('l@x.com','logistica','["monitor"]',0,1),('c@x.com','logistica','["monitor","custo"]',1,1),('f@x.com','faturamento','["monitor"]',0,1),
+      ('pa@x.com','pedidosv','["monitor"]',0,1),('t@x.com','ti',NULL,1,1),('v.tozeti@pharmaesthetics.com.br','ti',NULL,1,1);`);
+  const d1 = {
+    prepare(sql) {
+      let params = [];
+      const lista = () => { const st = db.prepare(sql); st.bind(params); const r = []; while (st.step()) r.push(st.getAsObject()); st.free(); return r; };
+      const o = { bind(...p) { params = p; return o; }, async first() { return lista()[0] || null; }, async all() { return { results: lista() }; },
+        async run() { db.run(sql, params); return {}; } };
+      return o;
+    },
+    async batch(l) { for (const s of l) await s.run(); },
+  };
+  const SESSION_SECRET = "sess-test", TOKEN_SECRET = "tok-test";
+  const env = { DB: d1, SESSION_SECRET, TOKEN_SECRET };
+  const enc = new TextEncoder();
+  const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  async function cookieDe(email) {
+    const corpo = b64u(enc.encode(JSON.stringify({ e: email, exp: Math.floor(Date.now() / 1000) + 3600 })));
+    const k = await crypto.subtle.importKey("raw", enc.encode(SESSION_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return "pt_sess=" + corpo + "." + b64u(await crypto.subtle.sign("HMAC", k, enc.encode(corpo)));
+  }
+  const texto = await (await fetch("../functions/api/%5B%5Broute%5D%5D.js")).text();
+  const mod = await import(URL.createObjectURL(new Blob([texto], { type: "text/javascript" })));
+  async function api(email, metodo, caminho, corpo) {
+    const partes = caminho.replace(/^\/api\//, "").split("?")[0].split("/");
+    const h = { "cookie": await cookieDe(email) };
+    if (corpo !== undefined) h["content-type"] = "application/json";
+    // Request do navegador descarta o cabecalho Cookie (proibido); o Worker so usa headers.get/method/url/json
+    const request = { method: metodo, url: "https://x.pages.dev/api/" + caminho.replace(/^\/api\//, ""), headers: { get: n => h[n.toLowerCase()] || null }, json: async () => JSON.parse(JSON.stringify(corpo)) };
+    const r = await mod.onRequest({ request, env, params: { route: partes } });
+    let j = null; try { j = await r.json(); } catch (_) {}
+    return { status: r.status, j };
+  }
+  const claims = async email => { const r = await api(email, "GET", "token"); return JSON.parse(atob(r.j.token.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); };
+  const TI = "v.tozeti@pharmaesthetics.com.br";
+
+  // 1. antes de qualquer gravacao: niveis derivados do que cada um ja tinha (ninguem ganha nem perde acesso)
+  let r = await api(TI, "GET", "usuarios");
+  const por = Object.fromEntries(r.j.map(u => [u.email, u]));
+  log(r.status === 200, "TI lista usuarios", r.status);
+  log(JSON.stringify(por["l@x.com"].niveis) === '{"monitor":"editar"}', "legado: logistica so Monitor = editar", por["l@x.com"].niveis);
+  log(JSON.stringify(por["c@x.com"].niveis) === '{"monitor":"editar","custo":"editar"}', "legado: com Custo = editar nos dois", por["c@x.com"].niveis);
+  log(JSON.stringify(por["f@x.com"].niveis) === '{"monitor":"ver"}', "legado: faturamento Monitor = ver", por["f@x.com"].niveis);
+  log(JSON.stringify(por["pa@x.com"].niveis) === '{"monitor":"ver","pedidos":"ver"}', "legado: perfil com pedidos_ver => Pedidos = ver", por["pa@x.com"].niveis);
+  log(por["l@x.com"].personalizado === false, "legado nao e 'personalizado'", por["l@x.com"].personalizado);
+  let c = await claims("c@x.com");
+  log(c.ce === true && c.c === true, "token legado de quem tem Custo: ce=true", c);
+
+  // 2. nao-admin nao lista
+  r = await api("l@x.com", "GET", "usuarios");
+  log(r.status === 403, "logistica nao lista usuarios (403)", r.status);
+
+  // 3. TI baixa a Logistica para "ver" no Custo e no Monitor (banco antigo: auto-migra)
+  r = await api(TI, "PUT", "usuarios/l@x.com", { niveis: { monitor: "ver", custo: "ver" } });
+  log(r.status === 200, "PUT niveis (e auto-migracao das colunas novas)", r);
+  r = await api("l@x.com", "GET", "me");
+  log(r.j.pode.nf_ignorar === false && r.j.pode.custo_editar === false && JSON.stringify(r.j.ferramentas) === '["monitor","custo"]', "ver/ver: sem ignorar NF e sem editar Custo, mas abre as duas", r.j);
+  c = await claims("l@x.com");
+  log(c.c === true && c.ce === false && c.pv === false, "token: c=true ce=false pv=false", c);
+  r = await api("l@x.com", "PUT", "acoes/1:100", { tipo: "ignorada", motivo: "x" });
+  log(r.status === 403, "Monitor 'ver': ignorar NF recusado (403)", r.status);
+
+  // 4. sobe para editar
+  await api(TI, "PUT", "usuarios/l@x.com", { niveis: { monitor: "editar", custo: "editar", pedidos: "ver" } });
+  c = await claims("l@x.com");
+  log(c.ce === true && c.pv === true && c.px === false && c.r === true, "editar/editar/ver: ce=true pv=true px=false r=true", c);
+  r = await api("l@x.com", "PUT", "acoes/1:100", { tipo: "ignorada", motivo: "x" });
+  log(r.status === 200, "Monitor 'editar': ignorar NF ok", r.status);
+  await api(TI, "PUT", "usuarios/l@x.com", { niveis: { monitor: "editar", pedidos: "editar" } });
+  c = await claims("l@x.com");
+  log(c.c === false && c.px === true && c.pv === true, "Pedidos editar => px=true; sem Custo => c=false", c);
+
+  // 5. tela antiga (so manda ferramentas): mantem o nivel que a pessoa ja tinha
+  await api(TI, "PUT", "usuarios/l@x.com", { niveis: { monitor: "ver", custo: "ver" } });
+  await api(TI, "PUT", "usuarios/l@x.com", { ferramentas: ["monitor", "custo"] });
+  r = await api(TI, "GET", "usuarios"); const l = r.j.find(u => u.email === "l@x.com");
+  log(JSON.stringify(l.niveis) === '{"monitor":"ver","custo":"ver"}' && l.personalizado === true, "ferramentas[] antigo preserva os niveis e marca personalizado", l);
+
+  // 6. TI nunca perde nada
+  r = await api(TI, "PUT", "usuarios/t@x.com", { niveis: { monitor: "ver" } });
+  r = await api("t@x.com", "GET", "me");
+  log(JSON.stringify(r.j.niveis) === '{"monitor":"editar","custo":"editar","pedidos":"editar"}' && r.j.pode.admin === true, "perfil TI segue editar em tudo", r.j);
+
+  // 7. validade
+  await api(TI, "PUT", "usuarios/f@x.com", { validoAte: Date.now() - 1000 });
+  r = await api("f@x.com", "GET", "me");
+  log(r.status === 403 && r.j.erro === "acesso-expirado", "acesso vencido: 403 acesso-expirado", r);
+  await api(TI, "PUT", "usuarios/f@x.com", { validoAte: Date.now() + 86400000 });
+  r = await api("f@x.com", "GET", "me");
+  log(r.status === 200 && r.j.validoAte > Date.now(), "validade futura: entra", r);
+  await api(TI, "PUT", "usuarios/f@x.com", { validoAte: null });
+  r = await api(TI, "GET", "usuarios");
+  log(r.j.find(u => u.email === "f@x.com").validoAte === 0, "validoAte null remove a validade");
+
+  // 8. validacoes
+  r = await api(TI, "PUT", "usuarios/f@x.com", { niveis: "x" });
+  log(r.status === 400, "niveis invalido: 400", r.status);
+  r = await api(TI, "PUT", "usuarios/f@x.com", { niveis: { monitor: "deus", inexistente: "ver", custo: "ver" } });
+  r = await api(TI, "GET", "usuarios");
+  log(JSON.stringify(r.j.find(u => u.email === "f@x.com").niveis) === '{"custo":"ver"}', "nivel/ferramenta desconhecidos sao descartados", r.j.find(u => u.email === "f@x.com").niveis);
+
+  // 9. modelo do perfil (so o dono grava)
+  r = await api(TI, "GET", "perfis");
+  const pl = r.j.perfis.find(p => p.nome === "logistica");
+  log(JSON.stringify(pl.modelo) === '{"monitor":"editar"}' && r.j.ferramentas.length === 3, "perfis trazem modelo base e a lista de ferramentas", r.j);
+  r = await api(TI, "PUT", "perfis/logistica", { modelo: { monitor: "editar", custo: "ver" } });
+  log(r.status === 200 && r.j.perfis.find(p => p.nome === "logistica").modelo.custo === "ver", "dono grava o modelo (e a coluna modelo e criada)", r);
+  r = await api("t@x.com", "PUT", "perfis/logistica", { modelo: { monitor: "ver" } });
+  log(r.status === 403, "nao-dono nao muda perfis (403)", r.status);
+  r = await api(TI, "PUT", "perfis/ti", { modelo: { monitor: "ver" } });
+  log(JSON.stringify(r.j.perfis.find(p => p.nome === "ti").modelo) === '{"monitor":"editar","custo":"editar","pedidos":"editar"}', "modelo do TI nao muda", r.j);
+
+  // 10. historico de acessos
+  r = await api(TI, "GET", "acessos-log?limite=100");
+  const textos = r.j.flatMap(x => x.detalhe).join(" | ");
+  log(r.status === 200 && r.j.length >= 5, "historico tem registros", r.j.length);
+  log(textos.includes("Custo de Frete: Sem acesso → Ver") && textos.includes("Monitor de NFs: Editar → Ver"), "historico descreve nivel antes → depois", textos.slice(0, 400));
+  log(textos.includes("Validade: sem validade →"), "historico registra validade", textos.slice(0, 200));
+  log(r.j[0].por === TI && r.j[0].alvo, "historico guarda quem fez e em quem", r.j[0]);
+  r = await api("l@x.com", "GET", "acessos-log");
+  log(r.status === 403, "historico so para admin (403)", r.status);
+
+  // 11. remover pessoa tambem entra no historico
+  await api(TI, "DELETE", "usuarios/pa@x.com");
+  r = await api(TI, "GET", "acessos-log?limite=5");
+  log(r.j[0].tipo === "removeu" && r.j[0].alvo === "pa@x.com", "remocao registrada", r.j[0]);
+
+  // 12. adicionar em lote registra "adicionou"
+  r = await api(TI, "POST", "usuarios/lote", { itens: [{ email: "novo@x.com", perfil: "leitor", niveis: { monitor: "ver" } }] });
+  r = await api(TI, "GET", "acessos-log?limite=3");
+  log(r.j.some(x => x.alvo === "novo@x.com" && x.tipo === "adicionou" && x.detalhe[0] === "Pessoa adicionada"), "lote: pessoa adicionada registrada", r.j);
+} catch (e) { out.push("ERRO NO TESTE: " + (e && e.stack || e)); }
+window.__r = out; document.getElementById("out").textContent = out.join("\n") + "\n\n" + (out.filter(x => x.startsWith("FALHA") || x.startsWith("ERRO")).length + " falha(s)");
+window.__pronto = true;
+</script>
