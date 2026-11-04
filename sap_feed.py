@@ -188,6 +188,12 @@ def coletar_barradas(nfs_no_log: set, log_index: dict | None = None) -> list[dic
         conn.close()
 
     _cache_b4you.clear()  # revalida a cada ciclo
+    try:
+        import unilog_feed
+        da_unilog = unilog_feed.nfs_unilog()  # transferência que o robô mandou à Unilog = confirmada
+    except Exception as e:
+        print(f"  [SAP_FEED] estado da Unilog: {e}")
+        da_unilog = {}
     out = []
     for r in linhas:
         nf = _limpar(str(r[0]))
@@ -210,12 +216,13 @@ def coletar_barradas(nfs_no_log: set, log_index: dict | None = None) -> list[dic
         ja_no_log = False
 
         if uso in (106, 107, 108):  # transferências internas
-            if nf not in _transf_ok(filial) and nf not in _nfs_b4you(filial):
+            if (nf not in _transf_ok(filial) and nf not in da_unilog.get(filial, set())
+                    and nf not in _nfs_b4you(filial)):
                 out.append({
                     "nf": nf, "filial": filial, "estado": "travada",
                     "transportadora": filial.upper(), "ja_no_log": ja_no_log,
                     "problema_codigo": "TRANSFERENCIA_ATRASADA", "problema_categoria": "TRANSFERENCIA",
-                    "problema_descricao": f"Transferência Atrasada - B4You ({tipo}) · Utilização {uso} ({desc_uso})",
+                    "problema_descricao": f"Transferência Atrasada - B4You/Unilog ({tipo}) · Utilização {uso} ({desc_uso})",
                     "travada_desde": _iso(docdate), "grupo": "BARRADAS_SAP",
                 })
             continue

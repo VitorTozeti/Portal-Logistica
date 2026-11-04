@@ -73,11 +73,13 @@ def _nome_transp(cod: str) -> str:
     return CARRIER_NOMES.get((cod or "").strip(), cod or "—")
 
 
-def classificar(r: dict):
+def classificar(r: dict, da_unilog: bool = False):
     """
     Replica gerar_excel_validacao (log_handler.py:349-443).
     Retorna (codigo, categoria, descricao) do problema, ou None se a NF está OK.
     Um problema pode ter várias causas; junta todas na descrição e usa a 1ª como código.
+    `da_unilog`: a NF foi enviada à Unilog pelo robô — a família Envio_B4You_* fica
+    PENDENTE para ela e não vale (o envio dela vem do unilog_feed).
     """
     if r.get("Envio_B4You_NF") == "CANCELADO":
         return "CANCELADO"  # sinaliza para pular
@@ -101,7 +103,7 @@ def classificar(r: dict):
     if r.get("Requer_Boleto") == "TRUE" and r.get("Status_Arq_Boleto") != "OK":
         problemas.append(("BOLETO_AUSENTE", "FINANCEIRO", "Boleto exigido não encontrado na pasta de rede"))
 
-    if status_nf == "OK":
+    if status_nf == "OK" and not da_unilog:
         env_nf = r.get("Envio_B4You_NF")
         if env_nf != "OK":
             if env_nf in ("BLOQUEADO_SALDO", "Bloqueado Saldo"):
@@ -188,7 +190,14 @@ def _limpar_nf(v: str) -> str:
 def _coletar_estado():
     """Lê os dois logs e devolve (travadas, subiram, nfs_no_log, log_index) já classificados."""
     travadas, ok_rows, nfs_no_log, log_index = [], [], set(), {}
+    try:
+        import unilog_feed
+        sit_unilog = unilog_feed.situacoes()
+    except Exception as e:
+        print(f"  [FEED] estado da Unilog indisponível: {e}", flush=True)
+        sit_unilog = {}
     for filial, caminho in LOGS_MESTRE.items():
+        nfs_unilog_filial = sit_unilog.get(filial, {})
         for r in _ler_csv(caminho):
             carrier = str(r.get("Carrier", "")).strip()
             nf = str(r.get("NF", "")).strip()
@@ -208,9 +217,10 @@ def _coletar_estado():
                 continue  # carga inicial manual, não entra como operação
             if not nf:
                 continue
-            res = classificar(r)
-            if res == "CANCELADO":
-                continue
+            sit = nfs_unilog_filial.get(_limpar_nf(nf))
+            res = classificar(r, sit is not None)
+            if res == "CANCELADO" or (sit and sit["code"] == "21"):
+                continue  # cancelada na B4You (log) ou na Unilog (estado do robô)
             # "ignorada" de verdade = SÓ quando a Chave é IGNORADO (marca única do ignorar_notas.py
             # ao criar a linha do zero). "Dispensado Manualmente" no Msg_Erro NÃO conta — pega carga
             # histórica e dispensas de boleto/etc. que não são ignore operacional. (decisão do gestor)
@@ -221,6 +231,10 @@ def _coletar_estado():
                 "atualizado_em": _iso(str(r.get("Data_Processamento", ""))),
                 "ignorada": ignorada,
             }
+            if sit:
+                base.update(operador="Unilog", unilog_code=sit["code"], unilog_situacao=sit["nome"],
+                            unilog_desde=sit["desde"], unilog_request_id=sit["request_id"],
+                            unilog_historico=sit["historico"])
             if res is None:
                 ok_rows.append({**base, "estado": "subiu",
                                 "_ord": str(r.get("Data_Processamento", ""))})
@@ -300,9 +314,15 @@ async def rodar_feed_simulado() -> None:
                 cancelamentos = await asyncio.to_thread(canc_feed.coletar_cancelamentos, log_index)
             except Exception as e:
                 print(f"  [FEED] Cancelamento indisponível: {e}", flush=True)
+            unilog_env = []
+            try:
+                import unilog_feed
+                unilog_env = await asyncio.to_thread(unilog_feed.coletar_unilog)
+            except Exception as e:
+                print(f"  [FEED] Unilog indisponível: {e}", flush=True)
 
             # Identidade composta filial:nf — NFs iguais de filiais diferentes NÃO colidem.
-            todas_travadas = travadas + barradas + marketing + cancelamentos
+            todas_travadas = travadas + barradas + marketing + cancelamentos + unilog_env
             for ev in todas_travadas + subiram:
                 ev["id"] = f"{ev.get('filial','?')}:{ev['nf']}"
             try:
@@ -337,13 +357,15 @@ async def rodar_feed_simulado() -> None:
             # não pode sobrescrever a travada.
             subiram = [ev for ev in subiram if ev["id"] not in travadas_atuais]
             for ev in subiram:
-                atual[ev["id"]] = "subiu"
-                if publicado.get(ev["id"]) != "subiu":
+                # a situação da Unilog entra na assinatura: mudou de etapa → republica
+                assinatura = "subiu" + (f"|{ev['unilog_code']}" if ev.get("operador") == "Unilog" else "")
+                atual[ev["id"]] = assinatura
+                if publicado.get(ev["id"]) != assinatura:
                     hub.publicar(ev)
 
             publicado = atual
             travadas_anteriores = travadas_atuais
-            print(f"  [FEED] {len(barradas)} barradas · {len(marketing)} mkt · {len(cancelamentos)} canc · {len(travadas)} log · {len(subiram)} subiram (real)", flush=True)
+            print(f"  [FEED] {len(barradas)} barradas · {len(marketing)} mkt · {len(cancelamentos)} canc · {len(unilog_env)} unilog · {len(travadas)} log · {len(subiram)} subiram (real)", flush=True)
         except Exception as e:
             print(f"  [FEED] falha no ciclo: {e}", flush=True)
         await asyncio.sleep(POLL_SEGUNDOS)

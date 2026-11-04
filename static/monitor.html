@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portal da Logística — B4You</title>
+<title>Portal da Logística — Expedição</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- No GitHub Pages, a foto vem do container Azure: abrir DNS+TLS já no parse
@@ -148,6 +148,16 @@
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
   .nf.subiu .tag{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  /* filtro de operador (04/11/2026): durante a transição B4You -> Unilog dá para olhar cada um separado */
+  .opbar{max-width:1440px;width:100%;margin:0 auto;padding:16px 28px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .opbar .rot{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+  @media (max-width:440px){.opbar{padding:12px 12px 0}}
+  .uni{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;
+    color:var(--ink2);background:color-mix(in srgb,var(--ink2) 12%,transparent)}
+  .uni.u22{color:#16a34a;background:color-mix(in srgb,#16a34a 14%,transparent)}
+  .uni.u34{color:#d97706;background:color-mix(in srgb,#d97706 14%,transparent)}
+  .hist{margin-top:10px;border-left:2px solid var(--line, #2a3a44);padding-left:10px}
+  .hist div{font-size:12px;margin:4px 0}.hist .em{color:var(--ink2);font-family:ui-monospace,monospace;margin-right:6px}
   .subdata{margin-left:auto;font-size:11px;color:var(--ink2);font-family:ui-monospace,monospace}
   .subdata + .carrier{margin-left:10px}
   .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
@@ -423,7 +433,7 @@
   <span class="sep" aria-hidden="true"></span>
   <span class="dot" id="dot"></span>
   <b>Portal da Logística</b>
-  <span class="so-desk" style="font-size:12px;color:var(--ink2)">· B4You</span>
+  <span class="so-desk" style="font-size:12px;color:var(--ink2)">· Expedição</span>
   <span class="live"><span class="dot on" id="livedot"></span><span id="livetxt">conectando…</span></span>
   <button type="button" class="tema-btn" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">🌙</button>
   <div class="conta" id="conta">
@@ -487,6 +497,14 @@
   </div>
 </div>
 
+<div class="opbar" id="opbar" role="group" aria-label="Filtrar por operador logístico">
+  <span class="rot">Operador</span>
+  <span id="seg-op" class="seg">
+    <span class="chip todas" role="button" tabindex="0" data-op="todos" aria-pressed="true">Todos <span class="n">0</span></span>
+    <span class="chip" role="button" tabindex="0" data-op="B4You" aria-pressed="false" title="Notas do fluxo antigo (B4You) e travas do SAP que não são da Unilog">B4You <span class="n">0</span></span>
+    <span class="chip" role="button" tabindex="0" data-op="Unilog" aria-pressed="false" title="Notas que o robô mandou à Unilog e alertas da Unilog">Unilog <span class="n">0</span></span>
+  </span>
+</div>
 <main>
   <div class="col">
     <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span></h2>
@@ -523,9 +541,9 @@
     <span class="ft-brand">Portal da Logística <span class="ft-sep">·</span> Pharmaesthetics</span>
     <span class="ft-mid">
       <span id="ft-live" class="ft-pill">● conectando…</span>
-      <span class="ft-ro">somente leitura — não altera SAP/B4You</span>
+      <span class="ft-ro">somente leitura — não altera SAP nem o operador logístico</span>
     </span>
-    <span class="ft-ver">v0.1 · B4You</span>
+    <span class="ft-ver">v0.2 · B4You + Unilog</span>
   </div>
 </footer>
 
@@ -586,6 +604,10 @@
   // ===== estado dos filtros (um por coluna) =====
   const filtroTravadas = new Set();  // categorias DESLIGADAS (o resto aparece)
   let   filtroFilial   = "todas";    // "todas" | "Varejo" | "Atacado"
+  // operador: "todos" | "B4You" | "Unilog" (guardado na aba); Unilog = NF que o robô mandou à Unilog ou alerta dela
+  let   filtroOperador = (() => { try{ return sessionStorage.getItem("portal_operador") || "todos"; }catch(_){ return "todos"; } })();
+  const opDe = n => (n.operador === "Unilog" || n.grupo === "UNILOG") ? "Unilog" : "B4You";
+  const passaOp = n => filtroOperador === "todos" || opDe(n) === filtroOperador;
   let   filtroDe       = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte inicial)
   let   filtroAte      = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte final)
   let   filtroIgnoradas = "todas";   // "todas" | "so" (só ignoradas) | "sem" (oculta ignoradas)
@@ -628,6 +650,7 @@
     FINANCEIRO:"#2ee8d6",   B4YOU:"#4ba6e8",      TRANSPORTADORA:"#86e7f2",
     TRANSFERENCIA:"#1a97b0",AUDITORIA:"#34bce2",  BARRADAS_SAP:"#40d8e0",
     MARKETING:"#6bc4ee",    CANCELAMENTO:"#20c2d1",RASTREIO:"#8fd6f0",
+    UNILOG:"#5fb8f5",       CADASTRO:"#3fd0c0",   ESTOQUE:"#2aa9d8",
     OUTROS:"#7fa9b5",
   };
   // No tema CLARO o ciano some no branco: as categorias usam tons AZUIS mais escuros
@@ -638,6 +661,7 @@
     FINANCEIRO:"#0e7490",   B4YOU:"#4338ca",      TRANSPORTADORA:"#0369a1",
     TRANSFERENCIA:"#155e75",AUDITORIA:"#1e3a8a",  BARRADAS_SAP:"#0891b2",
     MARKETING:"#6d28d9",    CANCELAMENTO:"#0f766e",RASTREIO:"#0284c7",
+    UNILOG:"#3730a3",       CADASTRO:"#115e59",   ESTOQUE:"#1d4ed8",
     OUTROS:"#475569",
   };
   const ehTemaClaro = () => document.documentElement.getAttribute("data-theme") === "light";
@@ -671,7 +695,8 @@
     FINANCEIRO:"Financeiro", B4YOU:"B4You", TRANSPORTADORA:"Transportadora",
     TRANSFERENCIA:"Transferência", AUDITORIA:"Auditoria SAP",
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
-    RASTREIO:"Rastreio", OUTROS:"Outros",
+    RASTREIO:"Rastreio", UNILOG:"Unilog", CADASTRO:"Cadastro", ESTOQUE:"Estoque",
+    OUTROS:"Outros",
   };
 
   function tempoDesde(iso){
@@ -724,6 +749,13 @@
       + ((tempo || n.data_faturamento) ? `<div class="meta">${n.data_faturamento ? `<span>Faturada em ${esc(dataBR(n.data_faturamento))}</span> ` : ""}${tempo}</div>` : "")
       + `</div>`;
   }
+  // situação da NF na Unilog (só NF que o robô mandou à Unilog — campo operador)
+  function seloUnilog(n){
+    if(n.operador !== "Unilog") return "";
+    const c = String(n.unilog_code||"");
+    const cls = c==="22" ? "uni u22" : (c==="3"||c==="4") ? "uni u34" : "uni";
+    return `<span class="${cls}" title="Situação na Unilog">Unilog · ${esc(n.unilog_situacao||"Enviada")}</span>`;
+  }
   function cardSubiu(n){
     const selo = n.ignorada ? `<span class="grp ignorada">⊘ ignorada</span>` : "";
     const dt = dataBR(n.atualizado_em);
@@ -733,6 +765,7 @@
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + (fil ? `<span class="${filCls}">${esc(fil)}</span>` : "")
       + `<span class="tag">✓ subiu</span>`
+      + seloUnilog(n)
       + selo
       + (dt ? `<span class="subdata">${dt}</span>` : "")
       + `<span class="carrier">${esc(n.transportadora)}</span></div></div>`;
@@ -767,7 +800,8 @@
   function renderTravadas(){
     renderOcultasChip();
     // lista-base: as visíveis (sem as ocultas) ou, no modo "ocultas", só as ocultas
-    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas);
+    sincronizarOperador();
+    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas && passaOp(n));
     const cont = new Map();
     for(const n of base){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
     const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
@@ -793,6 +827,7 @@
   }
 
   function passaFiltrosSubiram(n){
+    if(!passaOp(n)) return false;
     if(filtroFilial !== "todas" && (n.filial||"") !== filtroFilial) return false;
     if(filtroIgnoradas === "so"  && !n.ignorada) return false;
     if(filtroIgnoradas === "sem" &&  n.ignorada) return false;
@@ -806,8 +841,8 @@
     return true;
   }
   function sincronizarChipsFilial(){
-    const nCont = { todas: risen.size, Varejo: 0, Atacado: 0 };
-    for(const n of risen.values()){ if(n.filial==="Varejo") nCont.Varejo++; else if(n.filial==="Atacado") nCont.Atacado++; }
+    const nCont = { todas: 0, Varejo: 0, Atacado: 0 };
+    for(const n of risen.values()){ if(!passaOp(n)) continue; nCont.todas++; if(n.filial==="Varejo") nCont.Varejo++; else if(n.filial==="Atacado") nCont.Atacado++; }
     for(const chip of document.querySelectorAll("#seg-filial .chip")){
       const k = chip.dataset.fil;
       chip.setAttribute("aria-pressed", String(filtroFilial===k));
@@ -830,7 +865,7 @@
     // ignoradas, busca por NF, data) ou já se pediu "mostrar mais" (janelaSemanal=false) — filtrar
     // = procurar no histórico inteiro. Ex.: "só ignoradas" (2 notas antigas) aparece na hora, sem
     // precisar clicar "mostrar mais". Sem filtro nenhum, a janela mantém a tela inicial enxuta.
-    const usaJanela = janelaSemanal && filtroFilial==="todas" && filtroIgnoradas==="todas"
+    const usaJanela = janelaSemanal && filtroFilial==="todas" && filtroIgnoradas==="todas" && filtroOperador==="todos"
                       && !buscaNF && !filtroDe && !filtroAte;
     const pool = usaJanela ? vis.filter(dentroJanela) : vis;
     const mostra = pool.slice(0, limiteSubiram);        // exibe em blocos (ordem desc preservada)
@@ -842,11 +877,26 @@
       html += `<button class="maisbtn" type="button" data-mais="1">▾ mostrar mais (${restante})</button>`;
     html += `<button class="vertodas" type="button" id="btn-historico">ver todas as notas subidas (histórico completo)</button>`;
     if(html !== _upHTML){ $("#up").innerHTML = html; _upHTML = html; }   // só reescreve o DOM se mudou (evita piscar)
-    const semFiltro = filtroFilial==="todas" && !filtroDe && !filtroAte && filtroIgnoradas==="todas" && !buscaNF;
+    const semFiltro = filtroOperador==="todos" && filtroFilial==="todas" && !filtroDe && !filtroAte && filtroIgnoradas==="todas" && !buscaNF;
     $("#c-up").textContent = semFiltro ? total : `${total}/${risen.size}`;
   }
 
   function render(){ renderTravadas(); renderSubiram(); }
+  function sincronizarOperador(){
+    const c = { todos: 0, B4You: 0, Unilog: 0 };
+    for(const n of stuck.values()){ if(ocultas.has(n.id)) continue; c.todos++; c[opDe(n)]++; }
+    for(const n of risen.values()){ c.todos++; c[opDe(n)]++; }
+    for(const chip of document.querySelectorAll("#seg-op .chip")){
+      chip.setAttribute("aria-pressed", String(filtroOperador === chip.dataset.op));
+      const el = chip.querySelector(".n"); if(el) el.textContent = c[chip.dataset.op] ?? 0;
+    }
+  }
+  function escolherOperador(op){
+    filtroOperador = op; try{ sessionStorage.setItem("portal_operador", op); }catch(_){}
+    limiteSubiram = PASSO_SUBIRAM; limiteTravadas = PASSO_TRAVADAS; _upHTML = null; _stuckHTML = null; render();
+  }
+  $("#seg-op").addEventListener("click", e => { const c = e.target.closest(".chip[data-op]"); if(c) escolherOperador(c.dataset.op); });
+  $("#seg-op").addEventListener("keydown", e => { const c = e.target.closest(".chip[data-op]"); if(c && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); escolherOperador(c.dataset.op); } });
   // coalesce renders: no snapshot inicial chegam milhares de eventos SSE; 1 render por frame evita travar
   let _renderPend = false, _upHTML = "", _stuckHTML = "";
   function agendarRender(){
@@ -1034,10 +1084,20 @@
     { const f = Date.parse(n.data_faturamento), u = Date.parse(n.atualizado_em);
       if(f && u && u >= f) rows.push(["Faturar → subir", Math.round((u - f) / 864e5) + " dia(s)"]); }
     if(n.ignorada) rows.push(["Situação", "⊘ Ignorada (Chave IGNORADO)"]);
+    const uni = n.operador === "Unilog";
+    if(uni){
+      rows.push(["Operador", "Unilog"]);
+      rows.push(["Na Unilog", esc(n.unilog_situacao||"Enviada") + (n.unilog_desde ? " desde " + esc(dataBR(n.unilog_desde)) : "")]);
+      if(n.unilog_request_id) rows.push(["Pedido na Unilog", `<span style="font-family:ui-monospace,monospace">${esc(n.unilog_request_id)}</span>`]);
+    }
+    const hist = uni && (n.unilog_historico||[]).length
+      ? `<div class="hist">` + n.unilog_historico.slice().reverse().map(h =>
+          `<div><span class="em">${esc(h.em ? new Date(h.em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "")}</span>${esc(h.evento)}</div>`).join("") + `</div>` : "";
+    const embarcou = !uni || String(n.unilog_code) === "22";
     $("#dw-body").innerHTML =
       rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
-      + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ Processada com sucesso</div>`
-      + `<div class="ax">Nota enviada e confirmada.</div></div>`;
+      + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ ${embarcou ? "Processada com sucesso" : "Enviada à Unilog"}</div>`
+      + `<div class="ax">${uni ? (embarcou ? "Embarcada pela Unilog." : "Ainda não embarcou — o histórico mostra a etapa atual.") : "Nota enviada e confirmada."}</div>${hist}</div>`;
     abrirDrawer();
   }
 

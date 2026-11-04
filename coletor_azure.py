@@ -116,8 +116,14 @@ def _montar_estado():
         cancelamentos = canc_feed.coletar_cancelamentos(log_index)
     except Exception as e:
         print(f"  [COLETOR] Cancelamento indisponível: {e}", flush=True)
+    unilog_env = []
+    try:
+        import unilog_feed
+        unilog_env = unilog_feed.coletar_unilog()
+    except Exception as e:
+        print(f"  [COLETOR] Unilog indisponível: {e}", flush=True)
 
-    todas_travadas = travadas + barradas + marketing + cancelamentos
+    todas_travadas = travadas + barradas + marketing + cancelamentos + unilog_env
     for ev in todas_travadas + subiram:
         ev["id"] = f"{ev.get('filial', '?')}:{ev['nf']}"
     try:
