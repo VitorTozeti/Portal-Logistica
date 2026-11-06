@@ -172,12 +172,15 @@
   button.flow-kpi{cursor:pointer}button.flow-kpi:hover{border-color:var(--ink2)}
   .flow-kpi.warn b{color:var(--f-warn)}.flow-kpi.crit b{color:var(--f-crit)}
   .flow-kpi[aria-pressed="true"]{border-color:var(--f-warn);background:color-mix(in srgb,var(--f-warn) 14%,var(--bg))}
-  .flow-filtros{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-left:auto}
-  .flow-grp{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)}
+  .flow-filtros{display:flex;align-items:center;gap:10px 22px;flex-wrap:wrap;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 14px}
+  .flow-grp{display:flex;align-items:center;gap:8px;min-width:0}
+  .flow-lbl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);white-space:nowrap}
+  .flow-grp-busca{flex:1 1 200px;max-width:320px}
   .flow-filtros .seg .chip{min-height:30px;white-space:nowrap}
-  .flow-filtros input,.flow-filtros select{font:inherit;font-size:13px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:7px 11px;min-height:38px;min-width:0}
-  .flow-filtros input{width:150px}.flow-filtros select{max-width:180px}
+  .flow-filtros input,.flow-filtros select{font:inherit;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 11px;min-height:36px;min-width:0}
+  .flow-filtros input{flex:1;width:100%}.flow-filtros select{max-width:190px}
   .flow-filtros input:focus,.flow-filtros select:focus{border-color:var(--brand);outline:none}
+  .flow-sub:empty{display:none}
   .flow-sub{padding:10px max(20px,env(safe-area-inset-right,0px)) 0 max(20px,env(safe-area-inset-left,0px));font-size:12.5px;color:var(--ink2)}
   .flow-abas{display:none;gap:6px;overflow-x:auto;padding:10px 12px 0}
   .flow-aba{flex:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 13px;min-height:40px;white-space:nowrap;cursor:pointer}
@@ -218,13 +221,15 @@
   .linha-et li.feita{color:var(--ink)}.linha-et li.feita::before{background:var(--brand);border-color:var(--brand)}
   .linha-et li.agora{color:var(--ink);font-weight:700}.linha-et li.agora::before{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
   .linha-et small{display:block;font-weight:400;color:var(--ink2)}
-  @media (max-width:1100px){.flow-filtros{margin-left:0}.fcol{width:212px}}
+  @media (max-width:1100px){.fcol{width:212px}}
   /* celular: uma etapa por vez, escolhida nas abas */
   @media (max-width:720px){
     .flow-top{position:static;padding:10px 12px;gap:8px}
     .flow-l2{gap:6px}
     .flow-kpi{flex:1 1 44%;padding:6px 10px;min-height:38px;gap:6px}.flow-kpi b{font-size:15px}.flow-kpi span{font-size:11.5px}
-    .flow-filtros{width:100%;gap:6px}.flow-filtros input{flex:1 1 110px;width:auto}.flow-filtros select{flex:1 1 140px;max-width:none}
+    .flow-filtros{width:100%;gap:8px 14px;padding:8px 10px}
+    .flow-grp{flex:1 1 100%;justify-content:space-between}.flow-grp-busca{max-width:none}
+    .flow-filtros select{flex:1;max-width:none}.flow-filtros input{width:100%}
     .flow-abas{position:sticky;top:0;z-index:2;background:var(--bg);padding-bottom:8px}
     .flow-sub{padding:8px 12px 0}
     .flow-abas{display:flex}
@@ -600,21 +605,27 @@
       <button type="button" class="flow-kpi warn" id="fk-par" aria-pressed="false" title="Mostrar só as notas paradas há mais de 24 h numa etapa"><b id="fk-par-n">0</b><span>paradas há +24 h</span></button>
       <div class="flow-kpi"><b id="fk-emb">0</b><span>embarcadas em 24 h</span></div>
       <div class="flow-kpi crit" title="Notas com problema ficam na lista de Travadas"><b id="fk-trav">0</b><span>travadas, fora do fluxo</span></div>
-      <div class="flow-filtros">
-        <span id="flow-fil" class="seg" role="group" aria-label="Filial">
+    </div>
+    <div class="flow-filtros" role="group" aria-label="Filtros">
+      <div class="flow-grp"><span class="flow-lbl" id="lb-fil">Filial</span>
+        <span id="flow-fil" class="seg" role="group" aria-labelledby="lb-fil">
           <span class="chip todas" role="button" tabindex="0" data-fil="todas" aria-pressed="true">Todas</span>
           <span class="chip" role="button" tabindex="0" data-fil="Varejo" aria-pressed="false">Varejo</span>
           <span class="chip" role="button" tabindex="0" data-fil="Atacado" aria-pressed="false">Atacado</span>
         </span>
-        <select id="flow-tr" aria-label="Transportadora"><option value="">Toda transportadora</option></select>
-        <span class="flow-grp">Embarcadas
-          <span id="flow-per" class="seg" role="group" aria-label="Período das embarcadas">
-            <span class="chip" role="button" tabindex="0" data-per="1" aria-pressed="false">24 h</span>
-            <span class="chip" role="button" tabindex="0" data-per="7" aria-pressed="true">7 dias</span>
-            <span class="chip" role="button" tabindex="0" data-per="t" aria-pressed="false">Todas</span>
-          </span>
+      </div>
+      <div class="flow-grp"><label class="flow-lbl" for="flow-tr">Transportadora</label>
+        <select id="flow-tr"><option value="">Todas</option></select>
+      </div>
+      <div class="flow-grp"><span class="flow-lbl" id="lb-per">Embarcadas</span>
+        <span id="flow-per" class="seg" role="group" aria-labelledby="lb-per">
+          <span class="chip" role="button" tabindex="0" data-per="1" aria-pressed="false">24 h</span>
+          <span class="chip" role="button" tabindex="0" data-per="7" aria-pressed="true">7 dias</span>
+          <span class="chip" role="button" tabindex="0" data-per="t" aria-pressed="false">Todas</span>
         </span>
-        <input id="flow-busca" type="search" inputmode="numeric" placeholder="Buscar NF" aria-label="Buscar nota pelo número">
+      </div>
+      <div class="flow-grp flow-grp-busca"><label class="flow-lbl" for="flow-busca">Nota</label>
+        <input id="flow-busca" type="search" inputmode="numeric" placeholder="Buscar NF">
       </div>
     </div>
   </div>
@@ -1045,7 +1056,7 @@
     const trs = [...new Set(todas.map(n => n.transportadora).filter(Boolean))].sort((a,b) => a.localeCompare(b,"pt-BR"));
     if(trs.join("|") !== _flowTrKey){
       _flowTrKey = trs.join("|");
-      $("#flow-tr").innerHTML = `<option value="">Toda transportadora</option>` + trs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+      $("#flow-tr").innerHTML = `<option value="">Todas</option>` + trs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
     }
     if(flowTr && !trs.includes(flowTr)) flowTr = "";
     $("#flow-tr").value = flowTr;
@@ -1067,7 +1078,7 @@
     const travN = [...stuck.values()].filter(n => opDe(n) === "Unilog" && !ocultas.has(n.id)).length;
     $("#fk-trav").textContent = travN;
     $("#flow-total").textContent = lista.length;
-    $("#flow-sub").textContent = lista.length ? "Clique numa nota para ver as etapas e o histórico." : "Nenhuma nota com esses filtros.";
+    $("#flow-sub").textContent = lista.length ? "" : "Nenhuma nota com esses filtros.";
     if(!flowAba || !etapas.some(e => e.nome === flowAba)){
       flowAba = (etapas.find(e => !e.fim && (por.get(e.nome)||[]).length) || etapas.find(e => (por.get(e.nome)||[]).length) || etapas[0]).nome;
     }
