@@ -121,6 +121,35 @@ NOME_SITUACAO = {
 }
 
 
+# Etapa da Unilog (nome que ela manda em status_desc) -> nome que a logística entende. É o que o Portal mostra
+# no selo da NF e nas colunas do "Detalhar". A ordem do fluxo fica no monitor.html (FLUXO_UNILOG).
+ETAPA_SIMPLES = {
+    "": "Enviada à Unilog",
+    "IMPORTADO": "Pedido recebido", "CRIADO": "Pedido recebido",
+    "AGUARDANDO_PRODUCAO": "Na fila de separação",
+    "EM_PRODUCAO_ONDA": "Em separação",
+    "PEDIDO_SEM_SALDO": "Sem estoque na Unilog",
+    "CHECK_OUT_FINALIZADO": "Separação conferida",
+    "AGUARDANDO_ROTEIRIZACAO": "Aguardando rota", "REIMPRESSAO_ETIQUETA": "Aguardando rota",
+    "AGUARDANDO_EMBARQUE": "Pronto para coleta",
+    "EMBARCADO": "Embarcada", "CANCELADO": "Cancelada",
+}
+
+
+def etapa_simples(code, desc) -> str:
+    """Nome simples da etapa. `desc` é o nome da Unilog (ex.: AGUARDANDO_PRODUCAO; no embarque pela planilha vem
+    "EMBARCADO (planilha da Unilog)"). Sem nome conhecido cai na situação pelo código; nunca devolve vazio."""
+    d = str(desc or "").strip().upper()
+    if d.startswith("EMBARCADO"):
+        d = "EMBARCADO"
+    if d and d in ETAPA_SIMPLES:
+        return ETAPA_SIMPLES[d]
+    code = str(code or "")
+    if not code:
+        return str(desc or "").strip() or ETAPA_SIMPLES[""]
+    return NOME_SITUACAO.get(code, str(desc or code))
+
+
 def situacoes() -> dict:
     """{filial: {nf_limpo: {...}}} com a situação atual de cada NF na Unilog e o histórico
     de etapas (para o card e o painel de detalhe das notas que subiram)."""
@@ -133,7 +162,7 @@ def situacoes() -> dict:
         if reg.get("etapa") == "RECUSADO":
             nome = "Recusada"
         else:
-            nome = NOME_SITUACAO.get(code, reg.get("status_desc") or code)
+            nome = etapa_simples(code, reg.get("status_desc"))
         hist = [{"em": _iso(h.get("ts")), "evento": str(h.get("evento") or "")}
                 for h in reg.get("historico") or [] if h.get("ts")]
         out.setdefault(reg.get("filial"), {})[_limpar(reg.get("serial"))] = {

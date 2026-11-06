@@ -103,9 +103,9 @@ def _nota(ev: dict) -> dict:
 
 
 def _sufixo_unilog(ev: dict) -> str:
-    """Parte da assinatura do delta que só as NFs da Unilog têm: mudou de situação -> republica.
+    """Parte da assinatura do delta que só as NFs da Unilog têm: mudou o código ou o nome da etapa -> republica.
     NF da B4You fica sem sufixo, para o histórico inteiro não ser reenviado."""
-    return f"|{ev.get('unilog_code') or ''}" if ev.get("operador") == "Unilog" else ""
+    return f"|{ev.get('unilog_code') or ''}|{ev.get('unilog_situacao') or ''}" if ev.get("operador") == "Unilog" else ""
 
 
 def _assinatura_subiu(ev: dict) -> str:

@@ -17,7 +17,7 @@ HIST = [{"em": "2026-11-05T14:00:00+00:00", "evento": "STATUS 2 AGUARDANDO_PRODU
 
 def uni(nf, code="2", estado="subiu", **kw):
     return {"id": f"Varejo:{nf}", "nf": nf, "filial": "Varejo", "estado": estado, "operador": "Unilog",
-            "unilog_code": code, "unilog_situacao": "Integrada", "unilog_desde": None,
+            "unilog_code": code, "unilog_situacao": "Na fila de separação", "unilog_desde": None,
             "unilog_request_id": "rid", "unilog_historico": HIST, **kw}
 
 
@@ -55,12 +55,17 @@ class TestDelta(Base):
         self.assertEqual([n["nf"] for n in enviadas], ["1"])
 
     def test_mudou_de_situacao_republica(self):
-        atual, _, enviadas = self.ciclo([], [uni("1", code="22")], {"Varejo:1": "subiu|2"})
+        atual, _, enviadas = self.ciclo([], [uni("1", code="22")], {"Varejo:1": "subiu|2|Na fila de separação"})
         self.assertEqual([n["unilog_code"] for n in enviadas], ["22"])
-        self.assertEqual(atual["Varejo:1"], "subiu|22")
+        self.assertEqual(atual["Varejo:1"], "subiu|22|Na fila de separação")
+
+    def test_mudou_so_o_nome_da_etapa_republica(self):
+        # mesmo código 2, mas o Portal passou a mostrar o nome simples: tem de reenviar as que já estavam na Azure
+        _, _, enviadas = self.ciclo([], [uni("1")], {"Varejo:1": "subiu|2|Integrada"})
+        self.assertEqual([n["unilog_situacao"] for n in enviadas], ["Na fila de separação"])
 
     def test_sem_mudanca_nao_envia(self):
-        _, _, enviadas = self.ciclo([], [uni("1"), b4y("2")], {"Varejo:1": "subiu|2", "Varejo:2": "subiu"})
+        _, _, enviadas = self.ciclo([], [uni("1"), b4y("2")], {"Varejo:1": "subiu|2|Na fila de separação", "Varejo:2": "subiu"})
         self.assertEqual(enviadas, [])
 
     def test_travada_da_unilog_republica_uma_vez_com_operador(self):
@@ -76,9 +81,9 @@ class TestDelta(Base):
         self.assertEqual(enviadas, [])
 
     def test_reconciliacao_guarda_a_assinatura_da_unilog(self):
-        atual, _, enviadas = self.ciclo([], [uni("1")], {"Varejo:1": "subiu|2"}, espelho={"Varejo:1": ("Varejo", "1")})
+        atual, _, enviadas = self.ciclo([], [uni("1")], {"Varejo:1": "subiu|2|Na fila de separação"}, espelho={"Varejo:1": ("Varejo", "1")})
         self.assertEqual(enviadas[0]["operador"], "Unilog")
-        self.assertEqual(atual["Varejo:1"], "subiu|2")
+        self.assertEqual(atual["Varejo:1"], "subiu|2|Na fila de separação")
 
 
 if __name__ == "__main__":
