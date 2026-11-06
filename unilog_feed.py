@@ -26,7 +26,7 @@ from pathlib import Path
 
 ESTADO = os.getenv("PORTAL_UNILOG_ESTADO", "").strip()
 # Pedido parado na mesma situação há mais que isto vira travada (mesmo default do robô).
-HORAS_PARADO = float(os.getenv("PORTAL_UNILOG_HORAS_PARADO", os.getenv("UNILOG_HORAS_PARADO", "24")))
+HORAS_PARADO = float(os.getenv("PORTAL_UNILOG_HORAS_PARADO", os.getenv("UNILOG_HORAS_PARADO", "168")))
 # Alerta do robô conta como ativo se foi repetido até X horas antes da última gravação do arquivo.
 HORAS_ALERTA = float(os.getenv("PORTAL_UNILOG_HORAS_ALERTA", "3"))
 # Arquivo sem gravação há mais que isto = robô parado (o robô roda em dias úteis, 08–14h).
@@ -43,9 +43,14 @@ _CAT_ALERTA = {
     "CADASTRO_PENDENTE": "CADASTRO", "CADASTRO_ERRO": "CADASTRO",
     "SEM_SALDO": "ESTOQUE", "PEDIDO_SEM_SALDO": "ESTOQUE",
     "ETIQUETA_FALHOU": "CORREIOS", "ETIQUETA_PENDENTE": "CORREIOS",
-    "SEM_VOLUMES": "FATURAMENTO", "DOC_SEM_REGISTRO": "FATURAMENTO",
+    "SEM_VOLUMES": "FATURAMENTO", "DOC_SEM_REGISTRO": "FATURAMENTO", "SHARE_NF_SEM_ARQUIVOS": "FATURAMENTO",
     "NF_CANCELADA_SAP": "CANCELAMENTO", "CANCELAMENTO_MANUAL_PENDENTE": "CANCELAMENTO",
+    "CANCELADA_NA_UNILOG": "CANCELAMENTO", "CANCELAMENTO_SEM_ACAO": "CANCELAMENTO",
+    "CANCELADA_SO_NA_UNILOG": "CANCELAMENTO", "ENTRADA_DE_NF_CANCELADA": "CANCELAMENTO",
 }
+# Estes continuam valendo com a NF em status final (21 ou 22): pedem ação de alguém mesmo sem o robô ler a Unilog.
+_ALERTAS_DEPOIS_DO_FIM = {"CANCELAMENTO_MANUAL_PENDENTE", "NF_CANCELADA_SAP", "CANCELADA_SO_NA_UNILOG",
+                          "ENTRADA_DE_NF_CANCELADA"}
 
 _cache = {"mtime": None, "dados": None}
 
@@ -180,7 +185,7 @@ def coletar_unilog() -> list:
                 f"Unilog recusou o pedido: {str(reg.get('erro') or '')[:200]}".rstrip(": "), reg.get("enviado_em"))
         elif etapa == "POST_INCERTO":
             add(filial, nf, "UNILOG_POST_INCERTO", "UNILOG",
-                "Envio à Unilog sem confirmação — o robô reconcilia pela busca", reg.get("enviado_em"))
+                "Envio à Unilog sem confirmação — perguntar à Unilog se a NF entrou; não reenviar nem cancelar antes da resposta", reg.get("enviado_em"))
         elif code == "5":
             add(filial, nf, "UNILOG_ERRO_INTEGRACAO", "UNILOG",
                 "Unilog integrou com erro (situação 5)", desde)
@@ -198,7 +203,7 @@ def coletar_unilog() -> list:
         if not visto or datetime.fromisoformat(visto).timestamp() < corte:
             continue
         filial, nf = a.get("filial"), _limpar(a.get("serial"))
-        if (filial, nf) in finais and a.get("tipo") != "CANCELAMENTO_MANUAL_PENDENTE":
+        if (filial, nf) in finais and a.get("tipo") not in _ALERTAS_DEPOIS_DO_FIM:
             continue
         tipo = str(a.get("tipo") or "")
         add(filial, nf, f"UNILOG_{tipo}", _CAT_ALERTA.get(tipo, "UNILOG"),
