@@ -17,7 +17,9 @@ Contrato do endpoint (confirmado com a sessão do azure-calc em 31/08):
   POST /v1/portal/nfs   body = {"nfs": [ {nota}, ... ]}
     nota: nf (obrigatório) + filial, estado, transportadora, atualizado_em,
           ignorada, problema_codigo, problema_categoria, problema_descricao,
-          travada_desde, grupo   (campos extras são ignorados pelo servidor)
+          travada_desde, grupo, operador, unilog_code, unilog_situacao,
+          unilog_desde, unilog_request_id, unilog_historico (lista)
+          (campos extras são ignorados pelo servidor)
     - estado ∈ "subiu" | "travada" | "resolvida"  (resolvida = DELETE da linha)
     - PartitionKey = filial, RowKey = nf  → SEMPRE mandar `filial`
     - upsert REPLACE: mandar o snapshot mantém o espelho consistente
@@ -79,7 +81,10 @@ ESTADO_ARQ = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Campos que o endpoint entende (o resto o servidor descarta de qualquer jeito).
 _CAMPOS = ["nf", "filial", "estado", "transportadora", "atualizado_em",
            "ignorada", "problema_codigo", "problema_categoria",
-           "problema_descricao", "travada_desde", "grupo", "data_faturamento"]
+           "problema_descricao", "travada_desde", "grupo", "data_faturamento",
+           # Unilog: sem estes a Azure via toda NF "subiu" como B4You, e o filtro Unilog ficava zerado
+           "operador", "unilog_code", "unilog_situacao", "unilog_desde", "unilog_request_id",
+           "unilog_historico"]
 
 
 def _nota(ev: dict) -> dict:
@@ -90,9 +95,21 @@ def _nota(ev: dict) -> dict:
         v = ev.get(k)
         if k == "ignorada":
             d[k] = bool(v)
+        elif k == "unilog_historico":
+            d[k] = v or []  # o endpoint espera lista: em texto ele recusa o lote inteiro
         else:
             d[k] = "" if v is None else str(v)
     return d
+
+
+def _sufixo_unilog(ev: dict) -> str:
+    """Parte da assinatura do delta que só as NFs da Unilog têm: mudou de situação -> republica.
+    NF da B4You fica sem sufixo, para o histórico inteiro não ser reenviado."""
+    return f"|{ev.get('unilog_code') or ''}" if ev.get("operador") == "Unilog" else ""
+
+
+def _assinatura_subiu(ev: dict) -> str:
+    return "subiu" + _sufixo_unilog(ev)
 
 
 def _montar_estado():
@@ -253,7 +270,7 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
     travadas_atuais: set = set()
     for ev in todas_travadas:
         travadas_atuais.add(ev["id"])
-        assin = f"{ev['estado']}|{ev.get('problema_codigo', '')}|{int(bool(ev.get('ignorada')))}"
+        assin = f"{ev['estado']}|{ev.get('problema_codigo', '')}|{int(bool(ev.get('ignorada')))}" + _sufixo_unilog(ev)
         atual[ev["id"]] = assin
         if publicado.get(ev["id"]) != assin:
             pendentes.append(_nota(ev))
@@ -266,8 +283,9 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
     # 3) subiram novas/alteradas — NF travada tem prioridade sobre "subiu" (mesmo id)
     subiram = [ev for ev in subiram if ev["id"] not in travadas_atuais]
     for ev in subiram:
-        atual[ev["id"]] = "subiu"
-        if publicado.get(ev["id"]) != "subiu":
+        assin = _assinatura_subiu(ev)
+        atual[ev["id"]] = assin
+        if publicado.get(ev["id"]) != assin:
             pendentes.append(_nota(ev))
 
     # 4) reconciliação com o espelho: remove/corrige o que ficou preso como travada
@@ -282,7 +300,7 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
             pendentes.append(_nota(ev) if ev else {"nf": nf, "filial": filial, "estado": "resolvida"})
             atual.pop(f"{filial}:{nf}", None)
             if ev:
-                atual[ev["id"]] = "subiu"
+                atual[ev["id"]] = _assinatura_subiu(ev)
 
     if pendentes:
         if _enviar(pendentes):
