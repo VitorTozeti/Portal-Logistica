@@ -152,6 +152,49 @@
   .opbar{max-width:1440px;width:100%;margin:0 auto;padding:16px 28px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .opbar .rot{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
   @media (max-width:440px){.opbar{padding:12px 12px 0}}
+  .btn-det{margin-left:auto;font:inherit;font-size:13px;font-weight:700;color:var(--p1);background:var(--brand);
+    border:1px solid var(--brand);border-radius:20px;padding:7px 16px;cursor:pointer;min-height:36px}
+  .btn-det:hover{filter:brightness(1.08)}
+  .btn-det[hidden]{display:none}
+  /* ---- "Detalhar" da Unilog: tela cheia com uma coluna por etapa do fluxo ---- */
+  .flow{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column}
+  .flow[hidden]{display:none}
+  .flow-head{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+  .flow-head h2{margin:0;font-size:17px;display:flex;align-items:center;gap:8px}
+  .flow-head input{font:inherit;font-size:13.5px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:0;width:200px}
+  .flow-x{margin-left:auto;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer;min-height:36px}
+  .flow-x:hover{background:var(--line)}
+  .flow-sub{padding:8px 20px 0;font-size:12.5px;color:var(--ink2)}
+  .flow-board{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:12px;padding:12px 20px 20px;overflow-x:auto;overflow-y:hidden}
+  .fcol{display:flex;flex-direction:column;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .fcol-h{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);
+    background:var(--panel2);border:0;border-bottom:1px solid var(--line);padding:11px 12px;cursor:default}
+  .fcol-h .t{flex:1;min-width:0}
+  .fcol-h .count{flex:none}
+  .fcol-h .seta{display:none;font-size:11px}
+  .fcol.fim .fcol-h{background:color-mix(in srgb,#16a34a 22%,var(--panel2))}
+  .fcol-dica{padding:7px 12px 0;font-size:11.5px;color:var(--ink2)}
+  .fcol-b{flex:1;min-height:0;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+  .fcol-vazio{font-size:12px;color:var(--ink2);text-align:center;padding:14px 6px}
+  .fcard{display:block;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-left:4px solid var(--accent);border-radius:10px;padding:9px 11px;cursor:pointer}
+  .fcard:hover,.fcard:focus-visible{background:var(--panel2);outline:none}
+  .fcard .l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .fcard .num{font-weight:800;font-size:13.5px}
+  .fcard .l2{margin-top:5px;font-size:12px;color:var(--ink2);display:flex;gap:6px 10px;flex-wrap:wrap;justify-content:space-between}
+  .fcard .velho{color:var(--warn);font-weight:700}
+  @media (max-width:900px){.flow-board{grid-auto-columns:minmax(230px,72vw)}}
+  /* celular: as etapas viram blocos empilhados que abrem e fecham */
+  @media (max-width:720px){
+    .flow-head{padding:10px 12px}.flow-head input{flex:1 1 140px;width:auto}
+    .flow-sub{padding:8px 12px 0}
+    .flow-board{display:block;overflow-y:auto;overflow-x:hidden;padding:10px 12px 24px}
+    .fcol{margin-bottom:10px;overflow:visible}
+    .fcol-h{cursor:pointer;min-height:44px}.fcol-h .seta{display:inline}
+    .fcol-b{overflow:visible}
+    .fcol.fechada .fcol-b,.fcol.fechada .fcol-dica{display:none}
+    .fcol.fechada .fcol-h .seta{transform:rotate(-90deg)}
+  }
   .uni{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;
     color:var(--ink2);background:color-mix(in srgb,var(--ink2) 12%,transparent)}
   .uni.u22{color:#16a34a;background:color-mix(in srgb,#16a34a 14%,transparent)}
@@ -504,6 +547,21 @@
     <span class="chip" role="button" tabindex="0" data-op="B4You" aria-pressed="false" title="Notas do fluxo antigo (B4You) e travas do SAP que não são da Unilog">B4You <span class="n">0</span></span>
     <span class="chip" role="button" tabindex="0" data-op="Unilog" aria-pressed="false" title="Notas que o robô mandou à Unilog e alertas da Unilog">Unilog <span class="n">0</span></span>
   </span>
+  <button type="button" class="btn-det" id="btn-detalhar" hidden aria-haspopup="dialog" title="Ver as notas da Unilog por etapa do fluxo">Detalhar ▸</button>
+</div>
+<div class="flow" id="flow" role="dialog" aria-modal="true" aria-labelledby="flow-t" hidden>
+  <div class="flow-head">
+    <h2 id="flow-t">Fluxo da Unilog <span class="count" id="flow-total">0</span></h2>
+    <span id="flow-fil" class="seg">
+      <span class="chip todas" role="button" tabindex="0" data-fil="todas" aria-pressed="true">Todas</span>
+      <span class="chip" role="button" tabindex="0" data-fil="Varejo" aria-pressed="false">Varejo</span>
+      <span class="chip" role="button" tabindex="0" data-fil="Atacado" aria-pressed="false">Atacado</span>
+    </span>
+    <input id="flow-busca" type="search" inputmode="numeric" placeholder="buscar nº da NF" aria-label="Buscar nota pelo número">
+    <button type="button" class="flow-x" id="flow-x">Fechar</button>
+  </div>
+  <div class="flow-sub" id="flow-sub"></div>
+  <div class="flow-board" id="flow-board"></div>
 </div>
 <main>
   <div class="col">
@@ -881,7 +939,103 @@
     $("#c-up").textContent = semFiltro ? total : `${total}/${risen.size}`;
   }
 
-  function render(){ renderTravadas(); renderSubiram(); }
+  // ===== "Detalhar" da Unilog: notas em fluxo normal, uma coluna por etapa =====
+  // Ordem e texto das etapas. O nome de cada etapa vem de unilog_feed.ETAPA_SIMPLES (campo unilog_situacao);
+  // nome que não estiver aqui ganha uma coluna extra no fim, nunca some.
+  const FLUXO_UNILOG = [
+    { nome:"Enviada à Unilog",      dica:"O robô enviou; a Unilog ainda não respondeu." },
+    { nome:"Pedido recebido",       dica:"A Unilog recebeu o pedido." },
+    { nome:"Na fila de separação",  dica:"Esperando a separação começar." },
+    { nome:"Em separação",          dica:"Sendo separado no armazém." },
+    { nome:"Sem estoque na Unilog", dica:"Falta produto no armazém.", opcional:true },
+    { nome:"Separação conferida",   dica:"Separado e conferido." },
+    { nome:"Aguardando rota",       dica:"Definindo a rota e a etiqueta." },
+    { nome:"Pronto para coleta",    dica:"Esperando a transportadora buscar." },
+    { nome:"Embarcada",             dica:"Já saiu do armazém.", fim:true },
+  ];
+  const PASSO_FLUXO = 30;           // notas por coluna antes do "mostrar mais"
+  const flowEl = $("#flow");
+  let flowFil = "todas", flowBusca = "", _flowHTML = null;
+  const flowLimite = new Map();     // etapa -> quantas notas mostrar
+  const flowAbertas = new Set(), flowFechadas = new Set();   // escolha do usuário no celular (o resto segue o padrão)
+  const flowAberto = () => !flowEl.hidden;
+  const tempoCurto = iso => { const t = tempoDesde(iso); return t ? t.texto.replace(/^(\d+d \d+h|\d+h)(.*)$/, "$1").replace(/^(\d+m) \d+s$/, "$1") : ""; };
+  function renderFlow(){
+    if(!flowAberto()) return;
+    const passa = n => (flowFil === "todas" || n.filial === flowFil) && (!flowBusca || String(n.nf).includes(flowBusca));
+    const lista = [...risen.values()].filter(n => n.operador === "Unilog" && passa(n));
+    const por = new Map(FLUXO_UNILOG.map(e => [e.nome, []]));
+    for(const n of lista){
+      const k = n.unilog_situacao || "Enviada à Unilog";
+      if(!por.has(k)) por.set(k, []);
+      por.get(k).push(n);
+    }
+    const etapas = [...FLUXO_UNILOG.filter(e => !e.opcional || (por.get(e.nome)||[]).length),
+                    ...[...por.keys()].filter(k => !FLUXO_UNILOG.some(e => e.nome === k)).map(k => ({ nome:k, dica:"Etapa fora da lista conhecida." }))];
+    const trav = [...stuck.values()].filter(n => opDe(n) === "Unilog" && !ocultas.has(n.id) && passa(n)).length;
+    $("#flow-total").textContent = lista.length;
+    $("#flow-sub").textContent = trav
+      ? `${trav} nota${trav>1?"s":""} com problema ${trav>1?"ficam":"fica"} na lista de Travadas, fora das colunas.`
+      : "Todas as notas em fluxo normal. Clique numa nota para ver o histórico.";
+    const html = etapas.map(e => {
+      const notas = (por.get(e.nome)||[]).sort((a,b) => (Date.parse(b.unilog_desde||b.atualizado_em)||0) - (Date.parse(a.unilog_desde||a.atualizado_em)||0));
+      const lim = flowLimite.get(e.nome) || PASSO_FLUXO;
+      // celular: começa aberta só a etapa que tem nota (menos a de embarcadas, que é longa); o usuário muda e o Portal lembra
+      const padraoAberta = notas.length > 0 && !e.fim;
+      const aberta = flowAbertas.has(e.nome) || (padraoAberta && !flowFechadas.has(e.nome));
+      const cards = notas.slice(0, lim).map(n => {
+        const t = tempoCurto(n.unilog_desde || n.atualizado_em);
+        const velho = !e.fim && n.unilog_desde && (Date.now() - Date.parse(n.unilog_desde)) > 24*36e5;
+        const fil = n.filial==="Varejo" ? "fil fil-varejo" : n.filial==="Atacado" ? "fil fil-atacado" : "fil";
+        return `<button type="button" class="fcard" data-id="${esc(n.id)}"><div class="l1"><span class="num">NF ${esc(n.nf)}</span><span class="${fil}">${esc((n.filial||"").toUpperCase())}</span></div>`
+          + `<div class="l2"><span>${esc(n.transportadora||"—")}</span>${t ? `<span class="${velho?"velho":""}" title="Tempo nesta etapa">há ${esc(t)}</span>` : ""}</div></button>`;
+      }).join("");
+      const mais = notas.length > lim ? `<button type="button" class="maisbtn" data-mais="${esc(e.nome)}">mostrar mais (${notas.length - lim})</button>` : "";
+      return `<section class="fcol${e.fim?" fim":""}${aberta?"":" fechada"}" data-etapa="${esc(e.nome)}">`
+        + `<button type="button" class="fcol-h" data-tog="${esc(e.nome)}" aria-expanded="${aberta}"><span class="t">${esc(e.nome)}</span><span class="count">${notas.length}</span><span class="seta" aria-hidden="true">▾</span></button>`
+        + `<div class="fcol-dica">${esc(e.dica||"")}</div>`
+        + `<div class="fcol-b">${cards || `<div class="fcol-vazio">nenhuma nota nesta etapa</div>`}${mais}</div></section>`;
+    }).join("");
+    if(html === _flowHTML) return;                 // nada mudou: não repinta (mantém a rolagem)
+    const board = $("#flow-board");
+    const rol = [...board.querySelectorAll(".fcol-b")].map(b => b.scrollTop), x = board.scrollLeft, y = board.scrollTop;
+    board.innerHTML = _flowHTML = html;
+    board.scrollLeft = x; board.scrollTop = y;
+    board.querySelectorAll(".fcol-b").forEach((b,i) => { if(rol[i]) b.scrollTop = rol[i]; });
+  }
+  function abrirFlow(){
+    flowEl.hidden = false; _flowHTML = null; document.body.style.overflow = "hidden";
+    renderFlow(); $("#flow-x").focus();
+  }
+  function fecharFlow(devolverFoco){
+    if(!flowAberto()) return;
+    flowEl.hidden = true; document.body.style.overflow = "";
+    if(devolverFoco !== false) $("#btn-detalhar").focus();
+  }
+  function botaoDetalhar(){
+    const mostra = filtroOperador === "Unilog";
+    $("#btn-detalhar").hidden = !mostra;
+    if(!mostra) fecharFlow(false);
+  }
+  $("#btn-detalhar").addEventListener("click", abrirFlow);
+  $("#flow-x").addEventListener("click", () => fecharFlow());
+  document.addEventListener("keydown", e => { if(e.key === "Escape" && flowAberto() && !$("#drawer").classList.contains("open")) fecharFlow(); });
+  $("#flow-busca").addEventListener("input", e => { flowBusca = e.target.value.replace(/\D/g, ""); renderFlow(); });
+  const escolherFilFlow = c => { flowFil = c.dataset.fil;
+    for(const x of document.querySelectorAll("#flow-fil .chip")) x.setAttribute("aria-pressed", String(x === c)); renderFlow(); };
+  $("#flow-fil").addEventListener("click", e => { const c = e.target.closest(".chip[data-fil]"); if(c) escolherFilFlow(c); });
+  $("#flow-fil").addEventListener("keydown", e => { const c = e.target.closest(".chip[data-fil]"); if(c && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); escolherFilFlow(c); } });
+  $("#flow-board").addEventListener("click", e => {
+    const card = e.target.closest(".fcard"); if(card){ abrirSubiu(card.dataset.id); return; }
+    const mais = e.target.closest("[data-mais]"); if(mais){ const k = mais.dataset.mais; flowLimite.set(k, (flowLimite.get(k)||PASSO_FLUXO) + PASSO_FLUXO); renderFlow(); return; }
+    const tog = e.target.closest("[data-tog]");
+    if(tog && matchMedia("(max-width:720px)").matches){          // só o celular recolhe; no desktop o título é só um título
+      const k = tog.dataset.tog, abrir = tog.getAttribute("aria-expanded") !== "true";
+      if(abrir){ flowAbertas.add(k); flowFechadas.delete(k); } else { flowFechadas.add(k); flowAbertas.delete(k); }
+      _flowHTML = null; renderFlow();
+    }
+  });
+  function render(){ renderTravadas(); renderSubiram(); botaoDetalhar(); renderFlow(); }
   function sincronizarOperador(){
     const c = { todos: 0, B4You: 0, Unilog: 0 };
     for(const n of stuck.values()){ if(ocultas.has(n.id)) continue; c.todos++; c[opDe(n)]++; }
