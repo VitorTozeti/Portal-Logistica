@@ -156,44 +156,84 @@
     border:1px solid var(--brand);border-radius:20px;padding:7px 16px;cursor:pointer;min-height:36px}
   .btn-det:hover{filter:brightness(1.08)}
   .btn-det[hidden]{display:none}
-  /* ---- "Detalhar" da Unilog: tela cheia com uma coluna por etapa do fluxo ---- */
-  .flow{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column}
+  /* ---- "Detalhar" da Unilog: quadro por etapa, sem barra de rolagem nas colunas (cada etapa tem "mostrar mais") ---- */
+  .flow{--f-warn:var(--alerta);--f-crit:#e5484d;position:fixed;inset:0;z-index:30;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;
+    padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
   .flow[hidden]{display:none}
-  .flow-head{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line)}
-  .flow-head h2{margin:0;font-size:17px;display:flex;align-items:center;gap:8px}
-  .flow-head input{font:inherit;font-size:13.5px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:0;width:200px}
-  .flow-x{margin-left:auto;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer;min-height:36px}
-  .flow-x:hover{background:var(--line)}
-  .flow-sub{padding:8px 20px 0;font-size:12.5px;color:var(--ink2)}
-  .flow-board{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:12px;padding:12px 20px 20px;overflow-x:auto;overflow-y:hidden}
-  .fcol{display:flex;flex-direction:column;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .fcol-h{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);
-    background:var(--panel2);border:0;border-bottom:1px solid var(--line);padding:11px 12px;cursor:default}
-  .fcol-h .t{flex:1;min-width:0}
-  .fcol-h .count{flex:none}
-  .fcol-h .seta{display:none;font-size:11px}
-  .fcol.fim .fcol-h{background:color-mix(in srgb,#16a34a 22%,var(--panel2))}
-  .fcol-dica{padding:7px 12px 0;font-size:11.5px;color:var(--ink2)}
-  .fcol-b{flex:1;min-height:0;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
-  .fcol-vazio{font-size:12px;color:var(--ink2);text-align:center;padding:14px 6px}
-  .fcard{display:block;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);
-    border-left:4px solid var(--accent);border-radius:10px;padding:9px 11px;cursor:pointer}
-  .fcard:hover,.fcard:focus-visible{background:var(--panel2);outline:none}
-  .fcard .l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .fcard .num{font-weight:800;font-size:13.5px}
-  .fcard .l2{margin-top:5px;font-size:12px;color:var(--ink2);display:flex;gap:6px 10px;flex-wrap:wrap;justify-content:space-between}
-  .fcard .velho{color:var(--warn);font-weight:700}
-  @media (max-width:900px){.flow-board{grid-auto-columns:minmax(230px,72vw)}}
-  /* celular: as etapas viram blocos empilhados que abrem e fecham */
+  .flow-top{position:sticky;top:0;z-index:2;background:var(--card);border-bottom:1px solid var(--line);
+    padding:12px max(20px,env(safe-area-inset-right,0px)) 12px max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px}
+  .flow-l1{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+  .flow-l1 h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+  .flow-x{font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer;min-height:38px}
+  .flow-x:hover{background:var(--panel2)}
+  .flow-l2{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
+  .flow-kpi{display:flex;align-items:baseline;gap:7px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 13px;min-height:42px;text-align:left}
+  .flow-kpi b{font-size:17px;font-weight:700}.flow-kpi span{font-size:12.5px;color:var(--ink2)}
+  button.flow-kpi{cursor:pointer}button.flow-kpi:hover{border-color:var(--ink2)}
+  .flow-kpi.warn b{color:var(--f-warn)}.flow-kpi.crit b{color:var(--f-crit)}
+  .flow-kpi[aria-pressed="true"]{border-color:var(--f-warn);background:color-mix(in srgb,var(--f-warn) 14%,var(--bg))}
+  .flow-filtros{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-left:auto}
+  .flow-grp{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)}
+  .flow-filtros .seg .chip{min-height:30px;white-space:nowrap}
+  .flow-filtros input,.flow-filtros select{font:inherit;font-size:13px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:7px 11px;min-height:38px;min-width:0}
+  .flow-filtros input{width:150px}.flow-filtros select{max-width:180px}
+  .flow-filtros input:focus,.flow-filtros select:focus{border-color:var(--brand);outline:none}
+  .flow-sub{padding:10px max(20px,env(safe-area-inset-right,0px)) 0 max(20px,env(safe-area-inset-left,0px));font-size:12.5px;color:var(--ink2)}
+  .flow-abas{display:none;gap:6px;overflow-x:auto;padding:10px 12px 0}
+  .flow-aba{flex:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 13px;min-height:40px;white-space:nowrap;cursor:pointer}
+  .flow-aba b{margin-left:5px}
+  .flow-aba[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:var(--p1)}
+  .flow-board{display:flex;align-items:flex-start;gap:14px;padding:12px max(20px,env(safe-area-inset-right,0px)) 8px max(20px,env(safe-area-inset-left,0px));overflow-x:auto}
+  .ffase{display:flex;flex-direction:column;gap:6px;flex:none}
+  .ffase-t{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .ffase-t::after{content:"";flex:1;height:1px;background:var(--line)}
+  .ffase-c{display:flex;align-items:flex-start;gap:8px}
+  .fcol{display:flex;flex-direction:column;min-width:0;width:232px;flex:none;background:var(--panel2);background:color-mix(in srgb,var(--panel2) 22%,var(--card));border:1px solid var(--line);border-radius:12px}
+  .fcol-h{padding:11px 12px 8px;display:flex;flex-direction:column;gap:2px}
+  .fcol-l{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .fcol-l h3{margin:0;font-size:13.5px;font-weight:700}.fcol-l b{font-size:15px;font-weight:700}
+  .fcol.fim .fcol-l b{color:#16a34a}
+  .fcol-h p{margin:0;font-size:11.5px;color:var(--ink2)}
+  .fcol-b{padding:2px 8px 8px;display:flex;flex-direction:column;gap:6px}
+  .fcol.vazia{width:44px;align-items:center;padding:10px 0;gap:10px;background:none;border-style:dashed}
+  .fcol.vazia .vn{font-size:12px;font-weight:700;color:var(--ink2)}
+  .fcol.vazia .vt{writing-mode:vertical-rl;font-size:12px;font-weight:600;color:var(--ink2);white-space:nowrap}
+  .fcol.vazia .fcol-h,.fcol.vazia .fcol-b{display:none}
+  .fcol-nada{font-size:12.5px;color:var(--ink2);text-align:center;padding:14px 6px}
+  .fper{margin:0 8px 6px;display:none}
+  .fcard{display:grid;grid-template-columns:1fr auto;gap:3px 8px;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px;cursor:pointer}
+  .fcard:hover,.fcard:focus-visible{border-color:var(--brand);outline:none}
+  .fcard .fnf{font:700 13.5px ui-monospace,'Cascadia Mono',Consolas,monospace}
+  .fcard .ffl{font-size:11px;font-weight:600;color:var(--ink2);justify-self:end;align-self:center}
+  .fcard .ftr{font-size:12px;color:var(--ink2);min-width:0;overflow-wrap:anywhere}
+  .fcard .ftp{font-size:11.5px;font-weight:600;color:var(--ink2);justify-self:end;white-space:nowrap}
+  .fcard .ftp.t1{color:var(--f-warn);background:color-mix(in srgb,var(--f-warn) 16%,transparent);padding:0 7px;border-radius:999px}
+  .fcard .ftp.t2{color:var(--f-crit);background:color-mix(in srgb,var(--f-crit) 16%,transparent);padding:0 7px;border-radius:999px}
+  .fmais{font:inherit;font-size:12.5px;font-weight:700;color:var(--brand);background:transparent;border:1px dashed var(--line);border-radius:9px;padding:9px;min-height:40px;cursor:pointer}
+  .fmais:hover{background:var(--panel2)}
+  .linha-et{list-style:none;margin:12px 0 4px;padding:0}
+  .linha-et li{display:grid;grid-template-columns:14px 1fr;gap:10px;font-size:13px;padding-bottom:11px;position:relative;color:var(--ink2)}
+  .linha-et li::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid var(--line);background:var(--panel);margin-top:4px;z-index:1}
+  .linha-et li:not(:last-child)::after{content:"";position:absolute;left:6px;top:14px;bottom:-4px;width:2px;background:var(--line)}
+  .linha-et li.feita{color:var(--ink)}.linha-et li.feita::before{background:var(--brand);border-color:var(--brand)}
+  .linha-et li.agora{color:var(--ink);font-weight:700}.linha-et li.agora::before{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
+  .linha-et small{display:block;font-weight:400;color:var(--ink2)}
+  @media (max-width:1100px){.flow-filtros{margin-left:0}.fcol{width:212px}}
+  /* celular: uma etapa por vez, escolhida nas abas */
   @media (max-width:720px){
-    .flow-head{padding:10px 12px}.flow-head input{flex:1 1 140px;width:auto}
+    .flow-top{position:static;padding:10px 12px;gap:8px}
+    .flow-l2{gap:6px}
+    .flow-kpi{flex:1 1 44%;padding:6px 10px;min-height:38px;gap:6px}.flow-kpi b{font-size:15px}.flow-kpi span{font-size:11.5px}
+    .flow-filtros{width:100%;gap:6px}.flow-filtros input{flex:1 1 110px;width:auto}.flow-filtros select{flex:1 1 140px;max-width:none}
+    .flow-abas{position:sticky;top:0;z-index:2;background:var(--bg);padding-bottom:8px}
     .flow-sub{padding:8px 12px 0}
-    .flow-board{display:block;overflow-y:auto;overflow-x:hidden;padding:10px 12px 24px}
-    .fcol{margin-bottom:10px;overflow:visible}
-    .fcol-h{cursor:pointer;min-height:44px}.fcol-h .seta{display:inline}
-    .fcol-b{overflow:visible}
-    .fcol.fechada .fcol-b,.fcol.fechada .fcol-dica{display:none}
-    .fcol.fechada .fcol-h .seta{transform:rotate(-90deg)}
+    .flow-abas{display:flex}
+    .flow-board{display:block;overflow:visible;padding:10px 12px 8px}
+    .ffase{display:contents}.ffase-t{display:none}.ffase-c{display:contents}
+    .fcol{display:none;width:auto}.fcol.ativa{display:flex}
+    .fcol.vazia.ativa{align-items:stretch;padding:0}
+    .fcol.vazia .vn,.fcol.vazia .vt{display:none}
+    .fcol.vazia.ativa .fcol-h,.fcol.vazia.ativa .fcol-b{display:flex}
   }
   .uni{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;
     color:var(--ink2);background:color-mix(in srgb,var(--ink2) 12%,transparent)}
@@ -550,18 +590,38 @@
   <button type="button" class="btn-det" id="btn-detalhar" hidden aria-haspopup="dialog" title="Ver as notas da Unilog por etapa do fluxo">Detalhar ▸</button>
 </div>
 <div class="flow" id="flow" role="dialog" aria-modal="true" aria-labelledby="flow-t" hidden>
-  <div class="flow-head">
-    <h2 id="flow-t">Fluxo da Unilog <span class="count" id="flow-total">0</span></h2>
-    <span id="flow-fil" class="seg">
-      <span class="chip todas" role="button" tabindex="0" data-fil="todas" aria-pressed="true">Todas</span>
-      <span class="chip" role="button" tabindex="0" data-fil="Varejo" aria-pressed="false">Varejo</span>
-      <span class="chip" role="button" tabindex="0" data-fil="Atacado" aria-pressed="false">Atacado</span>
-    </span>
-    <input id="flow-busca" type="search" inputmode="numeric" placeholder="buscar nº da NF" aria-label="Buscar nota pelo número">
-    <button type="button" class="flow-x" id="flow-x">Fechar</button>
+  <div class="flow-top">
+    <div class="flow-l1">
+      <h2 id="flow-t">Fluxo da Unilog <span class="count" id="flow-total">0</span></h2>
+      <button type="button" class="flow-x" id="flow-x" style="margin-left:auto">Fechar</button>
+    </div>
+    <div class="flow-l2">
+      <div class="flow-kpi"><b id="fk-and">0</b><span>em andamento</span></div>
+      <button type="button" class="flow-kpi warn" id="fk-par" aria-pressed="false" title="Mostrar só as notas paradas há mais de 24 h numa etapa"><b id="fk-par-n">0</b><span>paradas há +24 h</span></button>
+      <div class="flow-kpi"><b id="fk-emb">0</b><span>embarcadas em 24 h</span></div>
+      <div class="flow-kpi crit" title="Notas com problema ficam na lista de Travadas"><b id="fk-trav">0</b><span>travadas, fora do fluxo</span></div>
+      <div class="flow-filtros">
+        <span id="flow-fil" class="seg" role="group" aria-label="Filial">
+          <span class="chip todas" role="button" tabindex="0" data-fil="todas" aria-pressed="true">Todas</span>
+          <span class="chip" role="button" tabindex="0" data-fil="Varejo" aria-pressed="false">Varejo</span>
+          <span class="chip" role="button" tabindex="0" data-fil="Atacado" aria-pressed="false">Atacado</span>
+        </span>
+        <select id="flow-tr" aria-label="Transportadora"><option value="">Toda transportadora</option></select>
+        <span class="flow-grp">Embarcadas
+          <span id="flow-per" class="seg" role="group" aria-label="Período das embarcadas">
+            <span class="chip" role="button" tabindex="0" data-per="1" aria-pressed="false">24 h</span>
+            <span class="chip" role="button" tabindex="0" data-per="7" aria-pressed="true">7 dias</span>
+            <span class="chip" role="button" tabindex="0" data-per="t" aria-pressed="false">Todas</span>
+          </span>
+        </span>
+        <input id="flow-busca" type="search" inputmode="numeric" placeholder="Buscar NF" aria-label="Buscar nota pelo número">
+      </div>
+    </div>
   </div>
   <div class="flow-sub" id="flow-sub"></div>
+  <nav class="flow-abas" id="flow-abas" role="tablist" aria-label="Etapas"></nav>
   <div class="flow-board" id="flow-board"></div>
+</div>
 </div>
 <main>
   <div class="col">
@@ -940,68 +1000,99 @@
   }
 
   // ===== "Detalhar" da Unilog: notas em fluxo normal, uma coluna por etapa =====
-  // Ordem e texto das etapas. O nome de cada etapa vem de unilog_feed.ETAPA_SIMPLES (campo unilog_situacao);
-  // nome que não estiver aqui ganha uma coluna extra no fim, nunca some.
-  const FLUXO_UNILOG = [
-    { nome:"Enviada à Unilog",      dica:"O robô enviou; a Unilog ainda não respondeu." },
-    { nome:"Pedido recebido",       dica:"A Unilog recebeu o pedido." },
-    { nome:"Na fila de separação",  dica:"Esperando a separação começar." },
-    { nome:"Em separação",          dica:"Sendo separado no armazém." },
-    { nome:"Sem estoque na Unilog", dica:"Falta produto no armazém.", opcional:true },
-    { nome:"Separação conferida",   dica:"Separado e conferido." },
-    { nome:"Aguardando rota",       dica:"Definindo a rota e a etiqueta." },
-    { nome:"Pronto para coleta",    dica:"Esperando a transportadora buscar." },
-    { nome:"Embarcada",             dica:"Já saiu do armazém.", fim:true },
+  // Nome de cada etapa vem de unilog_feed.ETAPA_SIMPLES (campo unilog_situacao); nome fora desta lista ganha coluna extra no fim.
+  const FASES_UNILOG = [
+    { t:"Recebimento", e:[ { nome:"Enviada à Unilog", dica:"A Unilog ainda não respondeu." },
+                          { nome:"Pedido recebido",  dica:"A Unilog registrou o pedido." } ] },
+    { t:"Separação",   e:[ { nome:"Na fila de separação",  dica:"Esperando começar." },
+                          { nome:"Em separação",          dica:"Sendo separada no armazém." },
+                          { nome:"Sem estoque na Unilog", dica:"Falta produto no armazém.", opcional:true } ] },
+    { t:"Conferência", e:[ { nome:"Separação conferida", dica:"Separada e conferida." },
+                          { nome:"Aguardando rota",     dica:"Definindo rota e etiqueta." } ] },
+    { t:"Saída",       e:[ { nome:"Pronto para coleta", dica:"Esperando a transportadora." },
+                          { nome:"Embarcada",          dica:"Já saiu do armazém.", fim:true } ] },
   ];
-  const PASSO_FLUXO = 30;           // notas por coluna antes do "mostrar mais"
+  const ETAPAS_UNILOG = FASES_UNILOG.flatMap(f => f.e);
+  const PASSO_FLUXO = 8;            // notas por etapa antes do "mostrar mais" (coluna sem barra de rolagem)
+  const PASSO_MAIS = 20;            // quantas notas cada clique em "mostrar mais" acrescenta
   const flowEl = $("#flow");
-  let flowFil = "todas", flowBusca = "", _flowHTML = null;
-  const flowLimite = new Map();     // etapa -> quantas notas mostrar
-  const flowAbertas = new Set(), flowFechadas = new Set();   // escolha do usuário no celular (o resto segue o padrão)
+  let flowFil = "todas", flowTr = "", flowBusca = "", flowPar = false, flowPer = "7", flowAba = null, _flowHTML = null, _flowTrKey = "";
+  const flowLimite = new Map();
   const flowAberto = () => !flowEl.hidden;
-  const tempoCurto = iso => { const t = tempoDesde(iso); return t ? t.texto.replace(/^(\d+d \d+h|\d+h)(.*)$/, "$1").replace(/^(\d+m) \d+s$/, "$1") : ""; };
+  const horasNa = n => { const t = Date.parse(n.unilog_desde || ""); return isNaN(t) ? null : Math.max(0, Math.floor((Date.now() - t) / 36e5)); };
+  const fmtH = h => h < 1 ? "agora" : h < 24 ? h + " h" : Math.floor(h/24) + "d " + (h % 24) + "h";
+  const nivelEspera = (n, fim) => { const h = horasNa(n); return fim || h === null ? 0 : h >= 48 ? 2 : h >= 24 ? 1 : 0; };
+  const unilogRisen = () => [...risen.values()].filter(n => n.operador === "Unilog");
+  function linhaEtapas(n){
+    const seq = ETAPAS_UNILOG.filter(e => !e.opcional || e.nome === n.unilog_situacao);
+    let at = seq.findIndex(e => e.nome === n.unilog_situacao); if(at < 0) at = 0;
+    const fim = !!(seq[at] && seq[at].fim), h = horasNa(n);
+    return `<ol class="linha-et" aria-label="Etapas da nota">` + seq.map((e,i) => {
+      const cls = i < at || (i === at && fim) ? "feita" : i === at ? "agora" : "";
+      return `<li class="${cls}"><span>${esc(e.nome)}${i === at && !fim && h !== null ? `<small>há ${esc(fmtH(h))} nesta etapa</small>` : ""}</span></li>`;
+    }).join("") + `</ol>`;
+  }
   function renderFlow(){
     if(!flowAberto()) return;
-    const passa = n => (flowFil === "todas" || n.filial === flowFil) && (!flowBusca || String(n.nf).includes(flowBusca));
-    const lista = [...risen.values()].filter(n => n.operador === "Unilog" && passa(n));
-    const por = new Map(FLUXO_UNILOG.map(e => [e.nome, []]));
-    for(const n of lista){
-      const k = n.unilog_situacao || "Enviada à Unilog";
-      if(!por.has(k)) por.set(k, []);
-      por.get(k).push(n);
+    const todas = unilogRisen();
+    // KPIs do quadro inteiro (não mudam com os filtros)
+    const emAnd = todas.filter(n => n.unilog_situacao !== "Embarcada");
+    $("#fk-and").textContent = emAnd.length;
+    $("#fk-par-n").textContent = emAnd.filter(n => nivelEspera(n) > 0).length;
+    $("#fk-emb").textContent = todas.filter(n => n.unilog_situacao === "Embarcada" && (horasNa(n) ?? 99) < 24).length;
+    $("#fk-par").setAttribute("aria-pressed", String(flowPar));
+    // transportadoras (só refaz o menu quando a lista muda)
+    const trs = [...new Set(todas.map(n => n.transportadora).filter(Boolean))].sort((a,b) => a.localeCompare(b,"pt-BR"));
+    if(trs.join("|") !== _flowTrKey){
+      _flowTrKey = trs.join("|");
+      $("#flow-tr").innerHTML = `<option value="">Toda transportadora</option>` + trs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
     }
-    const etapas = [...FLUXO_UNILOG.filter(e => !e.opcional || (por.get(e.nome)||[]).length),
-                    ...[...por.keys()].filter(k => !FLUXO_UNILOG.some(e => e.nome === k)).map(k => ({ nome:k, dica:"Etapa fora da lista conhecida." }))];
-    const trav = [...stuck.values()].filter(n => opDe(n) === "Unilog" && !ocultas.has(n.id) && passa(n)).length;
+    if(flowTr && !trs.includes(flowTr)) flowTr = "";
+    $("#flow-tr").value = flowTr;
+    const passa = n => (flowFil === "todas" || n.filial === flowFil) && (!flowTr || n.transportadora === flowTr) && (!flowBusca || String(n.nf).includes(flowBusca));
+    const lista = todas.filter(n => {
+      if(!passa(n)) return false;
+      const fim = n.unilog_situacao === "Embarcada";
+      if(flowPar && nivelEspera(n, fim) === 0) return false;
+      if(fim && flowPer !== "t"){ const h = horasNa(n); if(h !== null && h >= (flowPer === "1" ? 24 : 168)) return false; }
+      return true;
+    });
+    const por = new Map(ETAPAS_UNILOG.map(e => [e.nome, []]));
+    for(const n of lista){ const k = n.unilog_situacao || "Enviada à Unilog"; if(!por.has(k)) por.set(k, []); por.get(k).push(n); }
+    const conhecidas = new Set(ETAPAS_UNILOG.map(e => e.nome));
+    const extras = [...por.keys()].filter(k => !conhecidas.has(k)).map(k => ({ nome:k, dica:"Etapa fora da lista conhecida." }));
+    const fases = FASES_UNILOG.map(f => ({ t:f.t, e:f.e.filter(e => !e.opcional || (por.get(e.nome)||[]).length) }));
+    if(extras.length) fases.push({ t:"Outras", e:extras });
+    const etapas = fases.flatMap(f => f.e);
+    const travN = [...stuck.values()].filter(n => opDe(n) === "Unilog" && !ocultas.has(n.id)).length;
+    $("#fk-trav").textContent = travN;
     $("#flow-total").textContent = lista.length;
-    $("#flow-sub").textContent = trav
-      ? `${trav} nota${trav>1?"s":""} com problema ${trav>1?"ficam":"fica"} na lista de Travadas, fora das colunas.`
-      : "Todas as notas em fluxo normal. Clique numa nota para ver o histórico.";
-    const html = etapas.map(e => {
-      const notas = (por.get(e.nome)||[]).sort((a,b) => (Date.parse(b.unilog_desde||b.atualizado_em)||0) - (Date.parse(a.unilog_desde||a.atualizado_em)||0));
+    $("#flow-sub").textContent = lista.length ? "Clique numa nota para ver as etapas e o histórico." : "Nenhuma nota com esses filtros.";
+    if(!flowAba || !etapas.some(e => e.nome === flowAba)){
+      flowAba = (etapas.find(e => !e.fim && (por.get(e.nome)||[]).length) || etapas.find(e => (por.get(e.nome)||[]).length) || etapas[0]).nome;
+    }
+    const ord = e => (por.get(e.nome)||[]).slice().sort((a,b) => e.fim ? (horasNa(a) ?? 1e9) - (horasNa(b) ?? 1e9) : (horasNa(b) ?? -1) - (horasNa(a) ?? -1));
+    const abas = etapas.map(e => `<button type="button" class="flow-aba" role="tab" data-aba="${esc(e.nome)}" aria-selected="${flowAba === e.nome}">${esc(e.nome)}<b>${(por.get(e.nome)||[]).length}</b></button>`).join("");
+    const cols = e => {
+      const notas = ord(e), ativa = flowAba === e.nome ? " ativa" : "";
+      if(!notas.length && !e.fim)
+        return `<section class="fcol vazia${ativa}" aria-label="${esc(e.nome)}: nenhuma nota"><span class="vn">0</span><span class="vt">${esc(e.nome)}</span><div class="fcol-h"><div class="fcol-l"><h3>${esc(e.nome)}</h3><b>0</b></div><p>${esc(e.dica||"")}</p></div><div class="fcol-b"><div class="fcol-nada">Nenhuma nota nesta etapa.</div></div></section>`;
       const lim = flowLimite.get(e.nome) || PASSO_FLUXO;
-      // celular: começa aberta só a etapa que tem nota (menos a de embarcadas, que é longa); o usuário muda e o Portal lembra
-      const padraoAberta = notas.length > 0 && !e.fim;
-      const aberta = flowAbertas.has(e.nome) || (padraoAberta && !flowFechadas.has(e.nome));
       const cards = notas.slice(0, lim).map(n => {
-        const t = tempoCurto(n.unilog_desde || n.atualizado_em);
-        const velho = !e.fim && n.unilog_desde && (Date.now() - Date.parse(n.unilog_desde)) > 24*36e5;
-        const fil = n.filial==="Varejo" ? "fil fil-varejo" : n.filial==="Atacado" ? "fil fil-atacado" : "fil";
-        return `<button type="button" class="fcard" data-id="${esc(n.id)}"><div class="l1"><span class="num">NF ${esc(n.nf)}</span><span class="${fil}">${esc((n.filial||"").toUpperCase())}</span></div>`
-          + `<div class="l2"><span>${esc(n.transportadora||"—")}</span>${t ? `<span class="${velho?"velho":""}" title="Tempo nesta etapa">há ${esc(t)}</span>` : ""}</div></button>`;
+        const h = horasNa(n), nv = nivelEspera(n, e.fim);
+        return `<button type="button" class="fcard" data-id="${esc(n.id)}"><span class="fnf">${esc(n.nf)}</span><span class="ffl">${esc(n.filial||"")}</span><span class="ftr">${esc(n.transportadora||"—")}</span>${h !== null ? `<span class="ftp t${nv}" title="Tempo ${e.fim ? "desde o embarque" : "nesta etapa"}">${e.fim ? "há " : ""}${esc(fmtH(h))}</span>` : `<span></span>`}</button>`;
       }).join("");
-      const mais = notas.length > lim ? `<button type="button" class="maisbtn" data-mais="${esc(e.nome)}">mostrar mais (${notas.length - lim})</button>` : "";
-      return `<section class="fcol${e.fim?" fim":""}${aberta?"":" fechada"}" data-etapa="${esc(e.nome)}">`
-        + `<button type="button" class="fcol-h" data-tog="${esc(e.nome)}" aria-expanded="${aberta}"><span class="t">${esc(e.nome)}</span><span class="count">${notas.length}</span><span class="seta" aria-hidden="true">▾</span></button>`
-        + `<div class="fcol-dica">${esc(e.dica||"")}</div>`
-        + `<div class="fcol-b">${cards || `<div class="fcol-vazio">nenhuma nota nesta etapa</div>`}${mais}</div></section>`;
-    }).join("");
+      const falta = notas.length - lim;
+      const mais = falta > 0 ? `<button type="button" class="fmais" data-mais="${esc(e.nome)}">Mostrar mais ${Math.min(PASSO_MAIS, falta)} de ${falta}</button>` : "";
+      return `<section class="fcol${e.fim?" fim":""}${ativa}"><div class="fcol-h"><div class="fcol-l"><h3>${esc(e.nome)}</h3><b>${notas.length}</b></div><p>${esc(e.dica||"")}</p></div><div class="fcol-b">${cards || `<div class="fcol-nada">Nenhuma nota neste período.</div>`}${mais}</div></section>`;
+    };
+    const html = `<nav>${abas}</nav>` + fases.map(f => `<div class="ffase"><div class="ffase-t">${esc(f.t)}</div><div class="ffase-c">${f.e.map(cols).join("")}</div></div>`).join("");
     if(html === _flowHTML) return;                 // nada mudou: não repinta (mantém a rolagem)
-    const board = $("#flow-board");
-    const rol = [...board.querySelectorAll(".fcol-b")].map(b => b.scrollTop), x = board.scrollLeft, y = board.scrollTop;
-    board.innerHTML = _flowHTML = html;
-    board.scrollLeft = x; board.scrollTop = y;
-    board.querySelectorAll(".fcol-b").forEach((b,i) => { if(rol[i]) b.scrollTop = rol[i]; });
+    _flowHTML = html;
+    $("#flow-abas").innerHTML = abas;
+    const board = $("#flow-board"), x = board.scrollLeft, y = flowEl.scrollTop;
+    board.innerHTML = html.slice(html.indexOf("</nav>") + 6);
+    board.scrollLeft = x; flowEl.scrollTop = y;
   }
   function abrirFlow(){
     flowEl.hidden = false; _flowHTML = null; document.body.style.overflow = "hidden";
@@ -1021,19 +1112,18 @@
   $("#flow-x").addEventListener("click", () => fecharFlow());
   document.addEventListener("keydown", e => { if(e.key === "Escape" && flowAberto() && !$("#drawer").classList.contains("open")) fecharFlow(); });
   $("#flow-busca").addEventListener("input", e => { flowBusca = e.target.value.replace(/\D/g, ""); renderFlow(); });
-  const escolherFilFlow = c => { flowFil = c.dataset.fil;
-    for(const x of document.querySelectorAll("#flow-fil .chip")) x.setAttribute("aria-pressed", String(x === c)); renderFlow(); };
-  $("#flow-fil").addEventListener("click", e => { const c = e.target.closest(".chip[data-fil]"); if(c) escolherFilFlow(c); });
-  $("#flow-fil").addEventListener("keydown", e => { const c = e.target.closest(".chip[data-fil]"); if(c && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); escolherFilFlow(c); } });
+  $("#flow-tr").addEventListener("change", e => { flowTr = e.target.value; renderFlow(); });
+  $("#fk-par").addEventListener("click", () => { flowPar = !flowPar; renderFlow(); });
+  const escolherChip = (grupo, c, aplicar) => { aplicar(c); for(const x of document.querySelectorAll(grupo + " .chip")) x.setAttribute("aria-pressed", String(x === c)); renderFlow(); };
+  for(const [grupo, attr, aplicar] of [["#flow-fil","fil",c => { flowFil = c.dataset.fil; }], ["#flow-per","per",c => { flowPer = c.dataset.per; }]]){
+    $(grupo).addEventListener("click", e => { const c = e.target.closest(".chip[data-" + attr + "]"); if(c) escolherChip(grupo, c, aplicar); });
+    $(grupo).addEventListener("keydown", e => { const c = e.target.closest(".chip[data-" + attr + "]"); if(c && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); escolherChip(grupo, c, aplicar); } });
+  }
+  $("#flow-abas").addEventListener("click", e => { const a = e.target.closest("[data-aba]"); if(a){ flowAba = a.dataset.aba; _flowHTML = null; renderFlow(); } });
   $("#flow-board").addEventListener("click", e => {
     const card = e.target.closest(".fcard"); if(card){ abrirSubiu(card.dataset.id); return; }
-    const mais = e.target.closest("[data-mais]"); if(mais){ const k = mais.dataset.mais; flowLimite.set(k, (flowLimite.get(k)||PASSO_FLUXO) + PASSO_FLUXO); renderFlow(); return; }
-    const tog = e.target.closest("[data-tog]");
-    if(tog && matchMedia("(max-width:720px)").matches){          // só o celular recolhe; no desktop o título é só um título
-      const k = tog.dataset.tog, abrir = tog.getAttribute("aria-expanded") !== "true";
-      if(abrir){ flowAbertas.add(k); flowFechadas.delete(k); } else { flowFechadas.add(k); flowAbertas.delete(k); }
-      _flowHTML = null; renderFlow();
-    }
+    const mais = e.target.closest("[data-mais]");
+    if(mais){ const k = mais.dataset.mais; flowLimite.set(k, (flowLimite.get(k) || PASSO_FLUXO) + PASSO_MAIS); renderFlow(); }
   });
   function render(){ renderTravadas(); renderSubiram(); botaoDetalhar(); renderFlow(); }
   function sincronizarOperador(){
@@ -1250,6 +1340,7 @@
     const embarcou = !uni || String(n.unilog_code) === "22";
     $("#dw-body").innerHTML =
       rows.map(([l,v]) => `<div class="info-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join("")
+      + (uni ? linhaEtapas(n) : "")
       + `<div class="alert info"><div class="at" style="color:var(--accent)">✓ ${embarcou ? "Processada com sucesso" : "Enviada à Unilog"}</div>`
       + `<div class="ax">${uni ? (embarcou ? "Embarcada pela Unilog." : "Ainda não embarcou — o histórico mostra a etapa atual.") : "Nota enviada e confirmada."}</div>${hist}</div>`;
     abrirDrawer();

@@ -51,7 +51,7 @@ class TestEtapas(unittest.TestCase):
 
     def test_todo_nome_simples_tem_coluna_no_monitor(self):
         html = (RAIZ / "static" / "monitor.html").read_text(encoding="utf-8")
-        bloco = html[html.index("const FLUXO_UNILOG"):html.index("const PASSO_FLUXO")]
+        bloco = html[html.index("const FASES_UNILOG"):html.index("const PASSO_FLUXO")]
         colunas = set(re.findall(r'nome:"([^"]+)"', bloco))
         esperados = set(u.ETAPA_SIMPLES.values()) - {"Cancelada"}   # cancelada nunca chega a "subiu"
         self.assertEqual(esperados - colunas, set())
