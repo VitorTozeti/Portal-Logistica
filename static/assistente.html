@@ -38,8 +38,8 @@
   button,textarea,input{font:inherit;color:var(--ink)}
   .btn{font-size:14.5px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:7px 13px;cursor:pointer}
   .btn:hover{background:var(--line)} .btn.pri{background:var(--brand);color:var(--p1);border-color:var(--brand)} .btn.pri:hover{filter:brightness(1.1);background:var(--brand)}
-  .btn:focus-visible,.chip:focus-visible,textarea:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  main{width:100%;max-width:1240px;margin:0 auto;padding:18px 24px 24px;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+  .btn:focus-visible,textarea:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  main{width:100%;max-width:860px;margin:0 auto;padding:18px 24px 24px;flex:1;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
   .aviso{grid-column:1/-1;margin:0;padding:11px 15px;border-radius:10px;font-size:14.5px;line-height:1.5;
     background:color-mix(in srgb,var(--alerta) 16%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 60%,transparent)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
@@ -68,20 +68,7 @@
   .comp{display:flex;gap:10px;padding:12px;border-top:1px solid var(--line);align-items:flex-end}
   .comp textarea{flex:1;resize:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;max-height:120px;line-height:1.4}
   .comp .btn{height:42px;padding:0 18px}
-  aside{display:grid;gap:14px;position:sticky;top:78px}
-  aside .card{padding:14px 16px}
-  aside h3{margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:800}
-  .chips{display:flex;flex-direction:column;gap:7px}
-  .chip{text-align:left;background:transparent;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:14px;cursor:pointer;line-height:1.35}
-  .chip:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 9%,transparent)}
-  .fontes{display:grid;gap:8px;font-size:14px}
-  .fontes div{display:flex;align-items:center;gap:9px} .fontes small{margin-left:auto;color:var(--soft);font-size:12.5px}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
-  .regras{margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:var(--soft)} .regras b{color:var(--ink)}
-  .uso{height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin:6px 0 4px} .uso i{display:block;height:100%;width:14%;background:var(--brand)}
-  @media (max-width:900px){main{grid-template-columns:1fr;padding:14px 12px} aside{position:static;order:-1} .msgs{max-height:none} .chat{min-height:60dvh} .m{max-width:96%}
-    .chips{flex-direction:row;overflow-x:auto;padding-bottom:4px;scrollbar-width:none} .chip{white-space:nowrap;flex:none}
-    aside .card.extra{display:none}}
+  @media (max-width:900px){main{padding:14px 12px} .msgs{max-height:none} .chat{min-height:60dvh} .m{max-width:96%}}
   @media (prefers-reduced-motion:reduce){.digitando i{animation:none}}
 </style>
 </head>
@@ -105,34 +92,6 @@
     </form>
   </section>
 
-  <aside>
-    <div class="card">
-      <h3>Perguntas frequentes</h3>
-      <div class="chips" id="chips"></div>
-    </div>
-    <div class="card extra">
-      <h3>Fontes consultadas</h3>
-      <div class="fontes">
-        <div><span class="dot"></span>SAP <small>só leitura</small></div>
-        <div><span class="dot"></span>Unilog <small>só leitura</small></div>
-        <div><span class="dot"></span>Robô da expedição <small>estado das 08:39</small></div>
-      </div>
-    </div>
-    <div class="card extra">
-      <h3>Uso de hoje</h3>
-      <div class="uso"><i></i></div>
-      <small style="color:var(--soft)">4 de 30 consultas</small>
-    </div>
-    <div class="card extra">
-      <h3>Como ele responde</h3>
-      <ul class="regras">
-        <li><b>Só consulta.</b> Não reenvia, cancela nem confirma.</li>
-        <li>Toda resposta traz <b>fonte e hora</b> do dado.</li>
-        <li>Lista longa vai em <b>Excel</b>.</li>
-        <li>Sem dado, diz <b>“não achei”</b>, sem palpite.</li>
-      </ul>
-    </div>
-  </aside>
 </main>
 <script>
 (function(){
@@ -173,8 +132,6 @@
   ];
   var FALLBACK = '<p>Não achei isso nas fontes que consulto (SAP, Unilog e robô). Tente citar o número da NF, o item ou a filial.</p>';
 
-  var PERGS = ["Status da NF 19005", "Quais NFs válidas no SAP estão fora da Unilog?", "Por que aparecem 37 pendentes?", "A 49637 e a 49638 já foram confirmadas?", "Status da NF 99999999", "Reenvia a NF 19005 pra Unilog"];
-  $("#chips").innerHTML = PERGS.map(function(p){ return '<button class="chip" type="button" data-pergunta="' + esc(p) + '">' + esc(p) + '</button>'; }).join("");
 
   function rola(){ msgs.scrollTop = msgs.scrollHeight; }
   function add(cls, html){ var d = document.createElement("div"); d.className = "m " + cls; d.innerHTML = html; msgs.appendChild(d); rola(); return d; }
