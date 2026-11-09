@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente da Logística — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+  // PRÉ-VISUALIZAÇÃO (Fase 1B): tela do assistente com respostas SIMULADAS. Sem login, sem Azure, sem SAP/Unilog.
+  (function(){
+    try{ var t = localStorage.getItem("portal_tema");
+      if(!t){ t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(_){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
+<style>
+  :root, :root[data-theme="dark"]{ --p1:#0e0d0d; --p2:#242424; --p3:#005b6b; --p4:#31cceb; --p5:#ffffff; }
+  :root[data-theme="light"]{ --p1:#eff3f9; --p2:#ffffff; --p3:#cbd5e1; --p4:#1d4ed8; --p5:#0f172a; }
+  :root{ --bg:var(--p1); --card:var(--p2); --ink:var(--p5); --line:var(--p3); --brand:var(--p4); --alerta:#f4a72c; --ok:#2fb67c;
+    --soft:color-mix(in srgb,var(--p5) 62%,transparent); }
+  *{box-sizing:border-box}
+  html,body{height:100%;overflow:hidden} /* sem rolagem da página: só a conversa rola por dentro */
+  body{margin:0;font:16px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);height:100dvh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand);flex:none;z-index:20}
+  header b{font-size:16px;color:var(--brand)}
+  .volta{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;color:var(--ink);text-decoration:none;border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
+  .volta:hover{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+  .volta svg{width:18px;height:18px}
+  .sep{width:1px;height:22px;background:var(--line)}
+  .esp{margin-left:auto}
+  .selo{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:20px;
+    background:color-mix(in srgb,var(--alerta) 20%,transparent);color:var(--alerta);border:1px solid color-mix(in srgb,var(--alerta) 55%,transparent)}
+  .tema-btn{width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;background:transparent;color:var(--ink);border:1px solid color-mix(in srgb,var(--brand) 45%,transparent)}
+  .tema-btn:hover{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+  button,textarea,input{font:inherit;color:var(--ink)}
+  .btn{font-size:14.5px;font-weight:700;border:1px solid var(--line);background:transparent;border-radius:9px;padding:7px 13px;cursor:pointer}
+  .btn:hover{background:var(--line)} .btn.pri{background:var(--brand);color:var(--p1);border-color:var(--brand)} .btn.pri:hover{filter:brightness(1.1);background:var(--brand)}
+  .btn:focus-visible,textarea:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  main{width:100%;max-width:860px;margin:0 auto;padding:14px 24px 16px;flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+  .aviso{grid-column:1/-1;margin:0;padding:11px 15px;border-radius:10px;font-size:14.5px;line-height:1.5;
+    background:color-mix(in srgb,var(--alerta) 16%,var(--card));border:1px solid color-mix(in srgb,var(--alerta) 60%,transparent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+  .chat{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+  .msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:0;scrollbar-width:thin}
+  .m{max-width:88%;line-height:1.5;font-size:15.5px}
+  .m.eu{align-self:flex-end;background:var(--brand);color:var(--p1);padding:9px 14px;border-radius:14px 14px 4px 14px;font-weight:600}
+  .m.bot{align-self:flex-start;display:flex;gap:10px}
+  .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;
+    background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand);border:1px solid color-mix(in srgb,var(--brand) 50%,transparent)}
+  .corpo{background:color-mix(in srgb,var(--p5) 5%,var(--card));border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:11px 14px;min-width:0}
+  .corpo p{margin:0 0 6px} .corpo p:last-child{margin:0}
+  .corpo.escrita{border-color:color-mix(in srgb,var(--alerta) 65%,transparent);background:color-mix(in srgb,var(--alerta) 10%,var(--card))}
+  .fonte{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--soft);display:flex;flex-wrap:wrap;gap:4px 12px}
+  .fonte b{color:var(--ink);font-weight:700}
+  table.t{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 2px}
+  .t th,.t td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap} .t th{color:var(--soft);font-weight:700;font-size:12.5px}
+  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  .tbl .t{margin:0}
+  .pill{display:inline-block;font-size:12px;font-weight:700;border-radius:20px;padding:1px 9px;border:1px solid var(--line);color:var(--soft)}
+  .pill.ok{color:var(--ok);border-color:var(--ok)} .pill.al{color:var(--alerta);border-color:var(--alerta)} .pill.er{color:#ff6b6b;border-color:#ff6b6b}
+  .opcoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .digitando{display:inline-flex;gap:4px;padding:4px 2px} .digitando i{width:7px;height:7px;border-radius:50%;background:var(--soft);animation:pulsa 1s infinite}
+  .digitando i:nth-child(2){animation-delay:.15s} .digitando i:nth-child(3){animation-delay:.3s}
+  @keyframes pulsa{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+  .comp{display:flex;gap:10px;padding:12px;border-top:1px solid var(--line);align-items:flex-end}
+  .comp textarea{flex:1;resize:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;max-height:120px;line-height:1.4}
+  .comp .btn{height:42px;padding:0 18px}
+  @media (max-width:900px){main{padding:10px 12px} .m{max-width:96%} header{padding:10px 14px} .aviso{font-size:13px;padding:8px 11px}}
+  @media (prefers-reduced-motion:reduce){.digitando i{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <a class="volta" href="./" aria-label="Voltar ao Painel de ferramentas" title="Voltar ao Painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+  <span class="sep" aria-hidden="true"></span>
+  <b>Assistente da Logística</b>
+  <span class="selo">Pré-visualização</span>
+  <span class="esp"></span>
+  <button type="button" class="tema-btn" id="tema" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
+</header>
+<main>
+  <p class="aviso"><b>Pré-visualização do visual.</b> As respostas abaixo são simuladas (dados de 08–09/11 das notas do projeto). Ainda não consulta SAP nem Unilog. Tente: “status da NF 19005”, “NFs fora da Unilog”, “37 pendentes”, “49637”, “reenvia a 19005”.</p>
+
+  <section class="card chat" aria-label="Conversa">
+    <div class="msgs" id="msgs" role="log" aria-live="polite"></div>
+    <form class="comp" id="form" autocomplete="off">
+      <textarea id="txt" rows="1" placeholder="Pergunte por uma NF, estoque, pendências ou entradas…" aria-label="Sua pergunta"></textarea>
+      <button class="btn pri" type="submit">Enviar</button>
+    </form>
+  </section>
+
+</main>
+<script>
+(function(){
+  var $ = function(s){ return document.querySelector(s); };
+  var msgs = $("#msgs"), txt = $("#txt");
+  var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); };
+  var pill = function(t, c){ return '<span class="pill ' + (c||"") + '">' + esc(t) + '</span>'; };
+  var fonte = function(f, h){ return '<div class="fonte"><span><b>Fonte:</b> ' + esc(f) + '</span><span>dado de <b>' + esc(h) + '</b></span></div>'; };
+  var tabela = function(cols, linhas){
+    return '<div class="tbl"><table class="t"><thead><tr>' + cols.map(function(c){ return '<th>' + esc(c) + '</th>'; }).join("") + '</tr></thead><tbody>' +
+      linhas.map(function(l){ return '<tr>' + l.map(function(c){ return '<td>' + c + '</td>'; }).join("") + '</tr>'; }).join("") + '</tbody></table></div>';
+  };
+  var excel = function(n){ return '<div class="opcoes"><button class="btn" type="button" data-excel="1">⬇ Baixar Excel com as ' + n + ' linhas</button></div>'; };
+
+  // Respostas SIMULADAS (casos C01–C14 e F01–F10 de bateria/casos.yaml)
+  var RESP = [
+    { re: /reenvi|cancel|confirma(r)? (a )?entrada|apag|corrig|altera/i, escrita: true,
+      html: '<p>Eu só consulto: não reenvio, não cancelo, não confirmo entrada nem mexo no robô. Isso é com o Marcelo ou a TI.</p>' },
+    { re: /^(oi|ol[aá]|bom dia|boa tarde|boa noite)\b/i,
+      html: '<p>Oi! Sou o Assistente da Logística. Pergunte por uma NF, estoque, pendências da Unilog ou entradas.</p>' },
+    { re: /obrigad|valeu/i, html: '<p>Por nada! Se precisar de outra consulta, é só mandar.</p>' },
+    { re: /99999/, html: '<p>Não achei a NF 99999999 no SAP (consultado às 10:02).</p><p style="color:var(--soft);font-size:14px">Tentei: nota de saída por número e por chave.</p>', f: ["SAP", "09/11 10:02"] },
+    { re: /\b190\b(?!\d)/, html: '<p>Achei mais de uma NF parecida com <b>190</b>. É qual?</p><div class="opcoes">' +
+        ['19005 · Varejo · 03/11', '19019 · Varejo · 04/11', '19079 · Varejo · 05/11'].map(function(o){ return '<button class="btn" type="button" data-pergunta="status da NF ' + o.slice(0,5) + '">' + o + '</button>'; }).join("") + '</div>' },
+    { re: /19005|lotes?/i,
+      html: '<p>A NF <b>19005</b> (Varejo) tem <b>2 lotes</b> do PR0059 e está <b>cancelada na Unilog</b> desde 05/11.</p><p>Ela ficou presa por falta de saldo nos lotes 26A08 e 26B20; sai sozinha quando o saldo for acertado.</p>' +
+        tabela(["Item", "Lote", "Qtd", "Saldo Unilog"], [["PR0059", "26A08", "30", pill("sem saldo", "er")], ["PR0059", "26B20", "12", pill("sem saldo", "er")]]) +
+        '<p style="margin-top:8px">' + pill("Cancelada na Unilog", "er") + ' ' + pill("Válida no SAP", "ok") + '</p>', f: ["SAP + Unilog", "09/11 08:39"] },
+    { re: /fora da unilog|v[aá]lidas/i,
+      html: '<p>Das <b>448</b> NFs válidas no SAP desde 03/11, <b>15</b> estão fora da Unilog: 9 canceladas pela Unilog em 05/11, 3 com envio incerto e 3 reenviadas hoje.</p>' +
+        tabela(["NF", "Filial", "Situação"], [["18972", "Varejo", pill("reenviada 09/11", "ok")], ["18979", "Varejo", pill("cancelada 05/11", "er")], ["18987", "Varejo", pill("cancelada 05/11", "er")], ["19005", "Varejo", pill("cancelada 05/11", "er")], ["9324", "Varejo", pill("envio incerto", "al")]]) +
+        '<p style="color:var(--soft);font-size:13.5px;margin-top:6px">Mostrando 5 de 15.</p>' + excel(15), f: ["SAP × Unilog", "09/11 08:39"] },
+    { re: /37|pendente/i,
+      html: '<p>Os <b>37 pendentes</b> são do <b>Atacado</b> e estão em <b>aguardando produção</b> na Unilog.</p><p>Nenhum está travado por erro: esperam separação.</p>' + excel(37), f: ["Unilog", "09/11 08:39"] },
+    { re: /4963[78]/i,
+      html: '<p>A <b>49637</b> (Varejo) e a <b>49638</b> (Atacado), da Matriz, foram lidas como <b>integradas</b> na Unilog.</p><p>A confirmação da entrada é feita à mão pelo Marcelo; eu só informo o estado.</p>' +
+        tabela(["Entrada", "Filial", "Unilog", "Confirmação"], [["49637", "Varejo", pill("INTEGRATED", "ok"), pill("pendente", "al")], ["49638", "Atacado", pill("INTEGRATED", "ok"), pill("pendente", "al")]]), f: ["Unilog + robô", "08/11 13:07"] }
+  ];
+  var FALLBACK = '<p>Não achei isso nas fontes que consulto (SAP, Unilog e robô). Tente citar o número da NF, o item ou a filial.</p>';
+
+
+  function rola(){ msgs.scrollTop = msgs.scrollHeight; }
+  function add(cls, html){ var d = document.createElement("div"); d.className = "m " + cls; d.innerHTML = html; msgs.appendChild(d); rola(); return d; }
+  function bot(r){
+    var corpo = '<span class="av" aria-hidden="true">L</span><div class="corpo' + (r.escrita ? " escrita" : "") + '">' + r.html + (r.f ? fonte(r.f[0], r.f[1]) : "") + '</div>';
+    return add("bot", corpo);
+  }
+  function pergunta(p){
+    p = (p || "").trim(); if(!p) return;
+    add("eu", esc(p)); txt.value = ""; txt.style.height = "auto";
+    var esp = add("bot", '<span class="av" aria-hidden="true">L</span><div class="corpo"><span class="digitando"><i></i><i></i><i></i></span></div>');
+    var r = RESP.filter(function(x){ return x.re.test(p); })[0] || { html: FALLBACK };
+    setTimeout(function(){ esp.remove(); bot(r); }, 650);
+  }
+  $("#form").addEventListener("submit", function(e){ e.preventDefault(); pergunta(txt.value); });
+  txt.addEventListener("keydown", function(e){ if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); pergunta(txt.value); } });
+  txt.addEventListener("input", function(){ txt.style.height = "auto"; txt.style.height = Math.min(txt.scrollHeight, 120) + "px"; });
+  document.addEventListener("click", function(e){
+    var b = e.target.closest("[data-pergunta]"); if(b){ pergunta(b.getAttribute("data-pergunta")); return; }
+    var x = e.target.closest("[data-excel]"); if(x){ x.textContent = "Pré-visualização: o Excel real vem na versão com dados."; x.disabled = true; }
+  });
+  $("#tema").addEventListener("click", function(){
+    var t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t); try{ localStorage.setItem("portal_tema", t); }catch(_){}
+    $("#tema").textContent = t === "dark" ? "🌙" : "☀️";
+  });
+  $("#tema").textContent = document.documentElement.getAttribute("data-theme") === "dark" ? "🌙" : "☀️";
+  bot({ html: '<p>Oi! Sou o Assistente da Logística. Pergunte por uma NF, estoque, pendências da Unilog ou entradas.</p>' });
+})();
+</script>
+</body>
+</html>
