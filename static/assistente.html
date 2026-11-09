@@ -145,7 +145,7 @@
 <header>
   <a class="ib" href="./" aria-label="Voltar ao Painel" title="Voltar ao Painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
   <div class="tt"><b>Assistente da Logística</b><small>Portal da Logística · Administração</small></div>
-  <span class="selo">Prévia</span>
+  <span class="selo">Piloto</span>
   <span class="esp"></span>
   <span class="estado" title="SAP, Unilog e robô respondendo (simulado)"><i class="dot"></i><span class="t">SAP · Unilog · Robô</span></span>
   <button class="ib" id="tema" type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
@@ -167,7 +167,7 @@
       <textarea id="txt" rows="1" placeholder="Pergunte por uma NF, um item, uma filial…" aria-label="Sua pergunta"></textarea>
       <button class="env" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </form>
-    <p class="nota">Prévia com respostas simuladas (dados de 08–09/11). Ainda não consulta o SAP nem a Unilog.</p>
+    <p class="nota">Consulta o Monitor de NFs e o conhecimento da Logística. Saldo e lotes do SAP ainda não.</p>
   </div>
 </main>
 <div id="toast" role="status"></div>
@@ -256,10 +256,17 @@
     if(!r.ok){ var m = ""; try{ m = (await r.json()).detail || ""; }catch(_){} throw new Error(m || ("HTTP " + r.status)); }
     return r;
   }
-  var ROT = { nf: "NF", filial: "Filial", motivo: "Motivo", desde: "Desde", situacao: "Situação", transportadora: "Transportadora", origem: "Origem", detalhe: "Detalhe" };
+  var ROT = { nf: "NF", filial: "Filial", motivo: "Motivo", desde: "Desde", situacao: "Situação", transportadora: "Transportadora", origem: "Origem", detalhe: "Detalhe",
+              quando: "Quando", evento: "O que aconteceu" };
   function deApi(j){
     var partes = String(j.texto || "").split("\nFonte:"), corpo = partes[0];
-    var html = '<p class="res">' + esc(corpo).replace(/\n/g, "<br>") + '</p>';
+    // 1a linha em destaque; o resto (Por quê / O que fazer / itens) em texto normal, com rótulos em negrito
+    var ls = corpo.split("\n"), html = '<p class="res">' + esc(ls[0]) + '</p>';
+    var resto = ls.slice(1).map(function(l){
+      var e = esc(l);
+      return e.replace(/^(Não subiu|Subiu|Por quê|O que fazer[^:]*|Agora)(:?)/, "<b>$1</b>$2");
+    }).join("<br>").replace(/(<br>){2,}/g, '</p><p style="margin-top:8px">');
+    if(resto.trim()) html += '<p style="line-height:1.55">' + resto + '</p>';
     if(j.linhas && j.linhas.length){
       var cols = (j.colunas && j.colunas.length ? j.colunas : Object.keys(j.linhas[0])).slice(0, 5);
       html += tabela(cols.map(function(c){ return ROT[c] || c; }), j.linhas.map(function(l){ return cols.map(function(c){ return esc(l[c] == null ? "" : l[c]); }); }));
