@@ -7,6 +7,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./portal-auth-cf.js?v=20261030"></script>
+<script src="./portal-auth.js?v=20261030"></script>
+<script>
+  // Só quem administra (TI) abre; sem login volta para o login. Em localhost sem Firebase/Cloudflare o gate fica inerte.
+  if (window.PortalGate && PortalGate.ativo()) {
+    document.documentElement.classList.add("gate-pend");
+    PortalGate.pronto.then(function (u) {
+      if (!u) location.replace("./login.html?next=" + encodeURIComponent("./assistente.html"));
+      else if (!(typeof PortalGate.admin === "function" ? PortalGate.admin() : u.perfil === "ti")) location.replace("./");
+      else document.documentElement.classList.remove("gate-pend");
+    });
+  }
+</script>
 <script>
   // PRÉ-VISUALIZAÇÃO (Fase 1B): tela do assistente com respostas SIMULADAS. Sem login, sem Azure, sem SAP/Unilog.
   (function(){
@@ -22,6 +38,10 @@
   :root{ --bg:var(--p1); --card:var(--p2); --ink:var(--p5); --line:var(--p3); --brand:var(--p4); --alerta:#f4a72c; --ok:#2fb67c;
     --soft:color-mix(in srgb,var(--p5) 62%,transparent); }
   *{box-sizing:border-box}
+  html.gate-pend body > *{visibility:hidden}
+  html.gate-pend body::before{content:"";position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
   html,body{height:100%;overflow:hidden} /* sem rolagem da página: só a conversa rola por dentro */
   body{margin:0;font:16px 'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);height:100dvh;display:flex;flex-direction:column}
   header{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--card);border-bottom:2px solid var(--brand);flex:none;z-index:20}

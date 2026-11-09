@@ -48,7 +48,9 @@ window.PortalGate = (function () {
   const FERRAMENTA_TI = { id: "usuarios", nome: "Usuários e permissões", icone: "👥", href: "./usuarios.html",
     desc: "Quem entra no portal, o perfil de cada pessoa e quais ferramentas ela pode abrir." };
   // Administração (só TI): o card de usuários e os pedidos escolhidos pela Azure com o frete simulado × real
-  const FERRAMENTAS_TI = [FERRAMENTA_TI];     // "Pedidos e fretes" agora é ferramenta comum, com nível por pessoa (03/11/2026)
+  const FERRAMENTA_ASSISTENTE = { id: "assistente", nome: "Assistente da Logística", icone: "🤖", href: "./assistente.html",
+    desc: "Pergunte por NF, estoque, pendências da Unilog e entradas. Só consulta (pré-visualização, respostas simuladas)." };
+  const FERRAMENTAS_TI = [FERRAMENTA_TI, FERRAMENTA_ASSISTENTE];   // card na Administração, só para quem administra (09/11/2026)     // "Pedidos e fretes" agora é ferramenta comum, com nível por pessoa (03/11/2026)
   const IDS = FERRAMENTAS.map((f) => f.id);
   function ferramentasDe(perfil, x) {
     if (perfil === "ti") return IDS.slice();
