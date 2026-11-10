@@ -546,14 +546,14 @@
   <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="robo-titulo">
     <b id="robo-titulo">Ignorar nota</b>
     <div id="robo-p1">
-      <p class="mdl-sub">O robô para de alertar sobre esta nota e nunca mais a processa. Aplica no próximo ciclo.</p>
+      <p class="mdl-sub" id="robo-sub"></p>
       <label for="robo-motivo" style="font-size:13px;font-weight:600">Motivo (obrigatório)</label>
       <textarea id="robo-motivo" rows="3" maxlength="300" style="margin-top:6px"></textarea>
       <div class="mdl-acoes"><button class="btn" type="button" id="robo-cancelar">Cancelar</button>
         <button class="btn" type="button" id="robo-continuar" style="background:var(--brand);color:var(--p1)">Continuar</button></div>
     </div>
     <div id="robo-p2" hidden>
-      <div class="robo-aviso"><b>Confirme antes de ignorar.</b> Depois que o robô aplicar, a nota <b>não volta</b> a ser tratada: ele marca todas as etapas como concluídas, como o script <code>ignorar_notas.py</code>.</div>
+      <div class="robo-aviso" id="robo-aviso"></div>
       <div class="robo-resumo" id="robo-resumo"></div>
       <div class="mdl-acoes"><button class="btn" type="button" id="robo-voltar">Voltar</button>
         <button class="btn" type="button" id="robo-ok" style="background:#d97706;color:#111;border-color:#d97706">Sim, ignorar nota</button></div>
@@ -684,6 +684,7 @@
   <div class="dw-body" id="dw-body"></div>
   <div class="dw-foot">
     <button class="btn" type="button" id="dw-acao" hidden></button>
+    <button class="btn" type="button" id="dw-boleto" hidden title="Só o boleto passa como OK; a nota continua no fluxo normal">Ignorar boleto</button>
     <button class="btn" type="button" id="dw-robo" hidden>⊘ Ignorar nota</button>
     <button class="btn" type="button" id="dw-fechar">Fechar</button>
   </div>
@@ -1240,6 +1241,7 @@
     $("#dw-body").innerHTML = corpo;
     montarAcao(n);
     montarRobo(n);
+    montarBoleto(n);
     abrirDrawer();
   }
 
@@ -1697,9 +1699,47 @@
     b.hidden = false; b.textContent = "⊘ Ignorar nota";
     b.onclick = () => pedirRobo(n);
   }
-  function pedirRobo(n){
+  const TXT_TIPO = {
+    nota:   { ini: "Ignorar a NF ", conf: "Confirmar: ignorar a NF ", ok: "Sim, ignorar nota", toast: " marcada para ignorar. O robô aplica no próximo ciclo.",
+              sub: "O robô para de alertar sobre esta nota e nunca mais a processa. Aplica no próximo ciclo.",
+              aviso: "<b>Confirme antes de ignorar.</b> Depois que o robô aplicar, a nota <b>não volta</b> a ser tratada: ele marca todas as etapas como concluídas, como o script <code>ignorar_notas.py</code>." },
+    boleto: { ini: "Ignorar o boleto da NF ", conf: "Confirmar: ignorar o boleto da NF ", ok: "Sim, ignorar boleto", toast: " com boleto dispensado. O robô aplica no próximo ciclo.",
+              sub: "Só o boleto passa como OK (use quando a forma de pagamento do pedido está errada e nunca vai existir boleto). A nota continua no fluxo normal e sobe para a Unilog.",
+              aviso: "<b>Confirme antes de ignorar o boleto.</b> O robô deixa de exigir boleto desta NF e ela segue o fluxo normal (todas as outras conferências continuam valendo). Só vale para notas com boleto ausente." },
+  };
+  // "Ignorar boleto": só para BOLETO_AUSENTE de Varejo/Atacado; o robô liga Requer_Boleto=FALSE e a nota segue o fluxo
+  function montarBoleto(n){
+    const b = $("#dw-boleto"); b.hidden = true; b.onclick = null; b.disabled = false;
+    document.getElementById("dw-boleto-st")?.remove();
+    if(!podeRobo() || !FILIAIS_ROBO.includes(n.filial) || n.problema_codigo !== "BOLETO_AUSENTE") return;
+    const p = pedidosRobo.get(n.filial + "-" + n.nf + "-boleto");
+    const st = (cls, titulo, texto) => $("#dw-body").insertAdjacentHTML("beforeend",
+      `<div class="robo-st ${cls}" id="dw-boleto-st"><b>${titulo}</b>${texto}</div>`);
+    if(p && p.status === "pendente"){
+      st("pendente", "⏳ Boleto: aguardando o robô", `Pedido por ${esc(p.por)} em ${esc(quandoBR(p.pedido_em))}: ${esc(p.motivo)}. O robô aplica no próximo ciclo.`);
+      b.hidden = false; b.textContent = "Cancelar pedido do boleto";
+      b.onclick = async () => {
+        if(!confirm("Cancelar o pedido de ignorar o boleto da NF " + n.nf + "?")) return;
+        b.disabled = true;
+        try{ const x = await azureApi("DELETE", "/v1/portal/ignorar/" + encodeURIComponent(n.filial) + "/" + encodeURIComponent(n.nf) + "?tipo=boleto");
+             pedidosRobo.set(x.id, x); toast("Pedido cancelado."); montarBoleto(n); }
+        catch(e){ toast("Não foi possível cancelar: " + e.message, { erro: true }); if(e.pedido) pedidosRobo.set(e.pedido.id, e.pedido); montarBoleto(n); }
+      };
+      return;
+    }
+    if(p && p.status === "aplicada"){
+      st("aplicada", "✓ Boleto dispensado", `Em ${esc(quandoBR(p.aplicado_em))}, pedido por ${esc(p.por)}: ${esc(p.motivo)}. A nota segue o fluxo normal e sai daqui na próxima coleta.`);
+      return;
+    }
+    if(p && p.status === "erro") st("erro", "✕ Não foi possível ignorar o boleto", esc(p.mensagem || "Erro sem detalhe.") + " Dá para pedir de novo.");
+    b.hidden = false; b.textContent = "Ignorar boleto";
+    b.onclick = () => pedirRobo(n, "boleto");
+  }
+  function pedirRobo(n, tipo){
+    tipo = tipo || "nota"; const T = TXT_TIPO[tipo];
     const m = $("#robo-modal"); $("#robo-motivo").value = "";
-    $("#robo-titulo").textContent = "Ignorar a NF " + n.nf + " (" + n.filial + ")";
+    $("#robo-sub").textContent = T.sub; $("#robo-aviso").innerHTML = T.aviso; $("#robo-ok").textContent = T.ok;
+    $("#robo-titulo").textContent = T.ini + n.nf + " (" + n.filial + ")";
     $("#robo-p1").hidden = false; $("#robo-p2").hidden = true;
     const fim = () => { fecharMdl(m); $("#robo-ok").onclick = $("#robo-cancelar").onclick = $("#robo-continuar").onclick = $("#robo-voltar").onclick = null; };
     $("#robo-cancelar").onclick = fim;
@@ -1709,18 +1749,18 @@
       if(motivo.length < 5){ toast("Escreva o motivo (pelo menos 5 letras).", { erro: true }); $("#robo-motivo").focus(); return; }
       $("#robo-resumo").innerHTML = `<div><b>NF</b> ${esc(n.nf)} · ${esc(n.filial)}</div><div><b>Motivo</b> ${esc(motivo)}</div>`
         + `<div><b>Pedido por</b> ${esc((PortalGate.usuario && PortalGate.usuario() && PortalGate.usuario().email) || "você")}</div>`;
-      $("#robo-titulo").textContent = "Confirmar: ignorar a NF " + n.nf;
+      $("#robo-titulo").textContent = T.conf + n.nf;
       $("#robo-p1").hidden = true; $("#robo-p2").hidden = false; $("#robo-ok").focus();
     };
-    $("#robo-voltar").onclick = () => { $("#robo-titulo").textContent = "Ignorar a NF " + n.nf + " (" + n.filial + ")"; $("#robo-p2").hidden = true; $("#robo-p1").hidden = false; $("#robo-motivo").focus(); };
+    $("#robo-voltar").onclick = () => { $("#robo-titulo").textContent = T.ini + n.nf + " (" + n.filial + ")"; $("#robo-p2").hidden = true; $("#robo-p1").hidden = false; $("#robo-motivo").focus(); };
     $("#robo-ok").onclick = async () => {
       const motivo = $("#robo-motivo").value.trim();
       $("#robo-ok").disabled = true;
       try{
-        const p = await azureApi("POST", "/v1/portal/ignorar", { nf: n.nf, filial: n.filial, motivo, problema: n.problema_codigo || "" });
-        pedidosRobo.set(p.id, p); fim(); toast("NF " + n.nf + " marcada para ignorar. O robô aplica no próximo ciclo."); montarRobo(n);
+        const p = await azureApi("POST", "/v1/portal/ignorar", { nf: n.nf, filial: n.filial, motivo, problema: n.problema_codigo || "", tipo });
+        pedidosRobo.set(p.id, p); fim(); toast("NF " + n.nf + T.toast); montarRobo(n); montarBoleto(n);
       }catch(e){
-        if(e.pedido){ pedidosRobo.set(e.pedido.id, e.pedido); fim(); montarRobo(n); }
+        if(e.pedido){ pedidosRobo.set(e.pedido.id, e.pedido); fim(); montarRobo(n); montarBoleto(n); }
         toast("Não foi possível pedir: " + e.message, { erro: true });
       }finally{ $("#robo-ok").disabled = false; }
     };
@@ -1732,7 +1772,7 @@
       && (!q || [p.nf, p.filial, p.por, p.motivo, p.cancelado_por].join(" ").toLowerCase().includes(q)))
       .sort((a, b) => (b.pedido_em || "").localeCompare(a.pedido_em || ""));
     $("#rh-corpo").innerHTML = l.length ? '<table class="rh-tab"><thead><tr><th>NF</th><th>Situação</th><th>Motivo</th><th>Pedido</th><th>Robô</th><th></th></tr></thead><tbody>'
-      + l.map(p => `<tr><td><b>${esc(p.nf)}</b><small>${esc(p.filial)}</small></td>`
+      + l.map(p => `<tr><td><b>${esc(p.nf)}</b><small>${esc(p.filial)}${p.tipo === "boleto" ? " · só o boleto" : ""}</small></td>`
         + `<td><span class="rh-st ${esc(p.status)}">${esc(ROT_ST[p.status] || p.status)}</span></td>`
         + `<td>${esc(p.motivo)}${p.problema ? `<small>${esc(p.problema)}</small>` : ""}</td>`
         + `<td>${esc(p.por)}<small>${esc(quandoBR(p.pedido_em))}</small></td>`
@@ -1753,7 +1793,7 @@
   $("#rh-corpo").addEventListener("click", async e => {
     const b = e.target.closest("[data-rhcancel]"); if(!b) return;
     const p = pedidosRobo.get(b.dataset.rhcancel); if(!p || !confirm("Cancelar o pedido de ignorar a NF " + p.nf + "?")) return;
-    try{ const x = await azureApi("DELETE", "/v1/portal/ignorar/" + encodeURIComponent(p.filial) + "/" + encodeURIComponent(p.nf));
+    try{ const x = await azureApi("DELETE", "/v1/portal/ignorar/" + encodeURIComponent(p.filial) + "/" + encodeURIComponent(p.nf) + (p.tipo === "boleto" ? "?tipo=boleto" : ""));
          pedidosRobo.set(x.id, x); desenharHistRobo(); toast("Pedido cancelado."); }
     catch(x){ toast("Não foi possível cancelar: " + x.message, { erro: true }); }
   });
