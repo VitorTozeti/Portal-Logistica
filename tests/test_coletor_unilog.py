@@ -77,8 +77,11 @@ class TestDelta(Base):
 
     def test_travada_da_b4you_nao_muda_de_assinatura(self):
         t = {**b4y("2"), "estado": "travada", "problema_codigo": "X"}
-        _, _, enviadas = self.ciclo([t], [], {"Varejo:2": "travada|X|0"}, ["Varejo:2"])
-        self.assertEqual(enviadas, [])
+        # 10/11/2026: a assinatura v2 (uma travada por NF) reenvia as travadas UMA vez; depois fica estável
+        atual, _, enviadas = self.ciclo([t], [], {"Varejo:2": "travada|X|0"}, ["Varejo:2"])
+        self.assertEqual(len(enviadas), 1)
+        _, _, de_novo = self.ciclo([t], [], atual, ["Varejo:2"])
+        self.assertEqual(de_novo, [])
 
     def test_reconciliacao_guarda_a_assinatura_da_unilog(self):
         atual, _, enviadas = self.ciclo([], [uni("1")], {"Varejo:1": "subiu|2|Na fila de separação"}, espelho={"Varejo:1": ("Varejo", "1")})

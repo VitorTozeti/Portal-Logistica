@@ -112,6 +112,45 @@ def _assinatura_subiu(ev: dict) -> str:
     return "subiu" + _sufixo_unilog(ev)
 
 
+_FRASE_B4YOU = " + Falha no envio da NF para a B4You"
+
+
+def _juntar_mesma_nf(travadas: list) -> list:
+    """Uma travada por NF (10/11/2026). Dois motores podem travar a mesma NF — ex.: o log mestre diz que a NF não
+    subiu ("Falha no envio da NF para a B4You") e o robô da Unilog diz SEM_SALDO. Antes iam as duas ao espelho com o
+    mesmo id e o delta reenviava a do log a cada ciclo, por cima da outra: o Portal mostrava "Falha no envio para a
+    B4You" numa NF que estava sem saldo na Unilog. Agora a principal é a 1ª causa que não seja B4YOU_FALHA; as outras
+    entram na descrição. Se o robô da Unilog explica a NF, a frase da B4You sai (desde a virada a NF não vai à B4You)."""
+    grupos: dict = {}
+    for ev in travadas:
+        grupos.setdefault(ev["id"], []).append(ev)
+    out = []
+    for evs in grupos.values():
+        if len(evs) == 1:
+            out.append(evs[0])
+            continue
+        principal = next((e for e in evs if e.get("problema_codigo") != "B4YOU_FALHA"), evs[0])
+        tem_unilog = any(e.get("operador") == "Unilog" for e in evs)
+        junta = dict(principal)
+        partes = []
+        for e in [principal] + [e for e in evs if e is not principal]:
+            for k, v in e.items():   # Unilog, faturamento e transportadora real vêm de quem tiver
+                if (k.startswith("unilog_") or k in ("operador", "data_faturamento")) and v and not junta.get(k):
+                    junta[k] = v
+                if k == "transportadora" and v and junta.get(k) in (None, "", "Unilog"):
+                    junta[k] = v
+            if tem_unilog and e.get("problema_codigo") == "B4YOU_FALHA":
+                continue
+            desc = str(e.get("problema_descricao") or "")
+            if tem_unilog and _FRASE_B4YOU in desc:
+                desc = desc.split(_FRASE_B4YOU)[0]
+            if desc and desc not in partes:
+                partes.append(desc)
+        junta["problema_descricao"] = " + ".join(partes)
+        out.append(junta)
+    return out
+
+
 def _montar_estado():
     """Roda os 4 motores igual ao loop do portal local (feed.rodar_feed_simulado)
     e devolve (todas_travadas, subiram) já com `id` e sem as ocultas do portal."""
@@ -143,6 +182,7 @@ def _montar_estado():
     todas_travadas = travadas + barradas + marketing + cancelamentos + unilog_env
     for ev in todas_travadas + subiram:
         ev["id"] = f"{ev.get('filial', '?')}:{ev['nf']}"
+    todas_travadas = _juntar_mesma_nf(todas_travadas)
     try:
         import faturamento
         faturamento.enriquecer(todas_travadas + subiram)
@@ -270,7 +310,9 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
     travadas_atuais: set = set()
     for ev in todas_travadas:
         travadas_atuais.add(ev["id"])
-        assin = f"{ev['estado']}|{ev.get('problema_codigo', '')}|{int(bool(ev.get('ignorada')))}" + _sufixo_unilog(ev)
+        # v2 (10/11/2026): a travada passou a juntar as causas da mesma NF — muda a assinatura para reenviar 1 vez
+        assin = (f"v2|{ev['estado']}|{ev.get('problema_codigo', '')}|{ev.get('operador') or ''}"
+                 f"|{int(bool(ev.get('ignorada')))}") + _sufixo_unilog(ev)
         atual[ev["id"]] = assin
         if publicado.get(ev["id"]) != assin:
             pendentes.append(_nota(ev))

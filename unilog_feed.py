@@ -235,7 +235,11 @@ def coletar_unilog() -> list:
         if (filial, nf) in finais and a.get("tipo") not in _ALERTAS_DEPOIS_DO_FIM:
             continue
         tipo = str(a.get("tipo") or "")
-        add(filial, nf, f"UNILOG_{tipo}", _CAT_ALERTA.get(tipo, "UNILOG"),
+        cat = _CAT_ALERTA.get(tipo, "UNILOG")
+        if tipo == "BILLING_SEM_ARQUIVO":   # detalhe = o que falta no share ("XML,DANFE,boleto"); só boleto = Financeiro
+            falta = {x.strip().lower() for x in str(a.get("detalhe") or "").split(",") if x.strip()}
+            cat = "FINANCEIRO" if falta == {"boleto"} else "FATURAMENTO"
+        add(filial, nf, f"UNILOG_{tipo}", cat,
             str(a.get("mensagem") or tipo)[:300], a.get("primeiro"))
 
     out = list(por_nf.values())

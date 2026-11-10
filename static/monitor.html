@@ -805,7 +805,7 @@
   const FIN_CODES = new Set(["BOLETO_AUSENTE", "TRANSFERENCIA_ATRASADA", "DEPOSITO_BLOQUEADO"]);
   const FAT_CATS  = new Set(["FATURAMENTO", "ARQUIVOS"]);   // XML/PDF ausente, falta chave/SEFAZ
   function respDe(n){
-    if(FIN_CODES.has(n.problema_codigo)) return "Financeiro";
+    if(FIN_CODES.has(n.problema_codigo) || n.problema_categoria === "FINANCEIRO") return "Financeiro";
     if(FAT_CATS.has(n.problema_categoria)) return "Faturamento";
     return "Logística";
   }
