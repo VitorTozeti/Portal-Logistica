@@ -1662,10 +1662,12 @@
   const podeRobo = () => !!(window.PortalGate && PortalGate.ativo() && typeof PortalGate.pode === "function" && PortalGate.pode("nf_ignorar_robo"));
   const quandoBR = iso => iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
   async function azureApi(metodo, caminho, corpo){
-    const tok = await PortalGate.idToken();
-    const r = await fetch(AZURE_BASE + caminho, { method: metodo, cache: "no-store",
-      headers: Object.assign({ "Authorization": "Bearer " + tok }, corpo ? { "Content-Type": "application/json" } : {}),
+    const chamar = async forcar => fetch(AZURE_BASE + caminho, { method: metodo, cache: "no-store",
+      headers: Object.assign({ "Authorization": "Bearer " + await PortalGate.idToken(forcar) }, corpo ? { "Content-Type": "application/json" } : {}),
       body: corpo ? JSON.stringify(corpo) : undefined });
+    let r = await chamar(false);
+    // 401/403: o token guardado na aba pode ser de antes da permissão (11/11, 403 do Financeiro). Pede um novo e tenta 1 vez.
+    if(r.status === 401 || r.status === 403) r = await chamar(true);
     const j = await r.json().catch(() => ({}));
     if(!r.ok){ const e = new Error(j.erro || ("Erro " + r.status)); e.status = r.status; e.pedido = j.pedido; throw e; }
     return j;
@@ -1710,11 +1712,14 @@
               sub: "Só o boleto passa como OK (use quando a forma de pagamento do pedido está errada e nunca vai existir boleto). A nota continua no fluxo normal e sobe para a Unilog.",
               aviso: "<b>Confirme antes de ignorar o boleto.</b> O robô deixa de exigir boleto desta NF e ela segue o fluxo normal (todas as outras conferências continuam valendo). Só vale para notas com boleto ausente." },
   };
-  // "Ignorar boleto": só para BOLETO_AUSENTE de Varejo/Atacado; o robô liga Requer_Boleto=FALSE e a nota segue o fluxo
+  // "Ignorar boleto": boleto ausente de Varejo/Atacado -- BOLETO_AUSENTE (log mestre) ou, desde 11/11, a nota da Unilog
+  // esperando só o boleto (UNILOG_BILLING_SEM_ARQUIVO no Financeiro). O robô deixa de exigir o boleto e a nota segue o fluxo.
+  const temBoletoAusente = n => n.problema_codigo === "BOLETO_AUSENTE"
+    || (n.problema_codigo === "UNILOG_BILLING_SEM_ARQUIVO" && n.problema_categoria === "FINANCEIRO");
   function montarBoleto(n){
     const b = $("#dw-boleto"); b.hidden = true; b.onclick = null; b.disabled = false;
     document.getElementById("dw-boleto-st")?.remove();
-    if(!podeRobo() || !FILIAIS_ROBO.includes(n.filial) || n.problema_codigo !== "BOLETO_AUSENTE") return;
+    if(!podeRobo() || !FILIAIS_ROBO.includes(n.filial) || !temBoletoAusente(n)) return;
     const p = pedidosRobo.get(n.filial + "-" + n.nf + "-boleto");
     const st = (cls, titulo, texto) => $("#dw-body").insertAdjacentHTML("beforeend",
       `<div class="robo-st ${cls}" id="dw-boleto-st"><b>${titulo}</b>${texto}</div>`);
