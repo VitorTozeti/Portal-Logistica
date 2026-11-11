@@ -71,6 +71,7 @@ window.AuthUI = (function () {
     if (m === "credenciais") return "E-mail ou senha incorretos.";
     if (m === "senha-curta") return "A senha precisa ter pelo menos 8 caracteres.";
     if (m === "senha-ja-definida") return "Esta conta já tem senha. Entre com ela.";
+    if (m === "link-invalido") return "Este link venceu ou já foi usado. Peça um novo em “Esqueci a senha”.";
     if (m === "sem-email") return "Peça ao TI para redefinir sua senha.";
     if (m === "use-login") return "O cadastro é feito pelo TI. Entre com seu e-mail e senha.";
     if (c === "auth/network-request-failed") return "Sem conexão. Verifique a internet e tente de novo.";

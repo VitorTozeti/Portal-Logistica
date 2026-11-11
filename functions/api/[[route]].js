@@ -3,7 +3,8 @@
 // Bindings (Pages → Settings → Bindings / Variables and secrets):
 //   DB              D1 database (schema em db/schema.sql)
 //   SESSION_SECRET  secret: assina o cookie de sessão (string longa e aleatória)
-//   TOKEN_SECRET    secret: assina o token curto para a API da Azure
+//   TOKEN_SECRET    secret: assina o token curto para a API da Azure e o link de redefinir senha
+//   EMAIL           binding Cloudflare Email Service (envio) + variável EMAIL_FROM (remetente do domínio verificado)
 //
 // Login: e-mail + senha (PBKDF2 no próprio Worker). Quem não está em `usuarios` não entra.
 // Administradores iniciais (BOOT) são sempre TI, igual a boot() em firestore.rules.
@@ -461,6 +462,70 @@ async function primeiroAcesso(ctx, body) {
   return abrirSessao(ctx, u);
 }
 
+// ---------- esqueci a senha (autoatendimento) ----------
+// Fluxo: /api/esqueci manda por e-mail um link de uso único (30 min) → redefinir.html → /api/redefinir.
+// O link leva um token assinado (TOKEN_SECRET) com o e-mail e o "carimbo" da senha atual; ao trocar a senha o carimbo muda
+// e o link morre (uso único). Só e-mail JÁ cadastrado recebe; a resposta é sempre a mesma (não revela quem tem conta).
+const RESET_S = 30 * 60;
+const carimbo = (guardado) => (guardado ? guardado.slice(-12) : "-");
+function emailReset(link) {
+  const texto = `Você pediu para redefinir a senha do Portal da Logística.
+
+Abra o link (vale 30 minutos e só funciona uma vez):
+${link}
+
+Se não foi você, ignore este e-mail: nada muda na sua conta.`;
+  const html = `<p>Você pediu para redefinir a senha do <b>Portal da Logística</b>.</p><p><a href="${link}">Criar nova senha</a></p>` +
+    `<p>O link vale 30 minutos e só funciona uma vez.</p><p style="color:#666">Se não foi você, ignore este e-mail: nada muda na sua conta.</p>`;
+  return { texto, html };
+}
+async function esqueciSenha(ctx, body) {
+  const db = ctx.env.DB;
+  let email;
+  try { email = normEmail(body.email); } catch (_) { return json({ ok: true }); }
+  const kE = "rs:" + email, kI = "rsip:" + ipDe(ctx.request);
+  // limite de pedidos (por e-mail e por IP): evita encher a caixa de alguém. Bloqueado = responde igual, sem enviar.
+  if ((await segundosBloqueado(db, kE)) || (await segundosBloqueado(db, kI))) return json({ ok: true });
+  await registrarFalha(db, kE); await registrarFalha(db, kI);
+
+  const row = await db.prepare("SELECT email, senha, valido_ate FROM usuarios WHERE email = ?").bind(email).first()
+    .catch(() => db.prepare("SELECT email, senha FROM usuarios WHERE email = ?").bind(email).first());
+  if (!row) return json({ ok: true });
+  if (row.valido_ate && row.valido_ate < Date.now()) return json({ ok: true });
+  if (!ctx.env.EMAIL || !ctx.env.EMAIL_FROM) { console.error("esqueci: binding EMAIL / variável EMAIL_FROM ausente"); return json({ ok: true }); }
+
+  const exp = Math.floor(Date.now() / 1000) + RESET_S;
+  const tok = await assinar(ctx.env.TOKEN_SECRET, { e: email, k: "rs", h: carimbo(row.senha), exp });
+  const link = new URL(ctx.request.url).origin + "/redefinir.html#t=" + tok;     // # = não vai para logs de servidor
+  const { texto, html } = emailReset(link);
+  try {
+    await ctx.env.EMAIL.send({ to: email, from: ctx.env.EMAIL_FROM, subject: "Redefinir sua senha — Portal da Logística", text: texto, html });
+    await logAcesso(db, email, email, "senha", ["Pediu redefinição de senha por e-mail"]);
+  } catch (e) { console.error("esqueci: falha no envio:", e && e.message); }
+  return json({ ok: true });
+}
+async function redefinirSenha(ctx, body) {
+  const db = ctx.env.DB;
+  const senha = String(body.senha || "");
+  if (senha.length < 8) return erro(400, "senha-curta");
+  const kI = "ip:" + ipDe(ctx.request);
+  const espera = await segundosBloqueado(db, kI);
+  if (espera) return erro(429, "bloqueado", { segundos: espera });
+  const p = await verificar(ctx.env.TOKEN_SECRET, String(body.token || ""));
+  const row = p && p.k === "rs" ? await db.prepare("SELECT email, senha, valido_ate FROM usuarios WHERE email = ?").bind(p.e).first()
+    .catch(() => db.prepare("SELECT email, senha FROM usuarios WHERE email = ?").bind(p.e).first()) : null;
+  if (!row || carimbo(row.senha) !== p.h || (row.valido_ate && row.valido_ate < Date.now())) {
+    await registrarFalha(db, kI);
+    return erro(400, "link-invalido");
+  }
+  await db.prepare("UPDATE usuarios SET senha = ?, ultimo_acesso = ? WHERE email = ?")
+    .bind(await hashSenha(senha), Date.now(), row.email).run();
+  await limparFalhas(db, "e:" + row.email);
+  await logAcesso(db, row.email, row.email, "senha", ["Redefiniu a senha pelo link do e-mail"]);
+  const u = await perfilDe(db, row.email, await perfisDo(ctx));
+  return abrirSessao(ctx, u);
+}
+
 async function trocarSenha(ctx, u, body) {
   const db = ctx.env.DB;
   const row = await db.prepare("SELECT senha FROM usuarios WHERE email = ?").bind(u.email).first();
@@ -478,7 +543,7 @@ const logStmt = (db, nfId, acao, tipo, motivo, por, em) =>
 
 // ---------- diagnóstico ----------
 async function saude(env) {
-  const r = { db: !!env.DB, session_secret: !!env.SESSION_SECRET, token_secret: !!env.TOKEN_SECRET, tabelas: {} };
+  const r = { db: !!env.DB, session_secret: !!env.SESSION_SECRET, token_secret: !!env.TOKEN_SECRET, email_envio: !!(env.EMAIL && env.EMAIL_FROM), tabelas: {} };
   if (env.DB) {
     for (const t of ["usuarios", "acoes", "acoes_log", "tentativas", "perfis", "acessos_log"]) {
       try { await env.DB.prepare(`SELECT 1 FROM ${t} LIMIT 1`).all(); r.tabelas[t] = "ok"; }
@@ -517,6 +582,8 @@ async function rotear(ctx) {
 
   if (a === "login" && m === "POST") return login(ctx, await corpo());
   if (a === "primeiro-acesso" && m === "POST") return primeiroAcesso(ctx, await corpo());
+  if (a === "esqueci" && m === "POST") return esqueciSenha(ctx, await corpo());
+  if (a === "redefinir" && m === "POST") return redefinirSenha(ctx, await corpo());
   if (a === "logout" && m === "POST") return json({ ok: true }, 200, { "Set-Cookie": cookie("", 0) });
 
   const sess = await sessaoAtual(ctx);

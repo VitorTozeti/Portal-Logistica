@@ -26,6 +26,8 @@ O GitHub Pages (`github.io`) segue com Firebase e não é afetado: o caminho Clo
 |---|---|---|
 | `POST /api/login` | público | `{email, senha}` → cookie de sessão. Erros: `credenciais`, `primeiro-acesso` (409), `bloqueado` (429) |
 | `POST /api/primeiro-acesso` | público (só conta sem senha) | `{email, senha}` define a senha e entra |
+| `POST /api/esqueci` | público | `{email}` → manda por e-mail um link de uso único (30 min) para `redefinir.html`. Resposta sempre `{ok:true}` (não revela quem tem conta); limite de pedidos por e-mail e IP |
+| `POST /api/redefinir` | público (com token) | `{token, senha}` → troca a senha e entra. Erros: `link-invalido`, `senha-curta`, `bloqueado` |
 | `POST /api/logout` | — | apaga o cookie |
 | `GET /api/me` | logado | `{email, perfil, ferramentas, acessoCusto}` |
 | `POST /api/senha` | logado | `{atual, nova}` |
@@ -52,6 +54,12 @@ Padrão: TI (tudo), Logística (`nf_ignorar`, `nf_ver_ocultas`), Somente leitura
 `409 migracao-pendente`.
 
 `resetar_senha: true` (tela Usuários, via `PUT`) apaga a senha; a pessoa define outra no próximo acesso.
+
+## Esqueci a senha (autoatendimento, 11/11/2026)
+Quem já tem conta pede o link em `esqueci.html`; o TI não precisa mexer. **Precisa configurar o envio de e-mail:** Cloudflare Email Service
+com o domínio da empresa verificado, binding **`EMAIL`** no Pages (Settings → Bindings) e variável **`EMAIL_FROM`** (ex.: `portal@pharmaesthetics.com.br`).
+`GET /api/saude` mostra `email_envio: true` quando está pronto. Sem isso o pedido responde ok mas nenhum e-mail sai. O link é um token assinado
+com `TOKEN_SECRET` que leva o carimbo da senha atual: ao trocar a senha o link morre (uso único). O token vai no `#` da URL (não chega aos logs).
 
 ## Pendências (não feitas)
 - **Azure:** `firebase_auth.py` ainda só aceita o token do Firebase. Precisa aceitar o `/api/token` validando a assinatura com `TOKEN_SECRET` (guardado no Key Vault). Mudança de produção: branch, teste e só depois a `main`.

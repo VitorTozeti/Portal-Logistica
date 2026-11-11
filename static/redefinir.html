@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nova senha — Portal da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./auth.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./portal-auth-cf.js?v=20261030"></script>
+<script src="./portal-auth.js?v=20261030"></script>
+<script src="./auth-ui.js?v=20261009"></script>
+</head>
+<body>
+  <form class="card" id="form" autocomplete="on" novalidate>
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
+      </span>
+      <span><b>Portal da Logística</b></span>
+    </div>
+    <h1>Criar nova senha</h1>
+    <p class="sub">Escolha sua nova senha (mínimo de 8 caracteres).</p>
+
+    <label for="senha">Nova senha</label>
+    <input id="senha" name="new-password" type="password" autocomplete="new-password" required autofocus>
+    <div class="forca" id="forca" data-n="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="forca-txt" id="forca-txt" aria-live="polite">Mínimo de 8 caracteres. Misture letras e números.</div>
+
+    <label for="senha2">Repita a senha</label>
+    <input id="senha2" name="new-password-confirm" type="password" autocomplete="new-password" required>
+
+    <button class="entrar" id="btn" type="submit">Salvar senha →</button>
+    <div class="aviso" id="aviso" role="alert" aria-live="assertive"></div>
+
+    <div class="rodape"><a href="./login.html" id="lnk-login">← Voltar para o login</a></div>
+  </form>
+
+  <script>
+    AuthUI.tema();
+    const $ = AuthUI.$;
+    const token = (location.hash.match(/[#&]t=([^&]+)/) || [])[1] || "";
+    try { history.replaceState(null, "", location.pathname); } catch (_) {}   // tira o token da barra de endereço
+    if (!(window.PortalGate && PortalGate.ativo() && PortalGate.modo() === "cloudflare") || !token) { location.replace("./esqueci.html"); }
+    else {
+      AuthUI.olho($("#senha")); AuthUI.olho($("#senha2"));
+      $("#senha").addEventListener("input", () => {
+        const n = AuthUI.forca($("#senha").value);
+        $("#forca").dataset.n = n;
+        $("#forca-txt").textContent = n ? "Senha: " + AuthUI.FORCA_TXT[n] : "Mínimo de 8 caracteres. Misture letras e números.";
+      });
+      $("#senha2").addEventListener("input", () => {
+        AuthUI.dica($("#senha2"), $("#senha2").value && $("#senha2").value !== $("#senha").value ? "As senhas não são iguais." : "");
+      });
+      $("#form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const s1 = $("#senha").value, s2 = $("#senha2").value;
+        AuthUI.aviso($("#aviso"), "", ""); ["#senha", "#senha2"].forEach(i => AuthUI.dica($(i), ""));
+        if (s1.length < 8) { AuthUI.dica($("#senha"), "A senha precisa ter pelo menos 8 caracteres."); $("#senha").focus(); return; }
+        if (s1 !== s2) { AuthUI.dica($("#senha2"), "As senhas não são iguais."); $("#senha2").focus(); return; }
+        AuthUI.carregando($("#btn"), true, "Salvando…");
+        try {
+          await PortalGate.redefinirComLink(token, s1);
+          AuthUI.aviso($("#aviso"), "ok", "Senha alterada! Entrando…");
+          location.replace("./");
+        } catch (x) {
+          AuthUI.carregando($("#btn"), false, "Salvar senha →");
+          AuthUI.aviso($("#aviso"), "erro", AuthUI.msgErro(x, "cadastro"));
+        }
+      });
+    }
+  </script>
+</body>
+</html>

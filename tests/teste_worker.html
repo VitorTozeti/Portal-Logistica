@@ -150,6 +150,32 @@ try {
   r = await api(TI, "POST", "usuarios/lote", { itens: [{ email: "novo@x.com", perfil: "leitor", niveis: { monitor: "ver" } }] });
   r = await api(TI, "GET", "acessos-log?limite=3");
   log(r.j.some(x => x.alvo === "novo@x.com" && x.tipo === "adicionou" && x.detalhe[0] === "Pessoa adicionada"), "lote: pessoa adicionada registrada", r.j);
+
+  // 13. esqueci a senha (autoatendimento por e-mail)
+  const enviados = [];
+  env.EMAIL = { async send(m) { enviados.push(m); } }; env.EMAIL_FROM = "portal@x.com";
+  const pub = (metodo, caminho, corpo) => api("ninguem@x.com", metodo, caminho, corpo);
+  r = await pub("POST", "esqueci", { email: "naoexiste@x.com" });
+  log(r.status === 200 && r.j.ok && enviados.length === 0, "esqueci: e-mail sem conta responde igual e nao envia", enviados.length);
+  r = await pub("POST", "esqueci", { email: "l@x.com" });
+  log(r.status === 200 && enviados.length === 1 && enviados[0].to === "l@x.com", "esqueci: conta existente recebe o e-mail", enviados);
+  const tok = (enviados[0].text.match(/#t=(\S+)/) || [])[1];
+  log(!!tok && !enviados[0].text.includes("senha:"), "esqueci: link com token no #", enviados[0].text);
+  r = await pub("POST", "redefinir", { token: tok, senha: "curta" });
+  log(r.status === 400 && r.j.erro === "senha-curta", "redefinir: senha curta recusada", r);
+  r = await pub("POST", "redefinir", { token: tok + "x", senha: "NovaSenha123" });
+  log(r.status === 400 && r.j.erro === "link-invalido", "redefinir: token adulterado recusado", r);
+  r = await pub("POST", "redefinir", { token: tok, senha: "NovaSenha123" });
+  log(r.status === 200 && r.j.email === "l@x.com", "redefinir: link valido troca a senha e entra", r);
+  r = await pub("POST", "login", { email: "l@x.com", senha: "NovaSenha123" });
+  log(r.status === 200, "login com a senha nova funciona", r);
+  r = await pub("POST", "redefinir", { token: tok, senha: "OutraSenha456" });
+  log(r.status === 400 && r.j.erro === "link-invalido", "redefinir: link e de uso unico", r);
+  r = await pub("POST", "login", { email: "l@x.com", senha: "OutraSenha456" });
+  log(r.status === 401, "senha do segundo uso nao vale", r.status);
+  for (let i = 0; i < 6; i++) await pub("POST", "esqueci", { email: "c@x.com" });
+  log(enviados.filter(m => m.to === "c@x.com").length <= 5, "esqueci: limite de pedidos por e-mail", enviados.length);
+  log(!JSON.stringify(await (await api(TI, "GET", "acessos-log?limite=50")).j).includes("NovaSenha"), "log nao guarda senha", "");
 } catch (e) { out.push("ERRO NO TESTE: " + (e && e.stack || e)); }
 window.__r = out; document.getElementById("out").textContent = out.join("\n") + "\n\n" + (out.filter(x => x.startsWith("FALHA") || x.startsWith("ERRO")).length + " falha(s)");
 window.__pronto = true;

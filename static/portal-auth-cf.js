@@ -156,9 +156,17 @@ window.PortalGateCF = (function () {
           return usuarioAtual;
         } catch (e) { throw traduzir(e); }
       },
-      // cadastro público e "esqueci a senha" não existem no modo Cloudflare: quem administra é o TI
+      // cadastro público não existe no modo Cloudflare (o TI autoriza). "Esqueci a senha": link por e-mail, só para quem já tem conta
       async cadastrar() { throw new Error("use-login"); },
-      async redefinirSenha() { throw new Error("sem-email"); },
+      async redefinirSenha(email) { await req("POST", "/esqueci", { email: (email || "").trim() }); },
+      async redefinirComLink(token, senha) {
+        try {
+          const x = await req("POST", "/redefinir", { token, senha });
+          guardado.limpar(); guardado.gravar("cf_me", x, ME_TTL_MS);
+          usuarioAtual = perfilDe(x);
+          return usuarioAtual;
+        } catch (e) { throw traduzir(e); }
+      },
       async trocarSenha(atual, nova) {
         try { await req("POST", "/senha", { atual, nova }); } catch (e) { throw traduzir(e); }
       },

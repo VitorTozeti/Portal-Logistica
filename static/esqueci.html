@@ -41,7 +41,7 @@
     AuthUI.tema();
     const $ = AuthUI.$;
     $("#lnk-login").href = AuthUI.comNext("./login.html");
-    if (!(window.PortalGate && PortalGate.ativo()) || PortalGate.modo() === "cloudflare") { location.replace("./login.html"); }
+    if (!(window.PortalGate && PortalGate.ativo())) { location.replace("./login.html"); }
     else {
       let espera = 0, timer = null;
       const contar = () => {

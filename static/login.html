@@ -58,8 +58,7 @@
       AuthUI.olho($("#senha"));
       // preserva ?next= nos links das outras telas
       $("#lnk-cadastro").href = AuthUI.comNext("./cadastro.html");
-      if (PortalGate.modo() === "cloudflare") {   // sem "esqueci a senha" (o TI redefine); quem ainda não tem senha cria a primeira aqui
-        $("#lnk-esqueci").hidden = true;
+      if (PortalGate.modo() === "cloudflare") {   // "esqueci a senha" manda link por e-mail; quem ainda não tem senha cria a primeira aqui
         $("#links-conta").innerHTML = 'Primeiro acesso? <a href="' + AuthUI.comNext("./cadastro.html") + '">Criar minha senha</a>';
       }
       try { if (sessionStorage.getItem("portal_sem_acesso")) { sessionStorage.removeItem("portal_sem_acesso");
