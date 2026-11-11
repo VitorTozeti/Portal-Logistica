@@ -729,7 +729,7 @@
   const filtroTravadas = new Set();  // categorias DESLIGADAS (o resto aparece)
   let   filtroFilial   = "todas";    // "todas" | "Varejo" | "Atacado"
   // operador: "todos" | "B4You" | "Unilog" (guardado na aba); Unilog = NF que o robô mandou à Unilog ou alerta dela
-  const filtroOperador = "Unilog";   // 10/11/2026: o Monitor mostra só as notas novas da Unilog (filtro B4You removido)
+  const filtroOperador = "Unilog";   // 10/11/2026: Subiram mostra só as notas novas da Unilog (filtro B4You removido); Travadas mostra todos os tipos (11/11)
   const opDe = n => (n.operador === "Unilog" || n.grupo === "UNILOG") ? "Unilog" : "B4You";
   const passaOp = n => opDe(n) === "Unilog";
   let   filtroDe       = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte inicial)
@@ -925,7 +925,7 @@
     renderOcultasChip();
     // lista-base: as visíveis (sem as ocultas) ou, no modo "ocultas", só as ocultas
     sincronizarOperador();
-    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas && passaOp(n));
+    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas);   // 11/11: TODAS as travadas (SAP/SEFAZ, marketing, cancelamento, Unilog...) — o filtro Unilog vale só p/ Subiram
     const cont = new Map();
     for(const n of base){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
     const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
