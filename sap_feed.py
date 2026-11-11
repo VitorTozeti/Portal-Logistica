@@ -215,7 +215,7 @@ def coletar_barradas(nfs_no_log: set, log_index: dict | None = None) -> list[dic
             continue
         ja_no_log = False
 
-        if uso in (106, 107, 108):  # transferências internas
+        if uso in (106, 107, 108, 109):  # transferências internas (109 = uso e consumo, igual a auditoria.py do robô)
             if (nf not in _transf_ok(filial) and nf not in da_unilog.get(filial, set())
                     and nf not in _nfs_b4you(filial)):
                 out.append({

@@ -165,6 +165,11 @@
   .flow-l1{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
   .flow-l1 h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
   .flow-x{font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer;min-height:38px}
+  /* 10/11/2026: baixar a lista que está na tela (pedido do Leo, antes saía em planilha avulsa) */
+  .btn-xls{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;min-height:30px;white-space:nowrap}
+  .btn-xls:hover{border-color:var(--brand)}
+  .btn-xls:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .col h2 .btn-xls{margin-left:auto}
   .flow-x:hover{background:var(--panel2)}
   .flow-l2{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
   .flow-kpi{display:flex;align-items:baseline;gap:7px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 13px;min-height:42px;text-align:left}
@@ -592,7 +597,8 @@
   <div class="flow-top">
     <div class="flow-l1">
       <h2 id="flow-t">Fluxo da Unilog <span class="count" id="flow-total">0</span></h2>
-      <button type="button" class="flow-x" id="flow-x" style="margin-left:auto">Fechar</button>
+      <button type="button" class="btn-xls" id="flow-xls" style="margin-left:auto" title="Baixar as notas que estão na tela (com os filtros) para abrir no Excel">Baixar Excel</button>
+      <button type="button" class="flow-x" id="flow-x">Fechar</button>
     </div>
     <div class="flow-l2">
       <div class="flow-kpi"><b id="fk-and">0</b><span>em andamento</span></div>
@@ -630,7 +636,8 @@
 </div>
 <main>
   <div class="col">
-    <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span></h2>
+    <h2><span class="hdot"></span>Travadas <span class="count" id="c-stuck">0</span>
+      <button type="button" class="btn-xls" id="stuck-xls" title="Baixar as travadas que estão na tela (com os filtros) para abrir no Excel">Baixar Excel</button></h2>
     <div class="filtros" id="filtros"></div>
     <div class="filtros" id="ocultas-bar"></div>
     <div id="stuck"><div class="empty">nada travado 🎉</div></div>
@@ -805,7 +812,7 @@
   const FIN_CODES = new Set(["BOLETO_AUSENTE", "TRANSFERENCIA_ATRASADA", "DEPOSITO_BLOQUEADO"]);
   const FAT_CATS  = new Set(["FATURAMENTO", "ARQUIVOS"]);   // XML/PDF ausente, falta chave/SEFAZ
   function respDe(n){
-    if(FIN_CODES.has(n.problema_codigo)) return "Financeiro";
+    if(FIN_CODES.has(n.problema_codigo) || n.problema_categoria === "FINANCEIRO") return "Financeiro";
     if(FAT_CATS.has(n.problema_categoria)) return "Faturamento";
     return "Logística";
   }
@@ -941,6 +948,7 @@
     }
     const es = $("#stuck");
     const vis = base.filter(n => !filtroTravadas.has(catKey(n)));
+    _travVis = vis;
     if(!base.length)       es.innerHTML = mostrarOcultas ? '<div class="empty">nenhuma nota oculta</div>' : '<div class="empty">nada travado 🎉</div>';
     else if(!vis.length)   es.innerHTML = '<div class="empty">nada nas categorias selecionadas</div>';
     else{
@@ -1066,6 +1074,7 @@
       if(fim && flowPer !== "t"){ const h = horasNa(n); if(h !== null && h >= (flowPer === "1" ? 24 : 168)) return false; }
       return true;
     });
+    _flowLista = lista;
     const por = new Map(ETAPAS_UNILOG.map(e => [e.nome, []]));
     for(const n of lista){ const k = n.unilog_situacao || "Enviada à Unilog"; if(!por.has(k)) por.set(k, []); por.get(k).push(n); }
     const conhecidas = new Set(ETAPAS_UNILOG.map(e => e.nome));
@@ -1115,6 +1124,27 @@
   function botaoDetalhar(){
     $("#btn-detalhar").hidden = false;
   }
+  // ===== Baixar Excel (10/11/2026): a lista que está na tela, com os filtros, em CSV que o Excel abre =====
+  let _travVis = [], _flowLista = [];
+  const dataHoraBR = iso => { const t = Date.parse(iso || ""); return isNaN(t) ? "" : new Date(t).toLocaleString("pt-BR", { dateStyle:"short", timeStyle:"short" }); };
+  const enviadaEm = n => { const h = (n.unilog_historico || []).find(x => /ENVIANDO|POST/.test(x.evento || "")); return h ? h.em : ""; };
+  function baixarCSV(nome, cab, linhas){
+    const cel = v => { const s = String(v ?? "").replace(/\s+/g, " ").trim(); return /[";]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const txt = "﻿" + [cab, ...linhas].map(l => l.map(cel).join(";")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([txt], { type:"text/csv;charset=utf-8" }));
+    a.download = `${nome}_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  $("#stuck-xls").addEventListener("click", () => baixarCSV(mostrarOcultas ? "NFs_ocultas" : "NFs_travadas",
+    ["Filial","NF","Problema","Categoria","Responsável","Descrição","Travada desde","Faturada em","Transportadora","Na Unilog"],
+    _travVis.map(n => [n.filial, n.nf, n.problema_codigo, CAT_LABEL[catKey(n)] || catKey(n), respDe(n), n.problema_descricao,
+      dataBR(n.travada_desde), dataBR(n.data_faturamento), n.transportadora, n.operador === "Unilog" ? (n.unilog_situacao || "Enviada") : ""])));
+  $("#flow-xls").addEventListener("click", () => baixarCSV("NFs_fluxo_Unilog",
+    ["Filial","NF","Etapa","Na etapa desde","Horas na etapa","Enviada à Unilog em","Faturada em","Transportadora","Pedido na Unilog"],
+    _flowLista.map(n => [n.filial, n.nf, n.unilog_situacao || "Enviada à Unilog", dataHoraBR(n.unilog_desde), horasNa(n) ?? "",
+      dataHoraBR(enviadaEm(n)), dataBR(n.data_faturamento), n.transportadora, n.unilog_request_id])));
   $("#btn-detalhar").addEventListener("click", abrirFlow);
   $("#flow-x").addEventListener("click", () => fecharFlow());
   document.addEventListener("keydown", e => { if(e.key === "Escape" && flowAberto() && !$("#drawer").classList.contains("open")) fecharFlow(); });
