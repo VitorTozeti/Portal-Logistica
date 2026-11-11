@@ -107,18 +107,18 @@ def classificar(r: dict, da_unilog: bool = False):
         env_nf = r.get("Envio_B4You_NF")
         if env_nf != "OK":
             if env_nf in ("BLOQUEADO_SALDO", "Bloqueado Saldo"):
-                problemas.append(("B4YOU_SALDO", "B4YOU", "Sem saldo/estoque na B4You — reenvia quando o estoque entrar"))
+                problemas.append(("B4YOU_SALDO", "B4YOU", "Sem saldo/estoque na Unilog — reenvia quando o estoque entrar"))
             elif env_nf == "BLOQUEADO_CADASTRO":
-                problemas.append(("B4YOU_CADASTRO", "B4YOU", "Item não cadastrado no catálogo da B4You"))
+                problemas.append(("B4YOU_CADASTRO", "B4YOU", "Item não cadastrado no catálogo da Unilog"))
             elif env_nf == "BLOQUEADO_DUPLICIDADE":
-                problemas.append(("B4YOU_DUPLICIDADE", "B4YOU", "B4You respondeu 'já existe' mas o pedido não foi encontrado"))
+                problemas.append(("B4YOU_DUPLICIDADE", "B4YOU", "Unilog respondeu 'já existe' mas o pedido não foi encontrado"))
             else:
-                problemas.append(("B4YOU_FALHA", "B4YOU", f"Falha no envio da NF para a B4You (status: {env_nf})"))
+                problemas.append(("B4YOU_FALHA", "B4YOU", f"Falha no envio da NF para a Unilog (status: {env_nf})"))
         else:
             if r.get("Requer_Boleto") == "TRUE" and r.get("Status_Arq_Boleto") == "OK" and r.get("Envio_B4You_Boleto") != "OK":
-                problemas.append(("B4YOU_ANEXO_BOLETO", "B4YOU", f"Falha ao enviar o Boleto para a B4You (status: {r.get('Envio_B4You_Boleto')})"))
+                problemas.append(("B4YOU_ANEXO_BOLETO", "B4YOU", f"Falha ao enviar o Boleto para a Unilog (status: {r.get('Envio_B4You_Boleto')})"))
             if r.get("Requer_Etiqueta") == "TRUE" and r.get("Status_Arq_Etiqueta") == "OK" and r.get("Envio_B4You_Etiqueta") != "OK":
-                problemas.append(("B4YOU_ANEXO_ETIQUETA", "B4YOU", f"Falha ao enviar a Etiqueta para a B4You (status: {r.get('Envio_B4You_Etiqueta')})"))
+                problemas.append(("B4YOU_ANEXO_ETIQUETA", "B4YOU", f"Falha ao enviar a Etiqueta para a Unilog (status: {r.get('Envio_B4You_Etiqueta')})"))
 
     carrier = str(r.get("Carrier", "")).strip()
     if carrier and carrier != CORREIOS_CARRIER and carrier != CODIGO_TGT and status_nf == "OK":

@@ -222,7 +222,7 @@ def coletar_barradas(nfs_no_log: set, log_index: dict | None = None) -> list[dic
                     "nf": nf, "filial": filial, "estado": "travada",
                     "transportadora": filial.upper(), "ja_no_log": ja_no_log,
                     "problema_codigo": "TRANSFERENCIA_ATRASADA", "problema_categoria": "TRANSFERENCIA",
-                    "problema_descricao": f"Transferência Atrasada - B4You/Unilog ({tipo}) · Utilização {uso} ({desc_uso})",
+                    "problema_descricao": f"Transferência Atrasada - Unilog ({tipo}) · Utilização {uso} ({desc_uso})",
                     "travada_desde": _iso(docdate), "grupo": "BARRADAS_SAP",
                 })
             continue

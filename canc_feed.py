@@ -120,17 +120,17 @@ def coletar_cancelamentos(log_index: dict) -> list:
                 if info is None:
                     if enviada:
                         cod = "CANC_ENVIADA_NAO_LOCALIZADA"
-                        desc = "Cancelada no SAP e consta ENVIADA, mas não localizada na B4You (verificar manual)"
+                        desc = "Cancelada no SAP e consta ENVIADA, mas não localizada na Unilog (verificar manual)"
                     else:
                         continue  # nunca subiu → o robô bloqueia sozinho, não é ação manual
                 elif info["status"] == "8":
                     continue  # já cancelada na B4You → reconciliação automática
                 elif info["status"] == "7":
                     cod = "CANC_JA_EXPEDIDA"
-                    desc = "Cancelada no SAP, mas JÁ EXPEDIDA na B4You (cancelar manual)"
+                    desc = "Cancelada no SAP, mas JÁ EXPEDIDA na Unilog (cancelar manual)"
                 else:
                     cod = "CANC_PENDENTE_B4YOU"
-                    desc = f"Cancelada no SAP, pendente de cancelamento na B4You (status B4You: {info['status']})"
+                    desc = f"Cancelada no SAP, pendente de cancelamento na Unilog (status Unilog: {info['status']})"
                 import feed as _feed
                 nome_carrier = _feed._nome_transp(carrier) if carrier and carrier.startswith("F") else (carrier or filial.upper())
                 out.append({
