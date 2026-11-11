@@ -148,7 +148,8 @@ def _juntar_mesma_nf(travadas: list) -> list:
                     desc = desc.split(frase)[0]
             if desc and desc not in partes:
                 partes.append(desc)
-        junta["problema_descricao"] = " + ".join(partes)
+        # texto da Unilog em tópicos (alertas_texto, 11/11/2026): cada motor em seu parágrafo; uma linha só segue com " + "
+        junta["problema_descricao"] = ("\n\n" if any("\n" in p for p in partes) else " + ").join(partes)
         out.append(junta)
     return out
 
