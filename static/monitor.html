@@ -732,6 +732,9 @@
   const filtroOperador = "Unilog";   // 10/11/2026: Subiram mostra só as notas novas da Unilog (filtro B4You removido); Travadas mostra todos os tipos (11/11)
   const opDe = n => (n.operador === "Unilog" || n.grupo === "UNILOG") ? "Unilog" : "B4You";
   const passaOp = n => opDe(n) === "Unilog";
+  // corte do robô da Unilog (04/11/2026): travada que não é da Unilog só entra de 04/11 em diante (descarta o resíduo da B4You antiga)
+  const CORTE_UNILOG = "2026-11-04";
+  const travadaAtual = n => passaOp(n) || String(n.travada_desde || n.atualizado_em || "").slice(0,10) >= CORTE_UNILOG;
   let   filtroDe       = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte inicial)
   let   filtroAte      = "";         // data ISO "YYYY-MM-DD" (vazia = sem corte final)
   let   filtroIgnoradas = "todas";   // "todas" | "so" (só ignoradas) | "sem" (oculta ignoradas)
@@ -925,7 +928,7 @@
     renderOcultasChip();
     // lista-base: as visíveis (sem as ocultas) ou, no modo "ocultas", só as ocultas
     sincronizarOperador();
-    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas);   // 11/11: TODAS as travadas (SAP/SEFAZ, marketing, cancelamento, Unilog...) — o filtro Unilog vale só p/ Subiram
+    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas && travadaAtual(n));   // 11/11: todos os TIPOS de travada (SAP/SEFAZ, marketing, cancelamento, Unilog...); só a B4You antiga (< corte) fica fora
     const cont = new Map();
     for(const n of base){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
     const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
