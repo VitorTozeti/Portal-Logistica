@@ -29,7 +29,8 @@ import alertas_texto   # categoria, frase e "o que fazer" de cada alerta -- os m
 ESTADO = os.getenv("PORTAL_UNILOG_ESTADO", "").strip()
 # Pedido parado na mesma situação há mais que isto vira travada (mesmo default do robô).
 HORAS_PARADO = float(os.getenv("PORTAL_UNILOG_HORAS_PARADO", os.getenv("UNILOG_HORAS_PARADO", "168")))
-# Alerta do robô conta como ativo se foi repetido até X horas antes da última gravação do arquivo.
+# Só para estado sem a seção `ciclo` (robô de antes de 11/11): alerta ativo se repetido até X horas antes da última
+# gravação do arquivo. Com a seção, vale o último ciclo (_corte_alertas).
 HORAS_ALERTA = float(os.getenv("PORTAL_UNILOG_HORAS_ALERTA", "3"))
 # Arquivo sem gravação há mais que isto = robô parado (o robô roda em dias úteis, 08–14h).
 HORAS_ARQUIVO_VELHO = float(os.getenv("PORTAL_UNILOG_HORAS_ARQUIVO", "72"))
@@ -170,6 +171,21 @@ def _ev(filial, nf, cod, cat, desc, desde):
     }
 
 
+def _corte_alertas(dados, mtime) -> float:
+    """Desde quando um alerta conta como ativo (timestamp). Igual ao e-mail: o que o robô repetiu no último ciclo.
+
+    Até 11/11/2026 era uma janela fixa de 3 h: o aviso de algo já resolvido ficava até 3 h no Portal (as entradas da
+    Matriz enviadas às 19:05 seguiam como pendentes). Ciclo inteiro e sem falha -> início dele; ciclo em andamento,
+    interrompido ou com etapa sem Unilog/SAP -> início do último ciclo inteiro (`anterior`), para o alerta não sumir
+    e voltar; sem marca de ciclo (estado antigo) -> a janela de HORAS_ALERTA."""
+    c = dados.get("ciclo") or {}
+    inicio = c.get("inicio") if c.get("fim") and not c.get("parcial") else c.get("anterior")
+    iso = _iso(inicio)
+    if iso:
+        return datetime.fromisoformat(iso).timestamp()
+    return mtime - HORAS_ALERTA * 3600
+
+
 def coletar_unilog() -> list:
     """Travadas de envio na Unilog, no formato do hub. Uma por NF (a 1ª causa vira o código)."""
     if not ligado():
@@ -230,7 +246,7 @@ def coletar_unilog() -> list:
                 add(filial, nf, cod, tipo, f'Na etapa "{nome}" há {h:.0f}h', desde)
 
     # alertas que o robô repetiu no último ciclo (os antigos já foram resolvidos)
-    corte = mtime - HORAS_ALERTA * 3600
+    corte = _corte_alertas(dados, mtime)
     for a in dados.get("alertas", {}).values():
         visto = _iso(a.get("ultimo"))
         if not visto or datetime.fromisoformat(visto).timestamp() < corte:
