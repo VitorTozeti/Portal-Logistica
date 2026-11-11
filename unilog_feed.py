@@ -24,10 +24,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import alertas_texto   # categoria, frase e "o que fazer" de cada alerta -- os mesmos do e-mail de pendencias
+
 ESTADO = os.getenv("PORTAL_UNILOG_ESTADO", "").strip()
 # Pedido parado na mesma situação há mais que isto vira travada (mesmo default do robô).
 HORAS_PARADO = float(os.getenv("PORTAL_UNILOG_HORAS_PARADO", os.getenv("UNILOG_HORAS_PARADO", "168")))
-# Alerta do robô conta como ativo se foi repetido até X horas antes da última gravação do arquivo.
+# Só para estado sem a seção `ciclo` (robô de antes de 11/11): alerta ativo se repetido até X horas antes da última
+# gravação do arquivo. Com a seção, vale o último ciclo (_corte_alertas).
 HORAS_ALERTA = float(os.getenv("PORTAL_UNILOG_HORAS_ALERTA", "3"))
 # Arquivo sem gravação há mais que isto = robô parado (o robô roda em dias úteis, 08–14h).
 HORAS_ARQUIVO_VELHO = float(os.getenv("PORTAL_UNILOG_HORAS_ARQUIVO", "72"))
@@ -37,17 +40,8 @@ STATUS = {
     "5": "INTEGRATED_WITH_ERRORS", "21": "CANCELLED", "22": "SHIPPED",
 }
 
-# tipo de alerta do robô (robo_saida.alertar) -> categoria do portal
-_CAT_ALERTA = {
-    "SEM_EAN": "CADASTRO", "EAN_ALTERADO": "CADASTRO", "SEM_CADASTRO": "CADASTRO",
-    "CADASTRO_PENDENTE": "CADASTRO", "CADASTRO_ERRO": "CADASTRO",
-    "SEM_SALDO": "ESTOQUE", "PEDIDO_SEM_SALDO": "ESTOQUE",
-    "ETIQUETA_FALHOU": "CORREIOS", "ETIQUETA_PENDENTE": "CORREIOS",
-    "SEM_VOLUMES": "FATURAMENTO", "DOC_SEM_REGISTRO": "FATURAMENTO", "SHARE_NF_SEM_ARQUIVOS": "FATURAMENTO",
-    "NF_CANCELADA_SAP": "CANCELAMENTO", "CANCELAMENTO_MANUAL_PENDENTE": "CANCELAMENTO",
-    "CANCELADA_NA_UNILOG": "CANCELAMENTO", "CANCELAMENTO_SEM_ACAO": "CANCELAMENTO",
-    "CANCELADA_SO_NA_UNILOG": "CANCELAMENTO", "ENTRADA_DE_NF_CANCELADA": "CANCELAMENTO",
-}
+# tipo de alerta do robô -> categoria do portal: alertas_texto.categoria (11/11/2026: sem a categoria "UNILOG" -- tudo é
+# Unilog desde a virada; a categoria diz o assunto e quem age, igual ao e-mail)
 # Estes continuam valendo com a NF em status final (21 ou 22): pedem ação de alguém mesmo sem o robô ler a Unilog.
 _ALERTAS_DEPOIS_DO_FIM = {"CANCELAMENTO_MANUAL_PENDENTE", "NF_CANCELADA_SAP", "CANCELADA_SO_NA_UNILOG",
                           "ENTRADA_DE_NF_CANCELADA"}
@@ -115,10 +109,7 @@ def nfs_unilog() -> dict:
 
 
 # nome que a logística entende para cada situação (o robô guarda o nome da Unilog em status_desc)
-NOME_SITUACAO = {
-    "": "Enviada", "1": "Pendente", "2": "Integrada", "3": "Em conferência", "4": "Conferida",
-    "5": "Erro na integração", "21": "Cancelada", "22": "Embarcada",
-}
+NOME_SITUACAO = alertas_texto.NOME_SITUACAO
 
 
 # Etapa da Unilog (nome que ela manda em status_desc) -> nome que a logística entende. É o que o Portal mostra
@@ -160,7 +151,7 @@ def situacoes() -> dict:
     for reg in (dados or {}).get("nfs", {}).values():
         code = str(reg.get("status_code") or "")
         if reg.get("etapa") == "RECUSADO":
-            nome = "Recusada"
+            nome = "Cancelada no SAP" if reg.get("cancelada_sap") else "Recusada"
         else:
             nome = etapa_simples(code, reg.get("status_desc"))
         hist = [{"em": _iso(h.get("ts")), "evento": str(h.get("evento") or "")}
@@ -180,6 +171,21 @@ def _ev(filial, nf, cod, cat, desc, desde):
     }
 
 
+def _corte_alertas(dados, mtime) -> float:
+    """Desde quando um alerta conta como ativo (timestamp). Igual ao e-mail: o que o robô repetiu no último ciclo.
+
+    Até 11/11/2026 era uma janela fixa de 3 h: o aviso de algo já resolvido ficava até 3 h no Portal (as entradas da
+    Matriz enviadas às 19:05 seguiam como pendentes). Ciclo inteiro e sem falha -> início dele; ciclo em andamento,
+    interrompido ou com etapa sem Unilog/SAP -> início do último ciclo inteiro (`anterior`), para o alerta não sumir
+    e voltar; sem marca de ciclo (estado antigo) -> a janela de HORAS_ALERTA."""
+    c = dados.get("ciclo") or {}
+    inicio = c.get("inicio") if c.get("fim") and not c.get("parcial") else c.get("anterior")
+    iso = _iso(inicio)
+    if iso:
+        return datetime.fromisoformat(iso).timestamp()
+    return mtime - HORAS_ALERTA * 3600
+
+
 def coletar_unilog() -> list:
     """Travadas de envio na Unilog, no formato do hub. Uma por NF (a 1ª causa vira o código)."""
     if not ligado():
@@ -187,23 +193,33 @@ def coletar_unilog() -> list:
     agora = time.time()
     dados, mtime = _ler()
     if dados is None:
-        return [_ev("Unilog", "ESTADO", "UNILOG_SEM_ESTADO", "UNILOG",
-                    f"Estado do robô da Unilog não encontrado ou ilegível ({ESTADO}) — o portal não vê os envios",
+        return [_ev("Unilog", "ESTADO", "UNILOG_SEM_ESTADO", alertas_texto.categoria("SEM_ESTADO"),
+                    alertas_texto.descricao([("SEM_ESTADO", [(f"arquivo {ESTADO} não encontrado ou ilegível", "")])]),
                     None)]
 
     por_nf: dict = {}
 
-    def add(filial, nf, cod, cat, desc, desde):
+    def add(filial, nf, cod, tipo, mensagem, desde, detalhe=""):
+        """Uma travada por NF: a 1ª causa dá o código e a categoria; cada tipo vira um bloco do texto (alertas_texto:
+        o que aconteceu, um tópico por item, o que fazer). O texto é montado no fim, com todos os alertas da NF."""
         k = (filial, nf)
-        if k in por_nf:
-            por_nf[k]["problema_descricao"] += " + " + desc
-        else:
-            por_nf[k] = _ev(filial, nf, cod, cat, desc, desde)
+        if k not in por_nf:
+            por_nf[k] = {"ev": _ev(filial, nf, cod, alertas_texto.categoria(tipo, detalhe), "", desde), "blocos": {}}
+        bloco = por_nf[k]["blocos"].setdefault(alertas_texto.canonico(tipo), (tipo, []))
+        if (mensagem, detalhe) not in bloco[1]:
+            bloco[1].append((mensagem, detalhe))
 
     finais = set()
     faturadas = set()      # billing OK: o alerta de arquivo faltando para a fatura ja foi resolvido
+    # "Ignorar no robo" do Portal (secao `ignoradas` do estado): sai da lista na hora
+    ignoradas = {(i.get("filial"), _limpar(i.get("serial"))) for i in (dados.get("ignoradas") or {}).values()}
+    # entrada da Matriz ja enviada: o aviso ENTRADA_MATRIZ_PENDENTE do ciclo anterior ficava ate 3 h (49671, 11/11)
+    matriz_enviada = {(r.get("filial"), _limpar(r.get("nf"))) for r in (dados.get("entradas_matriz") or {}).values()
+                      if r.get("request_id")}
     for reg in dados.get("nfs", {}).values():
         filial, nf = reg.get("filial"), _limpar(reg.get("serial"))
+        if (filial, nf) in ignoradas:
+            continue
         if (reg.get("billing") or {}).get("ok"):
             faturadas.add((filial, nf))
         code = str(reg.get("status_code") or "")
@@ -212,24 +228,25 @@ def coletar_unilog() -> list:
         if code in ("21", "22"):
             finais.add((filial, nf))
             continue
+        if etapa == "RECUSADO" and reg.get("cancelada_sap"):    # o pedido nao nasceu e a NF foi cancelada no SAP
+            finais.add((filial, nf))
+            continue
         if etapa == "RECUSADO":
-            add(filial, nf, "UNILOG_RECUSADO", "UNILOG",
-                f"Unilog recusou o pedido: {str(reg.get('erro') or '')[:200]}".rstrip(": "), reg.get("enviado_em"))
+            add(filial, nf, "UNILOG_RECUSADO", "RECUSADO", str(reg.get("erro") or ""), reg.get("enviado_em"))
         elif etapa == "POST_INCERTO":
-            add(filial, nf, "UNILOG_POST_INCERTO", "UNILOG",
-                "Envio à Unilog sem confirmação — perguntar à Unilog se a NF entrou; não reenviar nem cancelar antes da resposta", reg.get("enviado_em"))
+            add(filial, nf, "UNILOG_POST_INCERTO", "POST_INCERTO", "", reg.get("enviado_em"))
         elif code == "5":
-            add(filial, nf, "UNILOG_ERRO_INTEGRACAO", "UNILOG",
-                "Unilog integrou com erro (situação 5)", desde)
+            add(filial, nf, "UNILOG_ERRO_INTEGRACAO", "ERRO_INTEGRACAO",
+                f"situação 5 na Unilog ({reg.get('status_desc') or STATUS['5']})", desde)
         else:
             h = _horas_desde(desde, agora)
             if h is not None and h >= HORAS_PARADO:
-                nome = reg.get("status_desc") or STATUS.get(code, "sem situação")
-                cod = "UNILOG_AGUARDA_EMBARQUE" if code in ("3", "4") else "UNILOG_PARADO"
-                add(filial, nf, cod, "UNILOG", f"Parada na Unilog em {code or '—'} {nome} há {h:.0f} h", desde)
+                nome = etapa_simples(code, reg.get("status_desc"))
+                cod, tipo = ("UNILOG_AGUARDA_EMBARQUE", "AGUARDA_EMBARQUE") if code in ("3", "4") else ("UNILOG_PARADO", "PARADO")
+                add(filial, nf, cod, tipo, f'Na etapa "{nome}" há {h:.0f}h', desde)
 
     # alertas que o robô repetiu no último ciclo (os antigos já foram resolvidos)
-    corte = mtime - HORAS_ALERTA * 3600
+    corte = _corte_alertas(dados, mtime)
     for a in dados.get("alertas", {}).values():
         visto = _iso(a.get("ultimo"))
         if not visto or datetime.fromisoformat(visto).timestamp() < corte:
@@ -237,22 +254,25 @@ def coletar_unilog() -> list:
         filial, nf = a.get("filial"), _limpar(a.get("serial"))
         if (filial, nf) in finais and a.get("tipo") not in _ALERTAS_DEPOIS_DO_FIM:
             continue
+        if (filial, nf) in ignoradas:
+            continue
         tipo = str(a.get("tipo") or "")
+        if tipo == "ENTRADA_MATRIZ_PENDENTE" and (filial, nf) in matriz_enviada:
+            continue
         # 11/11/2026: a fatura subiu depois do ultimo aviso -- sem isto a NF ficava ate 3 h no Portal (47 de uma vez),
         # enquanto o e-mail (alertas do ciclo) ja nao a mostrava
         if tipo == "BILLING_SEM_ARQUIVO" and (filial, nf) in faturadas:
             continue
-        cat = _CAT_ALERTA.get(tipo, "UNILOG")
-        if tipo == "BILLING_SEM_ARQUIVO":   # detalhe = o que falta no share ("XML,DANFE,boleto"); só boleto = Financeiro
-            falta = {x.strip().lower() for x in str(a.get("detalhe") or "").split(",") if x.strip()}
-            cat = "FINANCEIRO" if falta == {"boleto"} else "FATURAMENTO"
-        add(filial, nf, f"UNILOG_{tipo}", cat,
-            str(a.get("mensagem") or tipo)[:300], a.get("primeiro"))
+        # categoria pelo tipo (BILLING_SEM_ARQUIVO: detalhe = o que falta no share; só boleto = Financeiro)
+        add(filial, nf, f"UNILOG_{tipo}", tipo, str(a.get("mensagem") or ""), a.get("primeiro"), str(a.get("detalhe") or ""))
 
-    out = list(por_nf.values())
+    out = []
+    for item in por_nf.values():
+        item["ev"]["problema_descricao"] = alertas_texto.descricao(list(item["blocos"].values()))
+        out.append(item["ev"])
     idade_h = (agora - mtime) / 3600
     if idade_h >= HORAS_ARQUIVO_VELHO:
-        out.append(_ev("Unilog", "ESTADO", "UNILOG_ESTADO_VELHO", "UNILOG",
-                       f"O robô da Unilog não grava o estado há {idade_h:.0f} h — conferir a tarefa no servidor",
+        out.append(_ev("Unilog", "ESTADO", "UNILOG_ESTADO_VELHO", alertas_texto.categoria("ESTADO_VELHO"),
+                       alertas_texto.descricao([("ESTADO_VELHO", [(f"sem gravar o estado há {idade_h:.0f}h", "")])]),
                        datetime.fromtimestamp(mtime).isoformat(timespec="seconds")))
     return out

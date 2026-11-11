@@ -254,7 +254,9 @@
   .subdata{margin-left:auto;font-size:11px;color:var(--ink2);font-family:ui-monospace,monospace}
   .subdata + .carrier{margin-left:10px}
   .carrier{margin-left:auto;font-size:12px;color:var(--ink2)}
-  .desc{font-size:12.5px;color:var(--ink2);margin-top:4px}
+  /* 11/11/2026: o texto da Unilog vem em tópicos (frase, "• item", "O que fazer"): quebra de linha vale; no card, até 4 linhas */
+  .desc{font-size:12.5px;color:var(--ink2);margin-top:4px;white-space:pre-line;
+        display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;line-clamp:4;overflow:hidden}
   .meta{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap}
   .tempo{font-size:12px;font-weight:600;color:var(--warn)}
   .tempo.velho{color:var(--crit)}
@@ -289,7 +291,8 @@
   .alert{margin:16px 0 4px;border-radius:11px;padding:13px 15px;background:var(--panel2)}
   .alert.info{background:color-mix(in srgb,var(--accent) 9%,var(--panel2));border-left:4px solid var(--accent)}
   .alert .at{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
-  .alert .ax{font-size:12.5px;color:var(--ink2);margin-top:6px;line-height:1.45}
+  .alert .ax{font-size:12.5px;color:var(--ink2);margin-top:6px;line-height:1.45;white-space:pre-line}
+  .alert .ax b{color:var(--ink)}
   .sec-lbl{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--ink2);text-transform:uppercase;margin:20px 0 10px}
   .sol-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media (max-width:440px){.sol-grid{grid-template-columns:1fr}}
@@ -784,8 +787,8 @@
     FINANCEIRO:"#2ee8d6",   B4YOU:"#4ba6e8",      TRANSPORTADORA:"#86e7f2",
     TRANSFERENCIA:"#1a97b0",AUDITORIA:"#34bce2",  BARRADAS_SAP:"#40d8e0",
     MARKETING:"#6bc4ee",    CANCELAMENTO:"#20c2d1",RASTREIO:"#8fd6f0",
-    UNILOG:"#5fb8f5",       CADASTRO:"#3fd0c0",   ESTOQUE:"#2aa9d8",
-    OUTROS:"#7fa9b5",
+    INTEGRACAO:"#5fb8f5",   CADASTRO:"#3fd0c0",   ESTOQUE:"#2aa9d8",
+    EXPEDICAO:"#4fd1c5",    OUTROS:"#7fa9b5",
   };
   // No tema CLARO o ciano some no branco: as categorias usam tons AZUIS mais escuros
   // (família fria azul/indigo/teal, todos legíveis sobre branco, no espírito do acento
@@ -795,8 +798,8 @@
     FINANCEIRO:"#0e7490",   B4YOU:"#4338ca",      TRANSPORTADORA:"#0369a1",
     TRANSFERENCIA:"#155e75",AUDITORIA:"#1e3a8a",  BARRADAS_SAP:"#0891b2",
     MARKETING:"#6d28d9",    CANCELAMENTO:"#0f766e",RASTREIO:"#0284c7",
-    UNILOG:"#3730a3",       CADASTRO:"#115e59",   ESTOQUE:"#1d4ed8",
-    OUTROS:"#475569",
+    INTEGRACAO:"#3730a3",   CADASTRO:"#115e59",   ESTOQUE:"#1e3a8a",
+    EXPEDICAO:"#0c4a6e",    OUTROS:"#475569",
   };
   const ehTemaClaro = () => document.documentElement.getAttribute("data-theme") === "light";
   const catCor = k => (ehTemaClaro() ? (CAT_COR_LIGHT[k] || PAL.p4) : (CAT_COR[k] || PAL.p4));
@@ -817,19 +820,24 @@
     return "Logística";
   }
   function catLabel(n){
-    if(n.problema_categoria) return n.problema_categoria;
+    if(n.problema_categoria) return CAT_LABEL[catKey(n)] || n.problema_categoria;
     if(n.grupo==="BARRADAS_SAP") return "SAP";
     return n.grupo || "—";
   }
 
   // ---- categorias do filtro de Travadas ----
-  const catKey = n => n.problema_categoria || n.grupo || "OUTROS";
+  // 11/11/2026: sem a categoria "Unilog" (desde a virada tudo é Unilog). O robô manda a categoria do assunto
+  // (logistica_pharma/alertas_texto.py, a mesma do e-mail). UNILOG (espelho antigo) e B4YOU (nota que não chegou ao
+  // operador) entram em Integração até o coletor republicar.
+  const CAT_LEGADO = { UNILOG:"INTEGRACAO", B4YOU:"INTEGRACAO" };
+  const catKey = n => { const k = n.problema_categoria || n.grupo || "OUTROS"; return CAT_LEGADO[k] || k; };
   const CAT_LABEL = {
     FATURAMENTO:"Faturamento", ARQUIVOS:"Arquivos", CORREIOS:"Correios",
-    FINANCEIRO:"Financeiro", B4YOU:"Unilog", TRANSPORTADORA:"Transportadora",
-    TRANSFERENCIA:"Transferência", AUDITORIA:"Auditoria SAP",
+    FINANCEIRO:"Financeiro", TRANSPORTADORA:"Transportadora",
+    TRANSFERENCIA:"Entrada e transferência", AUDITORIA:"Auditoria SAP",
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
-    RASTREIO:"Rastreio", UNILOG:"Unilog", CADASTRO:"Cadastro", ESTOQUE:"Estoque",
+    RASTREIO:"Rastreio", CADASTRO:"Cadastro", ESTOQUE:"Estoque",
+    EXPEDICAO:"Separação e embarque", INTEGRACAO:"Integração",
     OUTROS:"Outros",
   };
 
@@ -1250,9 +1258,13 @@
       ["Faturada em", esc(dataBR(n.data_faturamento) || "—"), false, null],
       ["Travada há", t?("◷ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
     ];
-    const partes = (n.problema_descricao||"").split(" + ");
-    const alertTitulo = esc(partes[0] || n.problema_codigo || "Problema");
-    const alertTexto = esc(n.problema_descricao || "");
+    // texto em tópicos (Unilog, 11/11/2026): a 1ª linha é a frase do que aconteceu (título); o resto vai no corpo,
+    // com "O que fazer:" em negrito. Texto de uma linha (outros motores) segue como antes: 1ª causa no título.
+    const desc = String(n.problema_descricao || "");
+    const linhas = desc.split("\n");
+    const alertTitulo = esc((linhas.length > 1 ? linhas[0] : desc.split(" + ")[0]) || n.problema_codigo || "Problema");
+    const alertTexto = (linhas.length > 1 ? esc(linhas.slice(1).join("\n").trim()) : esc(desc))
+      .replace(/^O que fazer:/gm, "<b>O que fazer:</b>");
     const ehBoleto = n.problema_codigo === "BOLETO_AUSENTE";
 
     let corpo = rows.map(([l,v,velho,iso]) =>
