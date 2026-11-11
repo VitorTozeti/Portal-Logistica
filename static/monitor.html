@@ -666,7 +666,7 @@
       <span id="ft-live" class="ft-pill">● conectando…</span>
       <span class="ft-ro">somente leitura — não altera SAP nem o operador logístico</span>
     </span>
-    <span class="ft-ver">v0.2 · B4You + Unilog</span>
+    <span class="ft-ver">v0.2 · Unilog</span>
   </div>
 </footer>
 
@@ -819,7 +819,7 @@
   const catKey = n => n.problema_categoria || n.grupo || "OUTROS";
   const CAT_LABEL = {
     FATURAMENTO:"Faturamento", ARQUIVOS:"Arquivos", CORREIOS:"Correios",
-    FINANCEIRO:"Financeiro", B4YOU:"B4You", TRANSPORTADORA:"Transportadora",
+    FINANCEIRO:"Financeiro", B4YOU:"Unilog", TRANSPORTADORA:"Transportadora",
     TRANSFERENCIA:"Transferência", AUDITORIA:"Auditoria SAP",
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
     RASTREIO:"Rastreio", UNILOG:"Unilog", CADASTRO:"Cadastro", ESTOQUE:"Estoque",
@@ -869,7 +869,7 @@
     return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrirTravada('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
-      + `<span class="tag" style="${estiloTag(n)}">${esc(n.problema_codigo)}</span>`
+      + `<span class="tag" style="${estiloTag(n)}">${esc(String(n.problema_codigo||"").replace(/^B4YOU/,"UNILOG"))}</span>`
       + grpBadge(n)
       + `<span class="carrier">${esc(n.transportadora)}</span></div>`
       + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
