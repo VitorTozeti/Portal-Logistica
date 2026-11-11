@@ -51,6 +51,13 @@ class JuntarMesmaNF(unittest.TestCase):
         self.assertEqual(n["problema_descricao"], "Boleto exigido não encontrado + item Y sem saldo")
         self.assertEqual(n["operador"], "Unilog")
 
+    def test_frase_nova_da_unilog_tambem_sai(self):   # feed.py do Portal escreve "para a Unilog" desde 11/11
+        out = c._juntar_mesma_nf([
+            ev("9545", "BOLETO_AUSENTE", "Boleto exigido + Falha no envio da NF para a Unilog (status: PENDENTE)"),
+            alerta_unilog("9545", "UNILOG_SEM_SALDO", "item Z sem saldo"),
+        ])
+        self.assertEqual(out[0]["problema_descricao"], "Boleto exigido + item Z sem saldo")
+
     def test_sem_unilog_nao_mexe(self):
         a = ev("9538", "BOLETO_AUSENTE", "Boleto + Falha no envio da NF para a B4You (status: PENDENTE)")
         b = ev("9540", "SEFAZ_BARRADA", "Barrada na SEFAZ", grupo="BARRADAS_SAP")

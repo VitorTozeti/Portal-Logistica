@@ -201,8 +201,11 @@ def coletar_unilog() -> list:
             por_nf[k] = _ev(filial, nf, cod, cat, desc, desde)
 
     finais = set()
+    faturadas = set()      # billing OK: o alerta de arquivo faltando para a fatura ja foi resolvido
     for reg in dados.get("nfs", {}).values():
         filial, nf = reg.get("filial"), _limpar(reg.get("serial"))
+        if (reg.get("billing") or {}).get("ok"):
+            faturadas.add((filial, nf))
         code = str(reg.get("status_code") or "")
         etapa = str(reg.get("etapa") or "")
         desde = reg.get("status_desde") or reg.get("enviado_em")
@@ -235,6 +238,10 @@ def coletar_unilog() -> list:
         if (filial, nf) in finais and a.get("tipo") not in _ALERTAS_DEPOIS_DO_FIM:
             continue
         tipo = str(a.get("tipo") or "")
+        # 11/11/2026: a fatura subiu depois do ultimo aviso -- sem isto a NF ficava ate 3 h no Portal (47 de uma vez),
+        # enquanto o e-mail (alertas do ciclo) ja nao a mostrava
+        if tipo == "BILLING_SEM_ARQUIVO" and (filial, nf) in faturadas:
+            continue
         cat = _CAT_ALERTA.get(tipo, "UNILOG")
         if tipo == "BILLING_SEM_ARQUIVO":   # detalhe = o que falta no share ("XML,DANFE,boleto"); só boleto = Financeiro
             falta = {x.strip().lower() for x in str(a.get("detalhe") or "").split(",") if x.strip()}

@@ -113,6 +113,7 @@ def _assinatura_subiu(ev: dict) -> str:
 
 
 _FRASE_B4YOU = " + Falha no envio da NF para a B4You"
+_FRASE_UNILOG = " + Falha no envio da NF para a Unilog"   # texto do feed.py do Portal desde 11/11/2026
 
 
 def _juntar_mesma_nf(travadas: list) -> list:
@@ -142,8 +143,9 @@ def _juntar_mesma_nf(travadas: list) -> list:
             if tem_unilog and e.get("problema_codigo") == "B4YOU_FALHA":
                 continue
             desc = str(e.get("problema_descricao") or "")
-            if tem_unilog and _FRASE_B4YOU in desc:
-                desc = desc.split(_FRASE_B4YOU)[0]
+            for frase in (_FRASE_B4YOU, _FRASE_UNILOG):
+                if tem_unilog and frase in desc:
+                    desc = desc.split(frase)[0]
             if desc and desc not in partes:
                 partes.append(desc)
         junta["problema_descricao"] = " + ".join(partes)
@@ -151,9 +153,14 @@ def _juntar_mesma_nf(travadas: list) -> list:
     return out
 
 
+# Motores que falharam no último _montar_estado (a coleta fica incompleta: a reconciliação não apaga nada em massa)
+_FALHAS: list = []
+
+
 def _montar_estado():
     """Roda os 4 motores igual ao loop do portal local (feed.rodar_feed_simulado)
     e devolve (todas_travadas, subiram) já com `id` e sem as ocultas do portal."""
+    _FALHAS.clear()
     travadas, subiram, nfs_no_log, log_index = feed._coletar_estado()
 
     barradas, marketing, cancelamentos = [], [], []
@@ -161,24 +168,30 @@ def _montar_estado():
         import sap_feed
         barradas = sap_feed.coletar_barradas(nfs_no_log, log_index)
     except Exception as e:
+        _FALHAS.append("SAP")
         print(f"  [COLETOR] Motor 1 (SAP) indisponível: {e}", flush=True)
     try:
         import marketing_feed
         marketing = marketing_feed.coletar_marketing()
     except Exception as e:
+        _FALHAS.append("Marketing")
         print(f"  [COLETOR] Marketing indisponível: {e}", flush=True)
     try:
         import canc_feed
         cancelamentos = canc_feed.coletar_cancelamentos(log_index)
     except Exception as e:
+        _FALHAS.append("Cancelamento")
         print(f"  [COLETOR] Cancelamento indisponível: {e}", flush=True)
     unilog_env = []
     try:
         import unilog_feed
         unilog_env = unilog_feed.coletar_unilog()
     except Exception as e:
+        _FALHAS.append("Unilog")
         print(f"  [COLETOR] Unilog indisponível: {e}", flush=True)
 
+    if any(ev.get("problema_codigo") == "UNILOG_SEM_ESTADO" for ev in unilog_env):
+        _FALHAS.append("Unilog (estado ilegível)")
     todas_travadas = travadas + barradas + marketing + cancelamentos + unilog_env
     for ev in todas_travadas + subiram:
         ev["id"] = f"{ev.get('filial', '?')}:{ev['nf']}"
@@ -287,12 +300,19 @@ def _espelho_travadas() -> dict | None:
 def _orfas(espelho: dict, travadas_atuais: set) -> list:
     """Travadas que o ESPELHO tem mas a coleta atual não tem mais. O delta por
     `travadas_anteriores` não pega o que ficou preso de um estado local perdido ou de
-    uma versão antiga do coletor (ex.: Marketing fora da janela do robô)."""
+    uma versão antiga do coletor (ex.: Marketing fora da janela do robô).
+
+    Trava de segurança (11/11/2026): só segura a limpeza em massa quando a COLETA é suspeita (algum motor
+    falhou neste ciclo ou não veio nenhuma travada). Antes era pela proporção (> MAX_APAGAR e > metade do
+    espelho) -- com 47 travadas velhas de 75 a limpeza nunca rodava e o Portal ficou diferente do e-mail."""
     orfas = [v for k, v in espelho.items() if k not in travadas_atuais]
-    if len(orfas) > MAX_APAGAR and len(orfas) > len(espelho) / 2:
-        print(f"  [COLETOR] reconciliação abortada: apagaria {len(orfas)} de {len(espelho)} "
-              f"travadas (limite {MAX_APAGAR}) — coleta suspeita.", flush=True)
+    suspeita = bool(_FALHAS) or not travadas_atuais
+    if len(orfas) > MAX_APAGAR and suspeita:
+        print(f"  [COLETOR] reconciliação adiada: apagaria {len(orfas)} de {len(espelho)} travadas com a coleta "
+              f"incompleta ({', '.join(_FALHAS) or 'nenhuma travada'}).", flush=True)
         return []
+    if orfas:
+        print(f"  [COLETOR] reconciliação: {len(orfas)} travada(s) do Portal que o robô não vê mais.", flush=True)
     return orfas
 
 
@@ -311,8 +331,9 @@ def _ciclo(publicado: dict, travadas_anteriores: set) -> tuple[dict, set]:
     for ev in todas_travadas:
         travadas_atuais.add(ev["id"])
         # v2 (10/11/2026): a travada passou a juntar as causas da mesma NF — muda a assinatura para reenviar 1 vez
-        assin = (f"v2|{ev['estado']}|{ev.get('problema_codigo', '')}|{ev.get('operador') or ''}"
-                 f"|{int(bool(ev.get('ignorada')))}") + _sufixo_unilog(ev)
+        # v3 (11/11/2026): a descricao entra (ex.: "ha 22h" da Unilog), senao o Portal mostra o texto do 1o envio para sempre
+        assin = (f"v3|{ev['estado']}|{ev.get('problema_codigo', '')}|{ev.get('operador') or ''}"
+                 f"|{int(bool(ev.get('ignorada')))}|{ev.get('problema_descricao') or ''}") + _sufixo_unilog(ev)
         atual[ev["id"]] = assin
         if publicado.get(ev["id"]) != assin:
             pendentes.append(_nota(ev))
