@@ -71,6 +71,15 @@ CARRIER_NOMES = {
 }
 
 
+# Espelho do config.TGT_EMAIL_DESDE: desde esta data a NF da TGT vai por e-mail, e a falha aparece como nas outras.
+TGT_EMAIL_DESDE = (os.getenv("TGT_EMAIL_DESDE", "2026-11-04") or "").strip()
+
+
+def _tgt_por_email(r) -> bool:
+    data = str(r.get("Data_Processamento") or "")[:10]
+    return bool(TGT_EMAIL_DESDE) and data[:2] == "20" and data >= TGT_EMAIL_DESDE
+
+
 def _nome_transp(cod: str) -> str:
     return CARRIER_NOMES.get((cod or "").strip(), cod or "—")
 
@@ -136,24 +145,24 @@ def classificar(r: dict, da_unilog: bool = False, unilog_pendente: bool = False)
     if r.get("Envio_B4You_NF") == "CANCELADO":
         return "CANCELADO"  # sinaliza para pular
 
-    problemas = []  # (codigo, categoria, texto)
+    problemas = []  # (codigo, categoria, texto); texto = frase + "O que fazer" (alertas_texto.texto_log, 12/11/2026)
     status_nf = str(r.get("Status_Arq_NF", ""))
 
     if status_nf != "OK":
         if "Falta XML" in status_nf and "Falta PDF" in status_nf:
-            problemas.append(("XML_2STRIKE", "FATURAMENTO", "XML e PDF não encontrados na pasta de rede (2ª tentativa)"))
+            problemas.append(("XML_2STRIKE", "FATURAMENTO", alertas_texto.texto_log("FALTA_XML_DANFE")))
         elif "Falta XML" in status_nf:
-            problemas.append(("XML_2STRIKE", "FATURAMENTO", "XML não encontrado na pasta de rede (2ª tentativa)"))
+            problemas.append(("XML_2STRIKE", "FATURAMENTO", alertas_texto.texto_log("FALTA_XML")))
         elif "Falta PDF" in status_nf:
-            problemas.append(("PDF_2STRIKE", "FATURAMENTO", "PDF não encontrado na pasta de rede (2ª tentativa)"))
+            problemas.append(("PDF_2STRIKE", "FATURAMENTO", alertas_texto.texto_log("FALTA_DANFE")))
         else:
-            problemas.append(("ARQUIVO_IO", "ARQUIVOS", f"Erro ao copiar arquivos: {status_nf}"))
+            problemas.append(("ARQUIVO_IO", "ARQUIVOS", alertas_texto.texto_log("ARQUIVO_IO", status_nf)))
 
     if r.get("Requer_Etiqueta") == "TRUE" and r.get("Status_Arq_Etiqueta") != "OK":
-        problemas.append(("ETIQUETA_CORREIOS", "CORREIOS", "Etiqueta Correios não gerada (corrigir cadastro do cliente no SAP)"))
+        problemas.append(("ETIQUETA_CORREIOS", "CORREIOS", alertas_texto.texto_log("ETIQUETA_CORREIOS")))
 
     if r.get("Requer_Boleto") == "TRUE" and r.get("Status_Arq_Boleto") != "OK":
-        problemas.append(("BOLETO_AUSENTE", "FINANCEIRO", "Boleto exigido não encontrado na pasta de rede"))
+        problemas.append(("BOLETO_AUSENTE", "FINANCEIRO", alertas_texto.texto_log("BOLETO_AUSENTE")))
 
     # "Ignorar nota" do Portal marca o log todo OK (portal_ignorar.blindar): Envio_B4You_NF = OK -> a NF não é cobrada
     if status_nf == "OK" and unilog_pendente and r.get("Envio_B4You_NF") != "OK":
@@ -163,28 +172,28 @@ def classificar(r: dict, da_unilog: bool = False, unilog_pendente: bool = False)
         env_nf = r.get("Envio_B4You_NF")
         if env_nf != "OK":
             if env_nf in ("BLOQUEADO_SALDO", "Bloqueado Saldo"):
-                problemas.append(("B4YOU_SALDO", "B4YOU", "Sem saldo/estoque na Unilog — reenvia quando o estoque entrar"))
+                problemas.append(("B4YOU_SALDO", "B4YOU", alertas_texto.texto_log("B4YOU_SALDO")))
             elif env_nf == "BLOQUEADO_CADASTRO":
-                problemas.append(("B4YOU_CADASTRO", "B4YOU", "Item não cadastrado no catálogo da Unilog"))
+                problemas.append(("B4YOU_CADASTRO", "B4YOU", alertas_texto.texto_log("B4YOU_CADASTRO")))
             elif env_nf == "BLOQUEADO_DUPLICIDADE":
-                problemas.append(("B4YOU_DUPLICIDADE", "B4YOU", "Unilog respondeu 'já existe' mas o pedido não foi encontrado"))
+                problemas.append(("B4YOU_DUPLICIDADE", "B4YOU", alertas_texto.texto_log("B4YOU_DUPLICIDADE")))
             else:
-                problemas.append(("B4YOU_FALHA", "B4YOU", f"Falha no envio da NF para a Unilog (status: {env_nf})"))
+                problemas.append(("B4YOU_FALHA", "B4YOU", alertas_texto.texto_log("B4YOU_FALHA", env_nf)))
         else:
             if r.get("Requer_Boleto") == "TRUE" and r.get("Status_Arq_Boleto") == "OK" and r.get("Envio_B4You_Boleto") != "OK":
-                problemas.append(("B4YOU_ANEXO_BOLETO", "B4YOU", f"Falha ao enviar o Boleto para a Unilog (status: {r.get('Envio_B4You_Boleto')})"))
+                problemas.append(("B4YOU_ANEXO_BOLETO", "B4YOU", alertas_texto.texto_log("B4YOU_ANEXO_BOLETO", r.get("Envio_B4You_Boleto"))))
             if r.get("Requer_Etiqueta") == "TRUE" and r.get("Status_Arq_Etiqueta") == "OK" and r.get("Envio_B4You_Etiqueta") != "OK":
-                problemas.append(("B4YOU_ANEXO_ETIQUETA", "B4YOU", f"Falha ao enviar a Etiqueta para a Unilog (status: {r.get('Envio_B4You_Etiqueta')})"))
+                problemas.append(("B4YOU_ANEXO_ETIQUETA", "B4YOU", alertas_texto.texto_log("B4YOU_ANEXO_ETIQUETA", r.get("Envio_B4You_Etiqueta"))))
 
     carrier = str(r.get("Carrier", "")).strip()
-    if carrier and carrier != CORREIOS_CARRIER and carrier != CODIGO_TGT and status_nf == "OK":
+    if carrier and carrier != CORREIOS_CARRIER and (carrier != CODIGO_TGT or _tgt_por_email(r)) and status_nf == "OK":
         if r.get("Envio_Email_Transp") != "OK":
             if not carrier or carrier.lower() == "nan":
-                problemas.append(("TRANSP_NAO_INFORMADA", "TRANSPORTADORA", "Código da transportadora não informado na NF (verificar SAP)"))
+                problemas.append(("TRANSP_NAO_INFORMADA", "TRANSPORTADORA", alertas_texto.texto_log("TRANSP_NAO_INFORMADA")))
             elif carrier not in CARRIER_NOMES:
-                problemas.append(("TRANSP_INVALIDA", "TRANSPORTADORA", f"Código '{carrier}' não reconhecido — provável erro de digitação no SAP"))
+                problemas.append(("TRANSP_INVALIDA", "TRANSPORTADORA", alertas_texto.texto_log("TRANSP_INVALIDA", carrier)))
             else:
-                problemas.append(("EMAIL_TRANSP_FALHA", "TRANSPORTADORA", f"Falha no envio do e-mail para {_nome_transp(carrier)}"))
+                problemas.append(("EMAIL_TRANSP_FALHA", "TRANSPORTADORA", alertas_texto.texto_log("EMAIL_TRANSP_FALHA", _nome_transp(carrier))))
 
     if not problemas:
         return None

@@ -93,8 +93,8 @@ _TIPOS = {
                     "Faturamento: conferir a quantidade de embalagens da nota no SAP; a Logística confere os volumes com a "
                     "Unilog", None),
     "SHARE_NF_SEM_ARQUIVOS": (FATURAMENTO, "Várias notas sem XML ou DANFE na pasta NF-SAP: a gravação dos arquivos parece "
-                              "parada.", "Faturamento: verificar a automação que grava na pasta NF-SAP. A fatura sai sozinha "
-                              "quando os arquivos voltarem", "texto"),
+                              "parada.", "Faturamento: verificar a automação que grava na pasta NF-SAP. O pedido e a fatura "
+                              "saem sozinhos quando os arquivos voltarem", "texto"),
     # --- cancelamento
     "NF_CANCELADA_SAP": (CANCELAMENTO, "Nota cancelada no SAP com pedido na Unilog.",
                          "Logística: falar com a Unilog. Pedido que não saiu: pedir o cancelamento; pedido que já saiu: "
@@ -242,6 +242,11 @@ _TIPOS = {
                    "ti"),
     "ESTADO_VELHO": (INTEGRACAO, "O robô da Unilog parou de atualizar.",
                      "Logística não precisa agir: avisar o Marcelo ou o Vitor para conferir a tarefa no servidor", "horas"),
+    # 12/11/2026: alerta da filial (NF "ENVIO"), repetido enquanto o envio estiver parado (robo_saida.enviar_novas)
+    "ENVIO_PARADO": (INTEGRACAO, "O envio de pedidos à Unilog está parado nesta filial: a Unilog não respondeu.",
+                     "Logística: avisar o Marcelo ou o Vitor e perguntar à Unilog se a API está fora do ar ou lenta. O "
+                     "robô tenta de novo a cada rodada e envia sozinho quando a Unilog responder; não mandar pedido à mão",
+                     "msg"),
 }
 _DESCONHECIDO = (INTEGRACAO, "Aviso do robô da Unilog.", _AVISAR, "msg")
 
@@ -425,3 +430,147 @@ def descricao(blocos) -> str:
         linhas.append(f"O que fazer: {acao(tipo, detalhe)}")
         partes.append("\n".join(linhas))
     return "\n\n".join(partes)
+
+
+# ------------------------------------------------------------------ log mestre (feed.py): frase + o que fazer
+# 12/11/2026: o Portal mostrava "PDF não encontrado na pasta de rede (2ª tentativa)" -- "2ª tentativa" é coisa do robô e
+# "PDF" é a DANFE. Mesmo padrão dos alertas da Unilog: a frase diz o que falta, o "O que fazer" diz quem age.
+# {detalhe} = situação do log, código ou nome da transportadora.
+_AVISAR_TI = "Logística não precisa agir: avisar o Marcelo ou o Vitor"
+_DEPOIS = "Depois o robô sobe a nota sozinho na rodada seguinte"
+_LOG = {
+    "FALTA_XML_DANFE": ("Faltam o XML e a DANFE (PDF da nota) na pasta NF-SAP.",
+                        f"Faturamento: salvar o XML e a DANFE da nota na pasta NF-SAP da filial. {_DEPOIS}"),
+    "FALTA_XML": ("Falta o XML da nota na pasta NF-SAP.",
+                  f"Faturamento: salvar o XML da nota na pasta NF-SAP da filial. {_DEPOIS}"),
+    "FALTA_DANFE": ("Falta a DANFE (PDF da nota) na pasta NF-SAP.",
+                    f"Faturamento: salvar a DANFE em PDF na pasta NF-SAP da filial. {_DEPOIS}"),
+    "ARQUIVO_IO": ("O robô não conseguiu copiar os arquivos da nota ({detalhe}).",
+                   f"{_AVISAR_TI} se continuar na rodada seguinte"),
+    "ETIQUETA_CORREIOS": ("A etiqueta dos Correios não foi gerada.",
+                          "Logística: conferir o cadastro do cliente no SAP (endereço e CEP) e corrigir; se estiver certo, "
+                          "avisar o Marcelo ou o Vitor. O robô gera a etiqueta sozinho na rodada seguinte"),
+    "BOLETO_AUSENTE": ("Falta o boleto na pasta NF-SAP.",
+                       "Financeiro: emitir o boleto no SAP e salvar na pasta NF-SAP da filial; se a nota não tem boleto, "
+                       f"usar \"Ignorar boleto\" no Portal. {_DEPOIS}"),
+    "B4YOU_SALDO": ("Sem saldo na B4You: o pedido sobe quando o estoque entrar.", "Logística: conferir o estoque com a B4You"),
+    "B4YOU_CADASTRO": ("Item sem cadastro no catálogo da B4You.", "Logística: pedir à B4You o cadastro do item"),
+    "B4YOU_DUPLICIDADE": ("A B4You disse que o pedido já existe, mas ele não foi encontrado.", _AVISAR_TI),
+    "B4YOU_FALHA": ("A nota não foi enviada à B4You (situação: {detalhe}).", _AVISAR_TI),
+    "B4YOU_ANEXO_BOLETO": ("O boleto não foi enviado à B4You (situação: {detalhe}).", _AVISAR_TI),
+    "B4YOU_ANEXO_ETIQUETA": ("A etiqueta não foi enviada à B4You (situação: {detalhe}).", _AVISAR_TI),
+    "TRANSP_NAO_INFORMADA": ("A nota está sem a transportadora no SAP.",
+                             "Logística: pedir ao Faturamento para informar a transportadora na nota no SAP. Depois o robô "
+                             "manda o e-mail sozinho"),
+    "TRANSP_INVALIDA": ("O código de transportadora {detalhe} não existe (provável erro de digitação no SAP).",
+                        "Logística: pedir ao Faturamento para corrigir a transportadora na nota no SAP. Depois o robô manda "
+                        "o e-mail sozinho"),
+    "EMAIL_TRANSP_FALHA": ("O e-mail para a {detalhe} não saiu.",
+                           "Logística não precisa agir: o robô tenta de novo; se continuar, avisar o Marcelo ou o Vitor"),
+}
+# começo do parágrafo B4YOU_FALHA: o coletor tira este parágrafo quando o robô da Unilog explica a NF
+INICIO_B4YOU_FALHA = _LOG["B4YOU_FALHA"][0].split(" (")[0]
+
+
+def textos_log() -> dict:
+    return dict(_LOG)
+
+
+def texto_log(chave, detalhe="") -> str:
+    """Texto do Portal para uma causa do log mestre: "frase\\nO que fazer: ..." (feed.classificar)."""
+    frase, quem = _LOG[chave]
+    return f"{frase.format(detalhe=detalhe)}\nO que fazer: {quem}"
+
+
+# ------------------------------------------------------------------ nome curto (etiqueta do card no Portal)
+# 12/11/2026 (Marcelo: "O que é esse PDF2Strike? não tem um nome melhor não?"): o card mostrava o problema_codigo. Agora
+# mostra um nome curto em português; o código fica no tooltip, no painel da nota e no Excel. A Azure descarta campo novo
+# (NotaPortal ignora extras), então o nome não viaja: o front lê static/nomes-alertas.js, gerado de nomes_js().
+_NOMES_TIPO = {   # alertas do robô da Unilog (problema_codigo UNILOG_<tipo>)
+    "SEM_SALDO": "Sem saldo na Unilog", "PEDIDO_SEM_SALDO": "Sem estoque para separar",
+    "SEM_EAN": "Item sem EAN no SAP", "EAN_ALTERADO": "EAN mudou no SAP", "SEM_CADASTRO": "Item sem cadastro na Unilog",
+    "CADASTRO_PENDENTE": "Cadastro aguardando a Unilog",
+    "PEDIDO_SEM_ARQUIVO": "Falta arquivo da nota", "BILLING_SEM_ARQUIVO": "Falta arquivo da nota",
+    "SEM_VOLUMES": "Sem volumes no SAP", "SHARE_NF_SEM_ARQUIVOS": "Pasta NF-SAP parada",
+    "NF_CANCELADA_SAP": "Cancelada no SAP", "CANCELAMENTO_SEM_ACAO": "Cancelamento pendente",
+    "CANCELAMENTO_MANUAL_PENDENTE": "Cancelar à mão na Unilog", "CANCELADA_NA_UNILOG": "Cancelar à mão na Unilog",
+    "CANCELADA_SO_NA_UNILOG": "Cancelada só na Unilog", "ENTRADA_DE_NF_CANCELADA": "Entrada de nota cancelada",
+    "ENTRADA_MATRIZ_NF_CANCELADA": "Entrada de nota cancelada",
+    "TRANSF_PROPRIA_FILIAL": "Nota para a própria filial",
+    "ENTRADA_DIVERGENTE": "Entrada diferente da nota", "ENTRADA_MATRIZ_DIVERGENTE": "Entrada diferente da nota",
+    "ENTRADA_IMPORTACAO_DIVERGENTE": "Entrada diferente da nota",
+    "ENTRADA_PARADA": "Entrada parada", "ENTRADA_MATRIZ_PARADA": "Entrada parada", "ENTRADA_IMPORTACAO_PARADA": "Entrada parada",
+    "ENTRADA_CANCELADA": "Entrada cancelada", "ENTRADA_MATRIZ_CANCELADA": "Entrada cancelada",
+    "ENTRADA_IMPORTACAO_CANCELADA": "Entrada cancelada",
+    "ENTRADA_MATRIZ_PENDENTE": "Entrada da Matriz pendente", "ENTRADA_IMPORTACAO_PENDENTE": "Entrada de importação pendente",
+    "ENTRADA_MATRIZ_RECUSADA": "Entrada recusada", "ENTRADA_IMPORTACAO_RECUSADA": "Entrada recusada",
+    "ENTRADA_IMPORTACAO_BLOQUEADA": "Entrada não enviada", "ENTRADA_IMPORTACAO_XML": "XML ilegível",
+    "PARADO_EM_2": "Não separado", "PARADO": "Parado na Unilog", "AGUARDA_EMBARQUE": "Não embarcado",
+    "SEPARACAO_DIVERGENTE": "Separação diferente da nota", "EMBARCADO_FORA_DE_4": "Saiu sem liberação",
+    "EMBARCADO_NF_DESCONHECIDA": "Nota desconhecida na planilha", "EMBARCADO_ARQUIVO": "Planilha ilegível",
+    "FORA_DO_ROBO": "Fora do robô",
+    "ETIQUETA_PENDENTE": "Sem etiqueta dos Correios", "ETIQUETA_FALHOU": "Etiqueta dos Correios falhou",
+    "NAO_ENVIADA": "Ainda não enviada", "POST_INCERTO": "Envio sem resposta", "POST_INCERTO_SEM_DOC": "Envio sem resposta",
+    "POST_INCERTO_SEM_PEDIDO": "Envio não chegou", "POST_RECUSADO": "Recusada pela Unilog",
+    "INTEGRADO_COM_ERRO": "Erro na Unilog", "SITUACAO_DESCONHECIDA": "Situação desconhecida",
+    "SEM_STATUS": "Sem leitura da Unilog", "DOC_SEM_REGISTRO": "Pedido fora do robô", "CADASTRO_ERRO": "Erro ao ler cadastro",
+    "CONFIRMACAO_SEM_ID": "Liberação falhou", "CONFIRMACAO_FALHOU": "Liberação falhou", "BILLING_ERRO": "Fatura recusada",
+    "CLASSE_PELA_REGRA": "Kit fora do padrão", "REENVIO_NAO_LIBERADO": "Reenvio não liberado",
+    "REQUEST_ID_DIVERGENTE": "Pedido de outra nota",
+    "ENTRADA_COM_ERRO": "Entrada com erro", "ENTRADA_MATRIZ_COM_ERRO": "Entrada com erro",
+    "ENTRADA_IMPORTACAO_COM_ERRO": "Entrada com erro",
+    "ENTRADA_CONFIRMACAO_FALHOU": "Entrada não confirmada", "ENTRADA_MATRIZ_CONFIRMACAO_FALHOU": "Entrada não confirmada",
+    "ENTRADA_IMPORTACAO_CONFIRMACAO_FALHOU": "Entrada não confirmada",
+    "ENTRADA_SEM_NF": "Entrada sem nota no SAP", "ENTRADA_CLASSE_DESCONHECIDA": "Entrada sem classe",
+    "ENTRADA_POST_FALHOU": "Envio da entrada falhou",
+    "ENTRADA_INCERTA": "Entrada sem resposta", "ENTRADA_MATRIZ_INCERTA": "Entrada sem resposta",
+    "ENTRADA_IMPORTACAO_INCERTA": "Entrada sem resposta",
+    "RETORNO_CONFIRMACAO_FALHOU": "Retorno não confirmado", "ENTRADA_MATRIZ_SEM_NF": "Nota da Matriz incompleta",
+    "SEM_ESTADO": "Portal sem dados do robô", "ESTADO_VELHO": "Robô parado", "ENVIO_PARADO": "Envio parado",
+}
+NOMES = {   # os outros motores do Portal: log mestre (feed.py), SAP (sap_feed), cancelamento (canc_feed), marketing
+    "XML_2STRIKE": "Falta XML", "PDF_2STRIKE": "Falta DANFE", "ARQUIVO_IO": "Erro ao copiar arquivos",
+    "ETIQUETA_CORREIOS": "Sem etiqueta dos Correios", "BOLETO_AUSENTE": "Falta boleto",
+    "B4YOU_SALDO": "Sem saldo na B4You", "B4YOU_CADASTRO": "Sem cadastro na B4You", "B4YOU_DUPLICIDADE": "Duplicada na B4You",
+    "B4YOU_FALHA": "Não enviada à B4You", "B4YOU_ANEXO_BOLETO": "Boleto não foi à B4You",
+    "B4YOU_ANEXO_ETIQUETA": "Etiqueta não foi à B4You",
+    "TRANSP_NAO_INFORMADA": "Sem transportadora", "TRANSP_INVALIDA": "Transportadora inválida",
+    "EMAIL_TRANSP_FALHA": "E-mail à transportadora falhou",
+    "TRANSFERENCIA_ATRASADA": "Transferência atrasada", "FALTA_CHAVE": "Sem chave de acesso", "SEFAZ_BARRADA": "Barrada na SEFAZ",
+    "USO_IGNORADO": "Utilização fora do robô", "DEPOSITO_BLOQUEADO": "Depósito bloqueado",
+    "CANC_ENVIADA_NAO_LOCALIZADA": "Cancelada, não achada na B4You", "CANC_JA_EXPEDIDA": "Cancelada, mas já saiu",
+    "CANC_PENDENTE_B4YOU": "Cancelar na B4You", "MARKETING_ETIQUETA": "Etiqueta de marketing",
+}
+# O mesmo código com nome mais preciso conforme o 1º parágrafo do texto (a causa principal da NF)
+VARIANTES = {
+    "XML_2STRIKE": [("DANFE", "Falta XML e DANFE")],
+    "UNILOG_BILLING_SEM_ARQUIVO": [("Falta o boleto", "Falta boleto")],
+    "UNILOG_PEDIDO_SEM_ARQUIVO": [("Falta o boleto", "Falta boleto")],
+}
+
+
+def nomes() -> dict:
+    """{problema_codigo: nome curto} de todos os códigos conhecidos (UNILOG_<tipo> + os outros motores)."""
+    out = {f"UNILOG_{t}": n for t, n in _NOMES_TIPO.items()}
+    out.update({"UNILOG_RECUSADO": _NOMES_TIPO["POST_RECUSADO"], "UNILOG_ERRO_INTEGRACAO": _NOMES_TIPO["INTEGRADO_COM_ERRO"]})
+    out.update(NOMES)
+    return out
+
+
+def nome_codigo(codigo, descricao="") -> str:
+    """Nome curto da etiqueta. Código desconhecido volta como veio (o Portal mostra o código, como antes)."""
+    codigo = str(codigo or "")
+    principal = str(descricao or "").split("\n\n")[0]
+    for trecho, nome in VARIANTES.get(codigo, []):
+        if trecho in principal:
+            return nome
+    return nomes().get(codigo, codigo)
+
+
+def nomes_js() -> str:
+    """static/nomes-alertas.js do Portal (gerado por tools/gerar_nomes_alertas.py do front; não editar à mão)."""
+    import json
+    return ("// Gerado de alertas_texto.py (logistica_pharma) por tools/gerar_nomes_alertas.py. Não editar à mão.\n"
+            "// Nome curto da etiqueta do card no lugar do problema_codigo (12/11/2026).\n"
+            f"window.NOMES_ALERTA = {json.dumps(nomes(), ensure_ascii=False, indent=1, sort_keys=True)};\n"
+            f"window.NOMES_ALERTA_VARIANTES = {json.dumps(VARIANTES, ensure_ascii=False, indent=1, sort_keys=True)};\n")
