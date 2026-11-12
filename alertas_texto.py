@@ -294,6 +294,36 @@ def so_boleto(detalhe) -> bool:
     return {x.strip().lower() for x in str(detalhe or "").split(",") if x.strip()} == {"boleto"}
 
 
+# 12/11/2026: a NF 19444 saía no Portal com "Falta a DANFE" do log mestre e, logo abaixo, "Pedido não enviado à Unilog:
+# falta arquivo... • Falta: DANFE" do robô -- a mesma coisa duas vezes. O coletor (coletor_azure._juntar_mesma_nf) usa
+# esta leitura para tirar o parágrafo do log quando o do robô já cobra os mesmos arquivos.
+_ARQUIVOS_LOG = {"FALTA_XML_DANFE": {"xml", "danfe"}, "FALTA_XML": {"xml"}, "FALTA_DANFE": {"danfe"},
+                 "BOLETO_AUSENTE": {"boleto"}}
+_TIPOS_ARQUIVO = ("PEDIDO_SEM_ARQUIVO", "BILLING_SEM_ARQUIVO")
+_RE_TEMPO = re.compile(r"\s*\(há \d+ (?:h|dias)\)")
+
+
+def arquivos_faltando(paragrafo) -> tuple:
+    """(origem, arquivos) de um parágrafo do Portal que cobra arquivo da nota na pasta NF-SAP. origem = "log" (frase do
+    log mestre, texto_log) ou "unilog" (bloco PEDIDO_SEM_ARQUIVO / BILLING_SEM_ARQUIVO do robô, montado por descricao);
+    arquivos em minúsculas ({"danfe", "boleto"}). Outro assunto: ("", set())."""
+    p = str(paragrafo or "").strip()
+    for chave, arquivos in _ARQUIVOS_LOG.items():
+        if p == texto_log(chave):
+            return "log", set(arquivos)
+    linhas = p.split("\n")
+    if not any(linhas[0].startswith(titulo(t).rstrip(".")) for t in _TIPOS_ARQUIVO):
+        return "", set()
+    arquivos = set()
+    for linha in linhas[1:]:
+        linha = _RE_TEMPO.sub("", linha).strip()
+        if linha == "• Falta o boleto":
+            arquivos.add("boleto")
+        elif linha.startswith("• Falta: "):
+            arquivos |= {x.strip().lower() for x in re.split(r", | e ", linha[len("• Falta: "):]) if x.strip()}
+    return "unilog", arquivos
+
+
 def categoria(tipo, detalhe="") -> str:
     """Categoria do Portal. Arquivo faltando: só o boleto = Financeiro; XML/DANFE = Faturamento."""
     if canonico(tipo) == "BILLING_SEM_ARQUIVO" and so_boleto(detalhe):
