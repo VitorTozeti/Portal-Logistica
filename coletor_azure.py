@@ -114,14 +114,27 @@ def _assinatura_subiu(ev: dict) -> str:
 
 _FRASE_B4YOU = " + Falha no envio da NF para a B4You"
 _FRASE_UNILOG = " + Falha no envio da NF para a Unilog"   # texto do feed.py do Portal desde 11/11/2026
+# Causas que só dizem "a NF não chegou ao operador": nunca são a principal quando há outra, e saem quando o robô da
+# Unilog explica a NF. UNILOG_NAO_ENVIADA (12/11/2026) é a NF do corte que o robô ainda não mandou (feed.py).
+_SO_NAO_CHEGOU = {"B4YOU_FALHA", "UNILOG_NAO_ENVIADA"}
+
+
+def _sem_nao_chegou(desc: str) -> str:
+    """A descrição sem a frase da B4You (no Portal, "para a Unilog") e sem o parágrafo "Ainda não enviada à Unilog"
+    (feed.TEXTO_NAO_ENVIADA)."""
+    for frase in (_FRASE_B4YOU, _FRASE_UNILOG):
+        if frase in desc:
+            desc = desc.split(frase)[0]
+    return "\n\n".join(p for p in desc.split("\n\n") if p != feed.TEXTO_NAO_ENVIADA)
 
 
 def _juntar_mesma_nf(travadas: list) -> list:
     """Uma travada por NF (10/11/2026). Dois motores podem travar a mesma NF — ex.: o log mestre diz que a NF não
     subiu ("Falha no envio da NF para a B4You") e o robô da Unilog diz SEM_SALDO. Antes iam as duas ao espelho com o
     mesmo id e o delta reenviava a do log a cada ciclo, por cima da outra: o Portal mostrava "Falha no envio para a
-    B4You" numa NF que estava sem saldo na Unilog. Agora a principal é a 1ª causa que não seja B4YOU_FALHA; as outras
-    entram na descrição. Se o robô da Unilog explica a NF, a frase da B4You sai (desde a virada a NF não vai à B4You)."""
+    B4You" numa NF que estava sem saldo na Unilog. Agora a principal é a 1ª causa que não seja só "não chegou"
+    (_SO_NAO_CHEGOU); as outras entram na descrição. Se o robô da Unilog explica a NF, a frase da B4You e o "Ainda não
+    enviada à Unilog" saem (vale o alerta dele: SEM_SALDO, SEM_EAN...)."""
     grupos: dict = {}
     for ev in travadas:
         grupos.setdefault(ev["id"], []).append(ev)
@@ -130,7 +143,7 @@ def _juntar_mesma_nf(travadas: list) -> list:
         if len(evs) == 1:
             out.append(evs[0])
             continue
-        principal = next((e for e in evs if e.get("problema_codigo") != "B4YOU_FALHA"), evs[0])
+        principal = next((e for e in evs if e.get("problema_codigo") not in _SO_NAO_CHEGOU), evs[0])
         tem_unilog = any(e.get("operador") == "Unilog" for e in evs)
         junta = dict(principal)
         partes = []
@@ -143,9 +156,8 @@ def _juntar_mesma_nf(travadas: list) -> list:
             if tem_unilog and e.get("problema_codigo") == "B4YOU_FALHA":
                 continue
             desc = str(e.get("problema_descricao") or "")
-            for frase in (_FRASE_B4YOU, _FRASE_UNILOG):
-                if tem_unilog and frase in desc:
-                    desc = desc.split(frase)[0]
+            if tem_unilog:
+                desc = _sem_nao_chegou(desc)   # NAO_ENVIADA com outra causa no log (ex.: e-mail da transportadora) fica
             if desc and desc not in partes:
                 partes.append(desc)
         # texto da Unilog em tópicos (alertas_texto, 11/11/2026): cada motor em seu parágrafo; uma linha só segue com " + "

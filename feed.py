@@ -17,9 +17,11 @@ import asyncio
 import csv
 import errno
 import os
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 from pathlib import Path
 
+import alertas_texto
 from hub import hub
 
 
@@ -73,13 +75,63 @@ def _nome_transp(cod: str) -> str:
     return CARRIER_NOMES.get((cod or "").strip(), cod or "—")
 
 
-def classificar(r: dict, da_unilog: bool = False):
+# --- Corte da Unilog (12/11/2026). Espelho de unilog/etapa_expedicao.corte()/fim() (mesmas variáveis do .env): a NF de
+# Varejo/Atacado emitida de UNILOG_FILIAIS_DESDE em diante (até UNILOG_FILIAIS_ATE, se houver) não vai mais à B4You. Antes
+# o feed só a tratava como Unilog depois de o robô mandá-la (estado do robô); a que ainda não tinha subido caía no ramo
+# da B4You e o Portal mostrava "Falha no envio da NF para a B4You (status: PENDENTE)" (39 NFs em 12/11).
+BPL_UNILOG = {"Varejo": 3, "Atacado": 4}          # etapa_expedicao.BPL
+_RE_DATA = re.compile(r"^20\d\d-\d\d-\d\d$")
+# Texto da NF do corte que o robô ainda não mandou (alertas_texto: frase + o que fazer). O coletor tira este parágrafo
+# quando o robô tem alerta para a NF (vale o alerta dele).
+TEXTO_NAO_ENVIADA = alertas_texto.descricao([("NAO_ENVIADA", [])])
+
+
+def _corte_unilog():
+    """(desde, ate) do corte da Unilog em AAAA-MM-DD (ate pode ser None), ou None se não configurado ou no futuro.
+    Lido a cada coleta: o .env pode ser carregado depois do import."""
+    try:
+        desde = date.fromisoformat((os.getenv("UNILOG_FILIAIS_DESDE") or "").strip())
+    except ValueError:
+        return None
+    if desde > date.today():
+        return None
+    try:
+        ate = (os.getenv("UNILOG_FILIAIS_ATE") or "").strip()
+        ate = date.fromisoformat(ate).isoformat() if ate else None
+    except ValueError:
+        ate = None
+    return desde.isoformat(), ate
+
+
+def _emissao(filial: str, nf: str, r: dict, datas: dict) -> str:
+    """Data de emissão AAAA-MM-DD: o DocDate do SAP (faturamento.datas, a mesma coluna do corte do robô em
+    sap_outbound.listar_pos_corte) ou, sem ele, a Data_Processamento do log (o robô só processa a NF depois de
+    emitida, então ela nunca é anterior à emissão). Sem nenhuma das duas: vazio."""
+    iso = str(datas.get((BPL_UNILOG.get(filial), _limpar_nf(nf))) or "")[:10]
+    if _RE_DATA.match(iso):
+        return iso
+    proc = str(r.get("Data_Processamento") or "")[:10]
+    return proc if _RE_DATA.match(proc) else ""
+
+
+def do_corte_unilog(filial: str, nf: str, r: dict, corte, datas: dict) -> bool:
+    """A NF é da Unilog pelo corte (emitida de UNILOG_FILIAIS_DESDE em diante, em Varejo ou Atacado)?"""
+    if not corte or filial not in BPL_UNILOG:
+        return False
+    desde, ate = corte
+    emissao = _emissao(filial, nf, r, datas)
+    return bool(emissao) and emissao >= desde and (not ate or emissao <= ate)
+
+
+def classificar(r: dict, da_unilog: bool = False, unilog_pendente: bool = False):
     """
     Replica gerar_excel_validacao (log_handler.py:349-443).
     Retorna (codigo, categoria, descricao) do problema, ou None se a NF está OK.
     Um problema pode ter várias causas; junta todas na descrição e usa a 1ª como código.
-    `da_unilog`: a NF foi enviada à Unilog pelo robô — a família Envio_B4You_* fica
-    PENDENTE para ela e não vale (o envio dela vem do unilog_feed).
+    `da_unilog`: a NF é da Unilog — o robô já a mandou (estado do robô) ou ela é do corte — e a família
+    Envio_B4You_* fica PENDENTE para ela e não vale (o envio dela vem do unilog_feed).
+    `unilog_pendente`: NF do corte que ainda não está no estado do robô (que foi lido). Com os arquivos OK vira
+    UNILOG_NAO_ENVIADA, "Ainda não enviada à Unilog" (12/11/2026; antes, "Falha no envio da NF para a B4You").
     """
     if r.get("Envio_B4You_NF") == "CANCELADO":
         return "CANCELADO"  # sinaliza para pular
@@ -103,7 +155,11 @@ def classificar(r: dict, da_unilog: bool = False):
     if r.get("Requer_Boleto") == "TRUE" and r.get("Status_Arq_Boleto") != "OK":
         problemas.append(("BOLETO_AUSENTE", "FINANCEIRO", "Boleto exigido não encontrado na pasta de rede"))
 
-    if status_nf == "OK" and not da_unilog:
+    # "Ignorar nota" do Portal marca o log todo OK (portal_ignorar.blindar): Envio_B4You_NF = OK -> a NF não é cobrada
+    if status_nf == "OK" and unilog_pendente and r.get("Envio_B4You_NF") != "OK":
+        problemas.append(("UNILOG_NAO_ENVIADA", alertas_texto.categoria("NAO_ENVIADA"), TEXTO_NAO_ENVIADA))
+
+    if status_nf == "OK" and not (da_unilog or unilog_pendente):
         env_nf = r.get("Envio_B4You_NF")
         if env_nf != "OK":
             if env_nf in ("BLOQUEADO_SALDO", "Bloqueado Saldo"):
@@ -133,7 +189,9 @@ def classificar(r: dict, da_unilog: bool = False):
     if not problemas:
         return None
     cod, cat, _ = problemas[0]
-    return (cod, cat, " + ".join(p[2] for p in problemas))
+    # texto em tópicos (alertas_texto) é um parágrafo: com ele, cada causa vai num parágrafo (igual ao coletor)
+    sep = "\n\n" if any("\n" in p[2] for p in problemas) else " + "
+    return (cod, cat, sep.join(p[2] for p in problemas))
 
 
 def _iso(data_proc: str) -> str:
@@ -190,12 +248,22 @@ def _limpar_nf(v: str) -> str:
 def _coletar_estado():
     """Lê os dois logs e devolve (travadas, subiram, nfs_no_log, log_index) já classificados."""
     travadas, ok_rows, nfs_no_log, log_index = [], [], set(), {}
+    estado_ok = False   # o estado do robô foi lido: só assim dá para dizer que a NF do corte ainda não foi enviada
     try:
         import unilog_feed
         sit_unilog = unilog_feed.situacoes()
+        estado_ok = unilog_feed.estado_legivel()
     except Exception as e:
         print(f"  [FEED] estado da Unilog indisponível: {e}", flush=True)
         sit_unilog = {}
+    corte = _corte_unilog()
+    datas = {}
+    if corte:
+        try:
+            import faturamento
+            datas = faturamento.datas()   # mesmo cache do enriquecer (uma query por TTL); vazio -> Data_Processamento
+        except Exception as e:
+            print(f"  [FEED] data de emissão indisponível (corte da Unilog pela Data_Processamento): {e}", flush=True)
     for filial, caminho in LOGS_MESTRE.items():
         nfs_unilog_filial = sit_unilog.get(filial, {})
         for r in _ler_csv(caminho):
@@ -218,7 +286,8 @@ def _coletar_estado():
             if not nf:
                 continue
             sit = nfs_unilog_filial.get(_limpar_nf(nf))
-            res = classificar(r, sit is not None)
+            do_corte = sit is None and do_corte_unilog(filial, nf, r, corte, datas)
+            res = classificar(r, sit is not None or do_corte, unilog_pendente=do_corte and estado_ok)
             if res == "CANCELADO" or (sit and sit["code"] == "21"):
                 continue  # cancelada na B4You (log) ou na Unilog (estado do robô)
             # "ignorada" de verdade = SÓ quando a Chave é IGNORADO (marca única do ignorar_notas.py
@@ -240,10 +309,16 @@ def _coletar_estado():
                                 "_ord": str(r.get("Data_Processamento", ""))})
             else:
                 cod, cat, desc = res
-                travadas.append({**base, "estado": "travada",
-                                 "problema_codigo": cod, "problema_categoria": cat,
-                                 "problema_descricao": desc,
-                                 "travada_desde": _iso(str(r.get("Data_Processamento", "")))})
+                ev = {**base, "estado": "travada",
+                      "problema_codigo": cod, "problema_categoria": cat,
+                      "problema_descricao": desc,
+                      "travada_desde": _iso(str(r.get("Data_Processamento", "")))}
+                if do_corte:
+                    # NF da Unilog que ainda não subiu: o monitor a conta como da Unilog (filtro e corte de datas).
+                    # Sem `operador`, que quer dizer "o robô mandou" (selo e coluna "Na Unilog"). Só na travada: na
+                    # "subiu" o grupo a poria na lista de Subiram como enviada.
+                    ev["grupo"] = "UNILOG"
+                travadas.append(ev)
     # subiram: TODAS as NFs "OK" do ano (mais recentes primeiro), teto alto só como guarda
     ano_alvo = str(ANO_SUBIRAM or datetime.now().year)
     ok_rows = [x for x in ok_rows if str(x["_ord"])[:4] == ano_alvo]
@@ -325,6 +400,13 @@ async def rodar_feed_simulado() -> None:
             todas_travadas = travadas + barradas + marketing + cancelamentos + unilog_env
             for ev in todas_travadas + subiram:
                 ev["id"] = f"{ev.get('filial','?')}:{ev['nf']}"
+            # Uma travada por NF, igual ao coletor (12/11/2026): sem isto a do log e a do robô da Unilog, com o mesmo id,
+            # se revezavam no hub a cada ciclo (ex.: "Ainda não enviada" por cima do SEM_SALDO do robô).
+            try:
+                from coletor_azure import _juntar_mesma_nf
+                todas_travadas = _juntar_mesma_nf(todas_travadas)
+            except Exception as e:
+                print(f"  [FEED] não juntei as travadas da mesma NF: {e}", flush=True)
             try:
                 import faturamento
                 await asyncio.to_thread(faturamento.enriquecer, todas_travadas + subiram)

@@ -11,8 +11,10 @@ Liga só quando `PORTAL_UNILOG_ESTADO` aponta para o JSON. Sem a variável o por
 igual ao modo B4You (nenhuma NF é tratada como Unilog).
 
 A decisão B4You × Unilog é POR NF: NF que está no estado do robô é da Unilog (a família
-`Envio_B4You_*` do log mestre fica PENDENTE para ela e não pode virar alerta); o resto
-segue a regra da B4You. Isso cobre o período misto da virada sem flag.
+`Envio_B4You_*` do log mestre fica PENDENTE para ela e não pode virar alerta). Desde 12/11/2026 a NF
+de Varejo/Atacado emitida do corte em diante (UNILOG_FILIAIS_DESDE, feed._corte_unilog) também é da
+Unilog mesmo antes de o robô mandá-la: fora do estado, ela vira "Ainda não enviada à Unilog"
+(UNILOG_NAO_ENVIADA), não mais "Falha no envio da NF para a B4You".
 
 Situações da Unilog (as do robô, já traduzidas de nome para código):
 1 PENDING · 2 INTEGRATED · 3 PENDING_CONFIRMATION · 4 CONFIRMED ·
@@ -95,6 +97,12 @@ def _limpar(nf) -> str:
         return str(int(str(nf).strip()))
     except ValueError:
         return str(nf or "").strip().lstrip("0")
+
+
+def estado_legivel() -> bool:
+    """O estado do robô está ligado e foi lido? Sem isto o feed não sabe se a NF do corte foi enviada (12/11/2026): com o
+    arquivo fora, toda NF do corte pareceria "ainda não enviada" -- o Portal já mostra UNILOG_SEM_ESTADO nesse caso."""
+    return ligado() and _ler()[0] is not None
 
 
 def nfs_unilog() -> dict:

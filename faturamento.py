@@ -48,15 +48,29 @@ def _carregar() -> dict:
         conn.close()
 
 
+# Depois de uma falha de conexão, não tenta de novo antes disto (s). Desde 12/11/2026 o feed também lê o DocDate (corte
+# da Unilog) no mesmo ciclo do enriquecer: sem a espera, o HANA fora do ar custaria duas tentativas por ciclo.
+ESPERA_FALHA = int(__import__("os").getenv("PORTAL_FATURAMENTO_ESPERA_FALHA", "60"))
+
+
 def _mapa() -> dict:
     if _cache["mapa"] and time.time() - _cache["quando"] < TTL:
+        return _cache["mapa"]
+    if time.time() - _cache.get("falhou", 0.0) < ESPERA_FALHA:
         return _cache["mapa"]
     try:
         if HANA["user"] and HANA["password"]:
             _cache["mapa"], _cache["quando"] = _carregar(), time.time()
     except Exception as e:
+        _cache["falhou"] = time.time()
         print(f"  [FATURAMENTO] não consegui ler o DocDate ({e}) — mantendo o último cache.", flush=True)
     return _cache["mapa"]
+
+
+def datas() -> dict:
+    """{(BPLId, serial): data de faturamento ISO} -- o DocDate do SAP, o mesmo cache do enriquecer (uma query por TTL).
+    O feed usa para saber se a NF é do corte da Unilog (a mesma coluna de unilog/sap_outbound.listar_pos_corte)."""
+    return _mapa()
 
 
 def enriquecer(eventos: list[dict]) -> None:
