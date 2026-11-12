@@ -74,6 +74,8 @@ window.NOMES_ALERTA = {
  "UNILOG_ESTADO_VELHO": "Robô parado",
  "UNILOG_ETIQUETA_FALHOU": "Etiqueta dos Correios falhou",
  "UNILOG_ETIQUETA_PENDENTE": "Sem etiqueta dos Correios",
+ "UNILOG_FATURA_PARADA": "Fatura parada",
+ "UNILOG_FATURA_SEM_RESPOSTA": "Fatura sem resposta",
  "UNILOG_FORA_DO_ROBO": "Fora do robô",
  "UNILOG_INTEGRADO_COM_ERRO": "Erro na Unilog",
  "UNILOG_NAO_ENVIADA": "Ainda não enviada",

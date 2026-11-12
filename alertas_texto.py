@@ -247,6 +247,14 @@ _TIPOS = {
                      "Logística: avisar o Marcelo ou o Vitor e perguntar à Unilog se a API está fora do ar ou lenta. O "
                      "robô tenta de novo a cada rodada e envia sozinho quando a Unilog responder; não mandar pedido à mão",
                      "msg"),
+    # 12/11/2026: alerta da filial (NF "FATURA"), repetido enquanto o disjuntor da fatura estiver aberto (robo_saida.faturar)
+    "FATURA_PARADA": (INTEGRACAO, "A fatura das notas não está indo para a Unilog nesta filial: a Unilog não respondeu.",
+                      "Logística: avisar o Marcelo ou o Vitor e perguntar à Unilog se a API está fora do ar ou lenta. Sem a "
+                      "fatura a mercadoria não sai; o robô manda sozinho quando a Unilog responder, não mandar à mão",
+                      "msg"),
+    "FATURA_SEM_RESPOSTA": (INTEGRACAO, "A Unilog não respondeu à fatura desta nota em mais de uma rodada.",
+                            "Logística não precisa agir: avisar o Marcelo ou o Vitor (pode ser algo desta nota na Unilog). O "
+                            "robô tenta de novo a cada rodada", "ti"),
 }
 _DESCONHECIDO = (INTEGRACAO, "Aviso do robô da Unilog.", _AVISAR, "msg")
 
@@ -557,6 +565,7 @@ _NOMES_TIPO = {   # alertas do robô da Unilog (problema_codigo UNILOG_<tipo>)
     "ENTRADA_IMPORTACAO_INCERTA": "Entrada sem resposta",
     "RETORNO_CONFIRMACAO_FALHOU": "Retorno não confirmado", "ENTRADA_MATRIZ_SEM_NF": "Nota da Matriz incompleta",
     "SEM_ESTADO": "Portal sem dados do robô", "ESTADO_VELHO": "Robô parado", "ENVIO_PARADO": "Envio parado",
+    "FATURA_PARADA": "Fatura parada", "FATURA_SEM_RESPOSTA": "Fatura sem resposta",
 }
 NOMES = {   # os outros motores do Portal: log mestre (feed.py), SAP (sap_feed), cancelamento (canc_feed), marketing
     "XML_2STRIKE": "Falta XML", "PDF_2STRIKE": "Falta DANFE", "ARQUIVO_IO": "Erro ao copiar arquivos",
