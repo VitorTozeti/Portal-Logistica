@@ -131,6 +131,29 @@ def _sem_nao_chegou(desc: str) -> str:
                        if p != feed.TEXTO_NAO_ENVIADA and not p.startswith(alertas_texto.INICIO_B4YOU_FALHA))
 
 
+def _sem_arquivo_repetido(partes: list) -> list:
+    """Arquivo faltando dito uma vez só (12/11/2026). O log mestre ("Falta a DANFE (PDF da nota) na pasta NF-SAP.") e o
+    robô da Unilog ("Pedido não enviado à Unilog: falta arquivo da nota na pasta NF-SAP. • Falta: DANFE (há 4 h)")
+    cobravam o mesmo arquivo da mesma NF, um parágrafo embaixo do outro (19444, 19451 e 19454). Sai o parágrafo do log
+    cujos arquivos o robô já cobra; o do robô fica (diz há quanto tempo e que o pedido não subiu) e sobe para o lugar do
+    que saiu. O que só o log cobra (ex.: o boleto, que o pedido não espera) continua."""
+    pars = [p for parte in partes for p in parte.split("\n\n")]
+    lidos = [alertas_texto.arquivos_faltando(p) for p in pars]
+    cobertos = set().union(*(arqs for origem, arqs in lidos if origem == "unilog"))
+    repetidos = {i for i, (origem, arqs) in enumerate(lidos) if origem == "log" and arqs and arqs <= cobertos}
+    if not repetidos:
+        return partes
+    robo = [i for i, (origem, _) in enumerate(lidos) if origem == "unilog"]
+    lugar = min(min(repetidos), robo[0])
+    out = []
+    for i, p in enumerate(pars):
+        if i == lugar:
+            out += [pars[j] for j in robo]
+        if i not in repetidos and i not in robo:
+            out.append(p)
+    return out
+
+
 def _juntar_mesma_nf(travadas: list) -> list:
     """Uma travada por NF (10/11/2026). Dois motores podem travar a mesma NF — ex.: o log mestre diz que a NF não
     subiu ("Falha no envio da NF para a B4You") e o robô da Unilog diz SEM_SALDO. Antes iam as duas ao espelho com o
@@ -163,6 +186,7 @@ def _juntar_mesma_nf(travadas: list) -> list:
                 desc = _sem_nao_chegou(desc)   # NAO_ENVIADA com outra causa no log (ex.: e-mail da transportadora) fica
             if desc and desc not in partes:
                 partes.append(desc)
+        partes = _sem_arquivo_repetido(partes)
         # texto da Unilog em tópicos (alertas_texto, 11/11/2026): cada motor em seu parágrafo; uma linha só segue com " + "
         junta["problema_descricao"] = ("\n\n" if any("\n" in p for p in partes) else " + ").join(partes)
         out.append(junta)

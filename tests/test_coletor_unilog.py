@@ -89,5 +89,22 @@ class TestDelta(Base):
         self.assertEqual(atual["Varejo:1"], "subiu|2|Na fila de separação")
 
 
+class TestArquivoUmaVez(unittest.TestCase):
+    """12/11/2026, NF 19444: "Falta a DANFE" (log mestre) e "Falta: DANFE" (robô da Unilog) na mesma NF -> um só."""
+
+    def test_19444(self):
+        import alertas_texto as at
+        log = {"id": "Varejo:19444", "nf": "19444", "filial": "Varejo", "problema_codigo": "PDF_2STRIKE",
+               "problema_categoria": "FATURAMENTO",
+               "problema_descricao": at.texto_log("FALTA_DANFE") + "\n\n" + at.texto_log("BOLETO_AUSENTE")}
+        pedido = ("PEDIDO_SEM_ARQUIVO", [("falta DANFE no share NF-SAP ha 4h", "DANFE")])
+        robo = dict(log, operador="Unilog", problema_codigo="UNILOG_PEDIDO_SEM_ARQUIVO",
+                    problema_descricao=at.descricao([pedido]))
+        junta = c._juntar_mesma_nf([log, robo])[0]
+        self.assertEqual(junta["problema_codigo"], "PDF_2STRIKE")
+        self.assertEqual(junta["problema_descricao"].split("\n\n"),
+                         [at.descricao([pedido]), at.texto_log("BOLETO_AUSENTE")])
+
+
 if __name__ == "__main__":
     unittest.main()
