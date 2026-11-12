@@ -194,6 +194,44 @@ def _corte_alertas(dados, mtime) -> float:
     return mtime - HORAS_ALERTA * 3600
 
 
+# Tipos de alerta que cada etapa do robô grava (RoboSaida.ciclo; tests/test_portal_ultimo_ciclo confere contra o código
+# do robô). 12/11/2026: com a /v2/billings da Unilog fora, todo ciclo fechava com `parcial` = ['faturar:UNILOG_INDISPONIVEL']
+# e o `anterior` ficou parado nas 14:47 -- todo alerta visto naquele ciclo seguia "ativo" no Portal, mesmo resolvido
+# (19444, 19451 e 19454 em "Falta DANFE" já enviadas às 15:18). Agora a tolerância vale só para os tipos da etapa que
+# falhou; os outros usam o início do ciclo, que rodou inteiro para eles. Etapa em falha sem lista aqui -> tolerância para
+# todos (como antes).
+_TIPOS_POR_ETAPA = {
+    "faturar": frozenset({"BILLING_ERRO", "BILLING_SEM_ARQUIVO", "NF_CANCELADA_SAP", "POST_INCERTO_SEM_PEDIDO",
+                          "SHARE_NF_SEM_ARQUIVOS"}),
+}
+
+
+def _tipos_tolerados(dados):
+    """Tipos que seguem com a tolerância do `anterior` num ciclo fechado com falha (`parcial`). None = todos: ciclo
+    inteiro, em andamento ou interrompido (aí vale _corte_alertas) ou etapa em falha que não está em _TIPOS_POR_ETAPA."""
+    c = dados.get("ciclo") or {}
+    if not (c.get("inicio") and c.get("fim") and c.get("parcial")):
+        return None
+    tipos = set()
+    for chave in c["parcial"]:
+        etapa = str(chave).split(":")[0]
+        if etapa not in _TIPOS_POR_ETAPA:
+            return None
+        tipos |= _TIPOS_POR_ETAPA[etapa]
+    return tipos
+
+
+# Avisos que seguram o pedido antes do envio ("o pedido não foi enviado"): a NF com pedido aceito (request_id) depois do
+# último aviso já se resolveu, qualquer que seja o corte (12/11/2026, mesmo caso das 19444/19451/19454).
+_ANTES_DO_ENVIO = frozenset({"PEDIDO_SEM_ARQUIVO", "SEM_SALDO", "SEM_EAN", "SEM_CADASTRO", "CADASTRO_PENDENTE",
+                             "ETIQUETA_PENDENTE"})
+
+
+def _timestamp(ts):
+    iso = _iso(ts)
+    return datetime.fromisoformat(iso).timestamp() if iso else None
+
+
 def coletar_unilog() -> list:
     """Travadas de envio na Unilog, no formato do hub. Uma por NF (a 1ª causa vira o código)."""
     if not ligado():
@@ -219,6 +257,7 @@ def coletar_unilog() -> list:
 
     finais = set()
     faturadas = set()      # billing OK: o alerta de arquivo faltando para a fatura ja foi resolvido
+    enviadas = {}          # (filial, nf) -> quando o pedido foi aceito (request_id): resolve os avisos _ANTES_DO_ENVIO
     # "Ignorar no robo" do Portal (secao `ignoradas` do estado): sai da lista na hora
     ignoradas = {(i.get("filial"), _limpar(i.get("serial"))) for i in (dados.get("ignoradas") or {}).values()}
     # entrada da Matriz ja enviada: o aviso ENTRADA_MATRIZ_PENDENTE do ciclo anterior ficava ate 3 h (49671, 11/11)
@@ -230,6 +269,8 @@ def coletar_unilog() -> list:
             continue
         if (reg.get("billing") or {}).get("ok"):
             faturadas.add((filial, nf))
+        if reg.get("request_id") and _timestamp(reg.get("enviado_em")) is not None:
+            enviadas[(filial, nf)] = _timestamp(reg.get("enviado_em"))
         code = str(reg.get("status_code") or "")
         etapa = str(reg.get("etapa") or "")
         desde = reg.get("status_desde") or reg.get("enviado_em")
@@ -255,16 +296,23 @@ def coletar_unilog() -> list:
 
     # alertas que o robô repetiu no último ciclo (os antigos já foram resolvidos)
     corte = _corte_alertas(dados, mtime)
+    tolerados = _tipos_tolerados(dados)
+    corte_ciclo = _timestamp((dados.get("ciclo") or {}).get("inicio")) if tolerados is not None else None
+    if corte_ciclo is None:
+        tolerados = None
     for a in dados.get("alertas", {}).values():
-        visto = _iso(a.get("ultimo"))
-        if not visto or datetime.fromisoformat(visto).timestamp() < corte:
+        tipo = str(a.get("tipo") or "")
+        visto = _timestamp(a.get("ultimo"))
+        limite = corte if tolerados is None or tipo in tolerados else corte_ciclo
+        if visto is None or visto < limite:
             continue
         filial, nf = a.get("filial"), _limpar(a.get("serial"))
-        if (filial, nf) in finais and a.get("tipo") not in _ALERTAS_DEPOIS_DO_FIM:
+        if (filial, nf) in finais and tipo not in _ALERTAS_DEPOIS_DO_FIM:
             continue
         if (filial, nf) in ignoradas:
             continue
-        tipo = str(a.get("tipo") or "")
+        if tipo in _ANTES_DO_ENVIO and enviadas.get((filial, nf), 0) > visto:
+            continue
         if tipo == "ENTRADA_MATRIZ_PENDENTE" and (filial, nf) in matriz_enviada:
             continue
         # 11/11/2026: a fatura subiu depois do ultimo aviso -- sem isto a NF ficava ate 3 h no Portal (47 de uma vez),
