@@ -14,7 +14,7 @@ import alertas_texto  # noqa: E402
 
 class NomesAlertas(unittest.TestCase):
     def test_arquivo_gerado_esta_em_dia(self):
-        atual = (RAIZ / "static" / "nomes-alertas.js").read_bytes().decode("utf-8")
+        atual = (RAIZ / "static" / "nomes-alertas.js").read_bytes().decode("utf-8").replace("\r\n", "\n")   # checkout CRLF
         self.assertEqual(atual, alertas_texto.nomes_js(), "rode: python -B tools/gerar_nomes_alertas.py")
 
     def test_monitor_carrega_o_arquivo(self):
