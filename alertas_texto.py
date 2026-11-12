@@ -119,6 +119,9 @@ _TIPOS = {
                               "Logística não precisa agir: avisar o Marcelo ou o Vitor para enviar a entrada", None),
     "ENTRADA_DIVERGENTE": (ENTRADA, "A conferência da entrada na Unilog deu diferente da nota; o robô não confirmou a entrada.",
                            _DIVERGENTE.format(o_que="falta, avaria, lote ou classe"), "divergencias"),
+    "ENTRADA_PARADA": (ENTRADA, "Entrada enviada à Unilog e ainda não conferida: a mercadoria não entrou no estoque.",
+                       "Logística: perguntar à Unilog se a carga chegou e quando fazem a conferência; se a mercadoria não "
+                       "foi para a Unilog, avisar o Marcelo ou o Vitor", "dias"),
     "ENTRADA_CANCELADA": (ENTRADA, "A Unilog cancelou a entrada: a mercadoria não entra no estoque.",
                           "Logística: perguntar à Unilog por que a entrada foi cancelada e avisar o Marcelo ou o Vitor", None),
     "ENTRADA_MATRIZ_PENDENTE": (ENTRADA, "Nota da Matriz sem entrada na Unilog: o envio automático está desligado.",
@@ -185,6 +188,11 @@ _TIPOS = {
                           "SAP). O robô envia a NF quando a etiqueta existir", None),
     "ETIQUETA_FALHOU": (CORREIOS, "O robô não conseguiu gerar a etiqueta dos Correios.", _AVISAR, "ti"),
     # --- integração (envio e leitura pela API)
+    # 12/11/2026: NF de Varejo/Atacado do corte em diante que o robô ainda não mandou e sobre a qual ele não avisou nada.
+    # Montada pelo Portal (feed.py), não pelo robô. Antes aparecia como "Falha no envio da NF para a B4You".
+    "NAO_ENVIADA": (INTEGRACAO, "Ainda não enviada à Unilog.",
+                    "Logística não precisa agir: o robô envia a nota sozinho na rodada seguinte (a cada 15 min, das 7h às "
+                    "23h). Se ela continuar aqui depois de duas rodadas, avisar o Marcelo ou o Vitor", None),
     "POST_INCERTO": (INTEGRACAO, "O envio à Unilog ficou sem resposta: o pedido pode ter entrado.",
                      "Logística: perguntar à Unilog se a NF entrou e, se entrou, o número do pedido (requestId); não reenviar "
                      "nem cancelar antes da resposta. Depois avisar o Marcelo ou o Vitor", None),
