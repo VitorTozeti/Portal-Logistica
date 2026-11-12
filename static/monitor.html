@@ -16,6 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth-cf.js?v=20261030"></script>
 <script src="./portal-auth.js?v=20261030"></script>
+<script src="./nomes-alertas.js?v=20261112"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
@@ -831,6 +832,16 @@
   // operador) entram em Integração até o coletor republicar.
   const CAT_LEGADO = { UNILOG:"INTEGRACAO", B4YOU:"INTEGRACAO" };
   const catKey = n => { const k = n.problema_categoria || n.grupo || "OUTROS"; return CAT_LEGADO[k] || k; };
+  // ---- nome curto da etiqueta (12/11/2026, "O que é esse PDF2Strike?") ----
+  // Vem de static/nomes-alertas.js, gerado do alertas_texto.py do robô (tools/gerar_nomes_alertas.py): o mesmo nome do
+  // e-mail. A variante olha só a causa principal (1º parágrafo). Código desconhecido aparece como antes; o código fica
+  // no tooltip, no painel da nota e no Excel.
+  function nomeAlerta(n){
+    const c = String(n.problema_codigo || "");
+    const principal = String(n.problema_descricao || "").split("\n\n")[0];
+    for(const [trecho, nome] of ((window.NOMES_ALERTA_VARIANTES || {})[c] || [])) if(principal.includes(trecho)) return nome;
+    return (window.NOMES_ALERTA || {})[c] || c.replace(/^B4YOU/, "UNILOG");
+  }
   const CAT_LABEL = {
     FATURAMENTO:"Faturamento", ARQUIVOS:"Arquivos", CORREIOS:"Correios",
     FINANCEIRO:"Financeiro", TRANSPORTADORA:"Transportadora",
@@ -884,7 +895,7 @@
     return `<div class="nf travada" style="border-left-color:${cor}" onclick="abrirTravada('${esc(n.id)}')">`
       + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
       + `<span class="fil">${esc(n.filial||"")}</span>`
-      + `<span class="tag" style="${estiloTag(n)}">${esc(String(n.problema_codigo||"").replace(/^B4YOU/,"UNILOG"))}</span>`
+      + `<span class="tag" style="${estiloTag(n)}" title="Código: ${esc(n.problema_codigo||"")}">${esc(nomeAlerta(n))}</span>`
       + grpBadge(n)
       + `<span class="carrier">${esc(n.transportadora)}</span></div>`
       + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
@@ -1146,8 +1157,8 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   $("#stuck-xls").addEventListener("click", () => baixarCSV(mostrarOcultas ? "NFs_ocultas" : "NFs_travadas",
-    ["Filial","NF","Problema","Categoria","Responsável","Descrição","Travada desde","Faturada em","Transportadora","Na Unilog"],
-    _travVis.map(n => [n.filial, n.nf, n.problema_codigo, CAT_LABEL[catKey(n)] || catKey(n), respDe(n), n.problema_descricao,
+    ["Filial","NF","Problema","Código","Categoria","Responsável","Descrição","Travada desde","Faturada em","Transportadora","Na Unilog"],
+    _travVis.map(n => [n.filial, n.nf, nomeAlerta(n), n.problema_codigo, CAT_LABEL[catKey(n)] || catKey(n), respDe(n), n.problema_descricao,
       dataBR(n.travada_desde), dataBR(n.data_faturamento), n.transportadora, n.operador === "Unilog" ? (n.unilog_situacao || "Enviada") : ""])));
   $("#flow-xls").addEventListener("click", () => baixarCSV("NFs_fluxo_Unilog",
     ["Filial","NF","Etapa","Na etapa desde","Horas na etapa","Enviada à Unilog em","Faturada em","Transportadora","Pedido na Unilog"],
@@ -1257,6 +1268,7 @@
       ["Cliente", esc(n.cliente||"—"), false, null],
       ["Faturada em", esc(dataBR(n.data_faturamento) || "—"), false, null],
       ["Travada há", t?("◷ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
+      ["Código", `<span style="font-family:ui-monospace,monospace;font-size:12px">${esc(n.problema_codigo||"—")}</span>`, false, null],
     ];
     // texto em tópicos (Unilog, 11/11/2026): a 1ª linha é a frase do que aconteceu (título); o resto vai no corpo,
     // com "O que fazer:" em negrito. Texto de uma linha (outros motores) segue como antes: 1ª causa no título.
@@ -1824,7 +1836,7 @@
     $("#rh-corpo").innerHTML = l.length ? '<table class="rh-tab"><thead><tr><th>NF</th><th>Situação</th><th>Motivo</th><th>Pedido</th><th>Robô</th><th></th></tr></thead><tbody>'
       + l.map(p => `<tr><td><b>${esc(p.nf)}</b><small>${esc(p.filial)}${p.tipo === "boleto" ? " · só o boleto" : ""}</small></td>`
         + `<td><span class="rh-st ${esc(p.status)}">${esc(ROT_ST[p.status] || p.status)}</span></td>`
-        + `<td>${esc(p.motivo)}${p.problema ? `<small>${esc(p.problema)}</small>` : ""}</td>`
+        + `<td>${esc(p.motivo)}${p.problema ? `<small title="Código: ${esc(p.problema)}">${esc(nomeAlerta({problema_codigo: p.problema}))}</small>` : ""}</td>`
         + `<td>${esc(p.por)}<small>${esc(quandoBR(p.pedido_em))}</small></td>`
         + `<td>${p.status === "cancelada" ? `cancelado por ${esc(p.cancelado_por)}<small>${esc(quandoBR(p.cancelado_em))}</small>`
               : p.aplicado_em ? `${esc(quandoBR(p.aplicado_em))}<small>${esc(p.mensagem)}</small>` : "—"}</td>`

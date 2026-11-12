@@ -54,6 +54,7 @@ try:
 except Exception:
     pass
 
+import alertas_texto  # início do parágrafo da falha da B4You (_sem_nao_chegou)
 import feed  # reusa _coletar_estado() e as constantes de classificação
 
 # ── Configuração (tudo por env; nada de segredo no código) ──────────────────
@@ -113,19 +114,21 @@ def _assinatura_subiu(ev: dict) -> str:
 
 
 _FRASE_B4YOU = " + Falha no envio da NF para a B4You"
-_FRASE_UNILOG = " + Falha no envio da NF para a Unilog"   # texto do feed.py do Portal desde 11/11/2026
+_FRASE_UNILOG = " + Falha no envio da NF para a Unilog"   # texto antigo do feed.py da cópia do Portal (11/11/2026)
 # Causas que só dizem "a NF não chegou ao operador": nunca são a principal quando há outra, e saem quando o robô da
 # Unilog explica a NF. UNILOG_NAO_ENVIADA (12/11/2026) é a NF do corte que o robô ainda não mandou (feed.py).
 _SO_NAO_CHEGOU = {"B4YOU_FALHA", "UNILOG_NAO_ENVIADA"}
 
 
 def _sem_nao_chegou(desc: str) -> str:
-    """A descrição sem a frase da B4You (no Portal, "para a Unilog") e sem o parágrafo "Ainda não enviada à Unilog"
-    (feed.TEXTO_NAO_ENVIADA)."""
+    """A descrição sem a frase da B4You e sem o parágrafo "Ainda não enviada à Unilog" (feed.TEXTO_NAO_ENVIADA).
+    Desde 12/11/2026 a falha da B4You é um parágrafo próprio (alertas_texto.texto_log("B4YOU_FALHA")); a frase antiga
+    com " + " fica para texto de antes (a cópia do Portal escrevia "para a Unilog")."""
     for frase in (_FRASE_B4YOU, _FRASE_UNILOG):
         if frase in desc:
             desc = desc.split(frase)[0]
-    return "\n\n".join(p for p in desc.split("\n\n") if p != feed.TEXTO_NAO_ENVIADA)
+    return "\n\n".join(p for p in desc.split("\n\n")
+                       if p != feed.TEXTO_NAO_ENVIADA and not p.startswith(alertas_texto.INICIO_B4YOU_FALHA))
 
 
 def _juntar_mesma_nf(travadas: list) -> list:

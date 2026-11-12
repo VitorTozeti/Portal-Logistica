@@ -4,7 +4,8 @@ envio da NF para a B4You (status: PENDENTE)" (código UNILOG_FALHA na tela). Ago
 
     python -m unittest tests/test_portal_nao_enviada.py
 
-Mesma versão do teste do robô (logistica_pharma), com o texto da B4You do feed.py do Portal ("para a Unilog").
+Mesma versão do teste do robô (logistica_pharma). Desde 12/11/2026 o feed.py daqui é igual ao do robô (textos do log
+mestre de alertas_texto.texto_log).
 """
 import csv
 import json
@@ -59,7 +60,7 @@ class Classificar(unittest.TestCase):
     def test_antes_do_corte_segue_a_b4you(self):
         cod, cat, desc = feed.classificar(linha("9000"))
         self.assertEqual(cod, "B4YOU_FALHA")
-        self.assertIn("Falha no envio da NF", desc)     # o feed do Portal diz "para a Unilog" desde 11/11
+        self.assertIn("B4You", desc)
 
     def test_ignorada_pelo_portal_nao_e_cobrada(self):
         ok = {k: "OK" for k in COLUNAS if k.startswith(("Status_", "Envio_"))}
@@ -73,8 +74,7 @@ class Classificar(unittest.TestCase):
     def test_etiqueta_e_nao_enviada_em_paragrafos(self):
         cod, cat, desc = feed.classificar(linha("9625", Status_Arq_Etiqueta="PENDENTE"), True, unilog_pendente=True)
         self.assertEqual(cod, "ETIQUETA_CORREIOS")
-        self.assertEqual(desc.split("\n\n"), [
-            "Etiqueta Correios não gerada (corrigir cadastro do cliente no SAP)", feed.TEXTO_NAO_ENVIADA])
+        self.assertEqual(desc.split("\n\n"), [at.texto_log("ETIQUETA_CORREIOS"), feed.TEXTO_NAO_ENVIADA])
 
     def test_do_corte_sem_estado_lido_nao_acusa_nada(self):
         # sem o estado do robô não dá para saber se subiu: nem B4You nem "não enviada" (o Portal mostra UNILOG_SEM_ESTADO)
