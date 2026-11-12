@@ -45,8 +45,17 @@ STATUS = {
 # tipo de alerta do robô -> categoria do portal: alertas_texto.categoria (11/11/2026: sem a categoria "UNILOG" -- tudo é
 # Unilog desde a virada; a categoria diz o assunto e quem age, igual ao e-mail)
 # Estes continuam valendo com a NF em status final (21 ou 22): pedem ação de alguém mesmo sem o robô ler a Unilog.
+# 12/11/2026: também os da entrada no destino (transferência) e do retorno do cancelamento. A entrada é conferida depois
+# que a saída embarca (22) e o retorno depois do cancelamento (21), então o Portal descartava todos eles: a 19143
+# (transferência Varejo -> Atacado, entrada divergente desde 07/11) só saía no e-mail. A lista tem de cobrir todo alerta
+# das etapas `entradas` e `retornos` do robô (tests/test_portal_ultimo_ciclo.py::TestAlertasDepoisDoFim).
 _ALERTAS_DEPOIS_DO_FIM = {"CANCELAMENTO_MANUAL_PENDENTE", "NF_CANCELADA_SAP", "CANCELADA_SO_NA_UNILOG",
-                          "ENTRADA_DE_NF_CANCELADA"}
+                          "ENTRADA_DE_NF_CANCELADA",
+                          # entrada no destino da transferência (RoboSaida.entradas)
+                          "ENTRADA_DIVERGENTE", "ENTRADA_COM_ERRO", "ENTRADA_CONFIRMACAO_FALHOU", "ENTRADA_SEM_NF",
+                          "ENTRADA_CLASSE_DESCONHECIDA", "ENTRADA_POST_FALHOU", "ENTRADA_INCERTA",
+                          # retorno do cancelamento (RoboSaida.retornos)
+                          "RETORNO_CONFIRMACAO_FALHOU"}
 
 _cache = {"mtime": None, "dados": None}
 
