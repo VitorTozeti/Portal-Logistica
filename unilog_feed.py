@@ -29,8 +29,9 @@ from pathlib import Path
 import alertas_texto   # categoria, frase e "o que fazer" de cada alerta -- os mesmos do e-mail de pendencias
 
 ESTADO = os.getenv("PORTAL_UNILOG_ESTADO", "").strip()
-# Pedido parado na mesma situação há mais que isto vira travada (mesmo default do robô).
-HORAS_PARADO = float(os.getenv("PORTAL_UNILOG_HORAS_PARADO", os.getenv("UNILOG_HORAS_PARADO", "168")))
+# Pedido parado na mesma situação há mais que isto vira ponto de atenção (alertas_texto.ATENCAO: fora das Travadas), com o
+# mesmo padrão do alarme do robô (UNILOG_HORAS_PARADO, 48 h desde 12/11/2026; era 168 h).
+HORAS_PARADO = float(os.getenv("PORTAL_UNILOG_HORAS_PARADO", os.getenv("UNILOG_HORAS_PARADO", "48")))
 # Só para estado sem a seção `ciclo` (robô de antes de 11/11): alerta ativo se repetido até X horas antes da última
 # gravação do arquivo. Com a seção, vale o último ciclo (_corte_alertas).
 HORAS_ALERTA = float(os.getenv("PORTAL_UNILOG_HORAS_ALERTA", "3"))
@@ -250,8 +251,11 @@ def coletar_unilog() -> list:
         o que aconteceu, um tópico por item, o que fazer). O texto é montado no fim, com todos os alertas da NF."""
         k = (filial, nf)
         if k not in por_nf:
-            por_nf[k] = {"ev": _ev(filial, nf, cod, alertas_texto.categoria(tipo, detalhe), "", desde), "blocos": {}}
-        bloco = por_nf[k]["blocos"].setdefault(alertas_texto.canonico(tipo), (tipo, []))
+            por_nf[k] = {"ev": _ev(filial, nf, cod, alertas_texto.categoria(tipo, detalhe), "", desde), "blocos": {},
+                         "origem": {}}
+        canon = alertas_texto.canonico(tipo)
+        bloco = por_nf[k]["blocos"].setdefault(canon, (tipo, []))
+        por_nf[k]["origem"].setdefault(canon, (cod, alertas_texto.categoria(tipo, detalhe), desde))
         if (mensagem, detalhe) not in bloco[1]:
             bloco[1].append((mensagem, detalhe))
 
@@ -324,7 +328,15 @@ def coletar_unilog() -> list:
 
     out = []
     for item in por_nf.values():
-        item["ev"]["problema_descricao"] = alertas_texto.descricao(list(item["blocos"].values()))
+        blocos, origem = item["blocos"], item["origem"]
+        if "PARADO_EM_2" in blocos and "PARADO" in blocos:     # o mesmo atraso dito pelo alarme do robô e pelo Portal
+            del blocos["PARADO"], origem["PARADO"]
+        # 12/11/2026: ponto de atenção (só acompanhar) nunca é a causa principal se a NF tem algo que pede ação -- senão a
+        # NF com separação divergente E parada há 2 dias iria para Atenção. Sem atenção na NF, a ordem não muda.
+        ordem = sorted(blocos, key=lambda c: alertas_texto.e_atencao(origem[c][1]))
+        cod, cat, desde = origem[ordem[0]]
+        item["ev"].update(problema_codigo=cod, problema_categoria=cat, travada_desde=_iso(desde),
+                          problema_descricao=alertas_texto.descricao([blocos[c] for c in ordem]))
         out.append(item["ev"])
     idade_h = (agora - mtime) / 3600
     if idade_h >= HORAS_ARQUIVO_VELHO:

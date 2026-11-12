@@ -24,6 +24,13 @@ ENTRADA = "TRANSFERENCIA"        # mesma chave do Portal para "Transferência at
 EXPEDICAO = "EXPEDICAO"
 CORREIOS = "CORREIOS"
 INTEGRACAO = "INTEGRACAO"
+# 12/11/2026 (Marcelo): pedido mais demorado que o normal na Unilog não é travada. "Precisamos tomar cuidado para não
+# misturar coisas que exigem uma ação imediata e coisas que são só avisos ou pontos de atenção, senão começa a entrar em
+# desuso." No Portal fica fora da lista e do contador de Travadas; no e-mail, numa seção própria no fim.
+ATENCAO = "ATENCAO"
+# Até quando o atraso é só para acompanhar: depois disso a Logística pergunta à Unilog. 7 dias = o limite que o Portal
+# usava até 12/11/2026 para mostrar o pedido parado como travada (decisão do Marcelo: mudar aqui).
+DIAS_PERGUNTAR_UNILOG = 7
 
 ROTULOS = {
     ESTOQUE: "Estoque",
@@ -35,7 +42,18 @@ ROTULOS = {
     EXPEDICAO: "Separação e embarque",
     CORREIOS: "Correios",
     INTEGRACAO: "Integração",
+    ATENCAO: "Pontos de atenção",
 }
+
+
+# A frase da seção/bloco de pontos de atenção: a mesma no e-mail (email_pendencias) e no Portal (nomes-alertas.js).
+TEXTO_ATENCAO = (f"Não travou: pedidos mais demorados que o normal na Unilog. Ninguém precisa agir agora; se passar de "
+                 f"{DIAS_PERGUNTAR_UNILOG} dias, a Logística pergunta à Unilog.")
+
+
+def e_atencao(categoria) -> bool:
+    """Só acompanhar (não travou)? O resto das categorias pede ação de alguém."""
+    return categoria == ATENCAO
 
 # nomes das classes de estoque da Unilog (kits.py: 00 avulso, 12 item de kit; 93 e A2 são bloqueadas)
 CLASSES = {"00": "avulso", "12": "kit", "93": "falta", "A2": "avaria"}
@@ -159,14 +177,20 @@ _TIPOS = {
     "ENTRADA_IMPORTACAO_CANCELADA": (ENTRADA, "A Unilog cancelou a entrada da importação: a mercadoria não entra no estoque.",
                                      "Logística: perguntar à Unilog por que a entrada foi cancelada e avisar o Marcelo ou o "
                                      "Vitor", None),
+    # --- pontos de atenção: o pedido não travou, está mais demorado que o normal (12/11/2026; antes em Separação e embarque,
+    # como travada, mandando "perguntar à Unilog")
+    "PARADO_EM_2": (ATENCAO, "Pedido recebido pela Unilog e ainda não separado.",
+                    f"Só acompanhar: o pedido não travou, a separação está demorando. Se passar de {DIAS_PERGUNTAR_UNILOG} "
+                    "dias, a Logística pergunta à Unilog por que não separou (falta de estoque, lote ou classe diferente; "
+                    "a Unilog só avisa isso por e-mail)", "horas"),
+    "PARADO": (ATENCAO, "Pedido demorando na mesma etapa da Unilog.",
+               f"Só acompanhar: o pedido não travou, está mais demorado que o normal. Se passar de {DIAS_PERGUNTAR_UNILOG} "
+               "dias, a Logística pergunta à Unilog o que falta para o pedido andar", "msg"),
+    "AGUARDA_EMBARQUE": (ATENCAO, "Pedido separado na Unilog e ainda não embarcado.",
+                         f"Só acompanhar: o pedido não travou, a coleta está demorando. Se passar de "
+                         f"{DIAS_PERGUNTAR_UNILOG} dias, a Logística pergunta à Unilog quando sai a coleta (ou se a "
+                         "transportadora já levou)", "msg"),
     # --- separação e embarque
-    "PARADO_EM_2": (EXPEDICAO, "Pedido recebido pela Unilog e ainda não separado.",
-                    "Logística: perguntar à Unilog por que o pedido não foi separado (falta de estoque, lote ou classe "
-                    "diferente); a Unilog só avisa isso por e-mail", "horas"),
-    "PARADO": (EXPEDICAO, "Pedido parado na mesma etapa da Unilog há muito tempo.",
-               "Logística: perguntar à Unilog o que falta para o pedido andar", "msg"),
-    "AGUARDA_EMBARQUE": (EXPEDICAO, "Pedido separado na Unilog e ainda não embarcado.",
-                         "Logística: perguntar à Unilog quando sai a coleta (ou se a transportadora já levou)", "msg"),
     "SEPARACAO_DIVERGENTE": (EXPEDICAO, "A Unilog separou diferente da nota; o robô não liberou a saída.",
                              "Logística: conferir com a Unilog o que foi separado; se estiver errado, a Unilog refaz a "
                              "separação. Avisar o Marcelo ou o Vitor", "divergencias"),
@@ -543,7 +567,7 @@ _NOMES_TIPO = {   # alertas do robô da Unilog (problema_codigo UNILOG_<tipo>)
     "ENTRADA_MATRIZ_PENDENTE": "Entrada da Matriz pendente", "ENTRADA_IMPORTACAO_PENDENTE": "Entrada de importação pendente",
     "ENTRADA_MATRIZ_RECUSADA": "Entrada recusada", "ENTRADA_IMPORTACAO_RECUSADA": "Entrada recusada",
     "ENTRADA_IMPORTACAO_BLOQUEADA": "Entrada não enviada", "ENTRADA_IMPORTACAO_XML": "XML ilegível",
-    "PARADO_EM_2": "Não separado", "PARADO": "Parado na Unilog", "AGUARDA_EMBARQUE": "Não embarcado",
+    "PARADO_EM_2": "Demorando para separar", "PARADO": "Demorando na Unilog", "AGUARDA_EMBARQUE": "Demorando para embarcar",
     "SEPARACAO_DIVERGENTE": "Separação diferente da nota", "EMBARCADO_FORA_DE_4": "Saiu sem liberação",
     "EMBARCADO_NF_DESCONHECIDA": "Nota desconhecida na planilha", "EMBARCADO_ARQUIVO": "Planilha ilegível",
     "FORA_DO_ROBO": "Fora do robô",
@@ -612,4 +636,6 @@ def nomes_js() -> str:
     return ("// Gerado de alertas_texto.py (logistica_pharma) por tools/gerar_nomes_alertas.py. Não editar à mão.\n"
             "// Nome curto da etiqueta do card no lugar do problema_codigo (12/11/2026).\n"
             f"window.NOMES_ALERTA = {json.dumps(nomes(), ensure_ascii=False, indent=1, sort_keys=True)};\n"
-            f"window.NOMES_ALERTA_VARIANTES = {json.dumps(VARIANTES, ensure_ascii=False, indent=1, sort_keys=True)};\n")
+            f"window.NOMES_ALERTA_VARIANTES = {json.dumps(VARIANTES, ensure_ascii=False, indent=1, sort_keys=True)};\n"
+            "// Pontos de atenção (12/11/2026): a categoria que fica fora das Travadas e a frase do bloco (a mesma do e-mail).\n"
+            f"window.ALERTA_ATENCAO = {json.dumps({'categoria': ATENCAO, 'texto': TEXTO_ATENCAO}, ensure_ascii=False)};\n")
