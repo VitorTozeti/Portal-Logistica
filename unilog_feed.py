@@ -202,7 +202,7 @@ def _corte_alertas(dados, mtime) -> float:
 # todos (como antes).
 _TIPOS_POR_ETAPA = {
     "faturar": frozenset({"BILLING_ERRO", "BILLING_SEM_ARQUIVO", "NF_CANCELADA_SAP", "POST_INCERTO_SEM_PEDIDO",
-                          "SHARE_NF_SEM_ARQUIVOS"}),
+                          "SHARE_NF_SEM_ARQUIVOS", "FATURA_PARADA", "FATURA_SEM_RESPOSTA"}),
 }
 
 
