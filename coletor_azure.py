@@ -169,7 +169,13 @@ def _juntar_mesma_nf(travadas: list) -> list:
         if len(evs) == 1:
             out.append(evs[0])
             continue
-        principal = next((e for e in evs if e.get("problema_codigo") not in _SO_NAO_CHEGOU), evs[0])
+        causas = [e for e in evs if e.get("problema_codigo") not in _SO_NAO_CHEGOU] or evs
+        # 13/11/2026 (Leo): "o filtro transferência deveria falar mais alto do que o estoque" -- NF com causa de
+        # Entrada e transferência (TRANSFERENCIA_ATRASADA do sap_feed, ou o aviso de estoque de uma transferência)
+        # tem essa como principal por regra; antes era pela ordem dos motores (a 19480 só caiu certo por sorte)
+        transf = [e for e in causas if e.get("problema_categoria") == alertas_texto.ENTRADA]
+        # o evento do SAP (sap_feed) vem antes do aviso da Unilog: a etiqueta e o responsável não dependem da ordem
+        principal = next((e for e in transf if e.get("operador") != "Unilog"), transf[0] if transf else causas[0])
         tem_unilog = any(e.get("operador") == "Unilog" for e in evs)
         junta = dict(principal)
         partes = []

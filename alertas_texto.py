@@ -332,11 +332,22 @@ def arquivos_faltando(paragrafo) -> tuple:
     return "unilog", arquivos
 
 
-def categoria(tipo, detalhe="") -> str:
-    """Categoria do Portal. Arquivo faltando: só o boleto = Financeiro; XML/DANFE = Faturamento."""
+# 13/11/2026 (Leo, Marcelo: "O filtro transferência deveria falar mais alto do que o estoque"): NF de transferência
+# (uso 106-109; o robô lê nf["tipo"] == "TRANSFERENCIA" do SAP) com aviso de Estoque fica em Entrada e transferência, no
+# Portal e no e-mail. O texto segue dizendo a causa (falta de estoque); só muda a categoria. Só o Estoque, por ora.
+NF_TRANSFERENCIA = "TRANSFERENCIA"
+SOBEM_PARA_TRANSFERENCIA = frozenset({ESTOQUE})
+
+
+def categoria(tipo, detalhe="", nf_tipo="") -> str:
+    """Categoria do Portal. Arquivo faltando: só o boleto = Financeiro; XML/DANFE = Faturamento. `nf_tipo` = o tipo da NF
+    que o robô gravou no alerta (ou o do registro da NF): transferência com aviso de Estoque = Entrada e transferência."""
     if canonico(tipo) == "BILLING_SEM_ARQUIVO" and so_boleto(detalhe):
         return FINANCEIRO
-    return _cat(tipo)[0]
+    cat = _cat(tipo)[0]
+    if nf_tipo == NF_TRANSFERENCIA and cat in SOBEM_PARA_TRANSFERENCIA:
+        return ENTRADA
+    return cat
 
 
 def rotulo(cat) -> str:
