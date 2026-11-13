@@ -167,7 +167,7 @@
       <textarea id="txt" rows="1" placeholder="Pergunte por uma NF, um item, uma filial…" aria-label="Sua pergunta"></textarea>
       <button class="env" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </form>
-    <p class="nota">Consulta o Monitor de NFs e o conhecimento da Logística. Saldo e lotes do SAP ainda não.</p>
+    <p class="nota" id="nota">Consulta o Monitor de NFs, o SAP, a Unilog e o conhecimento da Logística.</p>
   </div>
 </main>
 <div id="toast" role="status"></div>
@@ -293,7 +293,8 @@
     fetch(API + "/v1/assistente/saude").then(function(r){ return r.json(); }).then(function(s){
       var el = document.querySelector(".estado");
       el.querySelector(".t").textContent = (s.portal ? "Monitor" : "Monitor fora") + " · " + (s.conhecimento ? "Conhecimento" : "sem conhecimento") + (s.sap ? " · SAP" : "");
-      el.title = "Fontes ligadas agora" + (s.sap ? "" : " (SAP ainda não ligado)");
+      el.title = "Fontes ligadas agora" + (s.sap ? "" : " (SAP fora do ar agora)");
+      if(!s.sap) document.getElementById("nota").textContent = "SAP fora do ar agora: respondo com o último dado que chegou.";
       el.querySelector(".dot").style.background = s.portal && s.conhecimento ? "" : "var(--warn)";
     }).catch(function(){ var el = document.querySelector(".estado"); el.querySelector(".t").textContent = "Assistente fora do ar"; el.querySelector(".dot").style.background = "var(--err)"; });
   }
