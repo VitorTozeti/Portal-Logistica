@@ -22,7 +22,7 @@ window.NOMES_ALERTA = {
  "TRANSFERENCIA_ATRASADA": "Transferência atrasada",
  "TRANSP_INVALIDA": "Transportadora inválida",
  "TRANSP_NAO_INFORMADA": "Sem transportadora",
- "UNILOG_AGUARDA_EMBARQUE": "Não embarcado",
+ "UNILOG_AGUARDA_EMBARQUE": "Demorando para embarcar",
  "UNILOG_BILLING_ERRO": "Fatura recusada",
  "UNILOG_BILLING_SEM_ARQUIVO": "Falta arquivo da nota",
  "UNILOG_CADASTRO_ERRO": "Erro ao ler cadastro",
@@ -80,8 +80,8 @@ window.NOMES_ALERTA = {
  "UNILOG_INTEGRADO_COM_ERRO": "Erro na Unilog",
  "UNILOG_NAO_ENVIADA": "Ainda não enviada",
  "UNILOG_NF_CANCELADA_SAP": "Cancelada no SAP",
- "UNILOG_PARADO": "Parado na Unilog",
- "UNILOG_PARADO_EM_2": "Não separado",
+ "UNILOG_PARADO": "Demorando na Unilog",
+ "UNILOG_PARADO_EM_2": "Demorando para separar",
  "UNILOG_PEDIDO_SEM_ARQUIVO": "Falta arquivo da nota",
  "UNILOG_PEDIDO_SEM_SALDO": "Sem estoque para separar",
  "UNILOG_POST_INCERTO": "Envio sem resposta",
@@ -125,3 +125,5 @@ window.NOMES_ALERTA_VARIANTES = {
   ]
  ]
 };
+// Pontos de atenção (12/11/2026): a categoria que fica fora das Travadas e a frase do bloco (a mesma do e-mail).
+window.ALERTA_ATENCAO = {"categoria": "ATENCAO", "texto": "Não travou: pedidos mais demorados que o normal na Unilog. Ninguém precisa agir agora; se passar de 7 dias, a Logística pergunta à Unilog."};

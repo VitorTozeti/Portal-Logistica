@@ -169,7 +169,9 @@ def _juntar_mesma_nf(travadas: list) -> list:
         if len(evs) == 1:
             out.append(evs[0])
             continue
-        principal = next((e for e in evs if e.get("problema_codigo") not in _SO_NAO_CHEGOU), evs[0])
+        causas = [e for e in evs if e.get("problema_codigo") not in _SO_NAO_CHEGOU] or evs
+        # ponto de atenção (só acompanhar, 12/11/2026) só é a principal se nada na NF pede ação
+        principal = next((e for e in causas if not alertas_texto.e_atencao(e.get("problema_categoria"))), causas[0])
         tem_unilog = any(e.get("operador") == "Unilog" for e in evs)
         junta = dict(principal)
         partes = []

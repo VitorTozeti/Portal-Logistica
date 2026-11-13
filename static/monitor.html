@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./portal-auth-cf.js?v=20261030"></script>
 <script src="./portal-auth.js?v=20261030"></script>
-<script src="./nomes-alertas.js?v=2026111202"></script>
+<script src="./nomes-alertas.js?v=2026111203"></script>
 <script>
   // Barra o acesso: no Pages a página fica oculta até o Firebase confirmar o login;
   // sem sessão válida → tela de entrada.
@@ -149,6 +149,22 @@
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .grp{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px}
   .nf.subiu .tag{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  /* pontos de atenção (12/11/2026): pedido demorando na Unilog NÃO é travada -- bloco à parte, recolhido, em tom neutro,
+     fora da lista e do contador de Travadas (não pode parecer alarme, senão o que pede ação perde força) */
+  .atencao{margin-top:14px;border:1px dashed var(--line);border-radius:11px;padding:8px 12px;background:transparent}
+  .atencao[hidden]{display:none}
+  .atencao summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    font-size:13.5px;font-weight:700;color:var(--ink2);min-height:32px}
+  .atencao summary::-webkit-details-marker{display:none}
+  .atencao summary::before{content:"▸";font-size:11px;opacity:.7}
+  .atencao[open] summary::before{content:"▾"}
+  .atencao .at-sub{font-weight:500;font-size:12px;opacity:.85}
+  .atencao .at-txt{font-size:12.5px;color:var(--ink2);margin:4px 0 10px;line-height:1.45}
+  .nf.atencao-card{cursor:pointer;border-left-color:var(--line);opacity:.92}
+  .nf.atencao-card:hover{border-color:var(--ink2)}
+  .nf.atencao-card .tag{background:transparent;border:1px solid var(--line);color:var(--ink2);font-weight:600}
+  .nf.atencao-card .desc{-webkit-line-clamp:3}
+  .nf.atencao-card .tempo,.nf.atencao-card .tempo.velho{color:var(--ink2);font-weight:500}
   /* filtro de operador (04/11/2026): durante a transição B4You -> Unilog dá para olhar cada um separado */
   .opbar{max-width:1440px;width:100%;margin:0 auto;padding:16px 28px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .opbar .rot{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
@@ -645,6 +661,12 @@
     <div class="filtros" id="filtros"></div>
     <div class="filtros" id="ocultas-bar"></div>
     <div id="stuck"><div class="empty">nada travado 🎉</div></div>
+    <details class="atencao" id="atencao" hidden>
+      <summary><span aria-hidden="true">⏳</span> Pontos de atenção <span class="count" id="c-aten">0</span>
+        <span class="at-sub">não travou · só acompanhar</span></summary>
+      <p class="at-txt" id="aten-txt"></p>
+      <div id="aten-lista"></div>
+    </details>
   </div>
   <div class="col">
     <h2><span class="hdot"></span>Subiram <span class="count" id="c-up">0</span></h2>
@@ -789,7 +811,7 @@
     TRANSFERENCIA:"#1a97b0",AUDITORIA:"#34bce2",  BARRADAS_SAP:"#40d8e0",
     MARKETING:"#6bc4ee",    CANCELAMENTO:"#20c2d1",RASTREIO:"#8fd6f0",
     INTEGRACAO:"#5fb8f5",   CADASTRO:"#3fd0c0",   ESTOQUE:"#2aa9d8",
-    EXPEDICAO:"#4fd1c5",    OUTROS:"#7fa9b5",
+    EXPEDICAO:"#4fd1c5",    OUTROS:"#7fa9b5",   ATENCAO:"#9aa5b1",
   };
   // No tema CLARO o ciano some no branco: as categorias usam tons AZUIS mais escuros
   // (família fria azul/indigo/teal, todos legíveis sobre branco, no espírito do acento
@@ -800,7 +822,7 @@
     TRANSFERENCIA:"#155e75",AUDITORIA:"#1e3a8a",  BARRADAS_SAP:"#0891b2",
     MARKETING:"#6d28d9",    CANCELAMENTO:"#0f766e",RASTREIO:"#0284c7",
     INTEGRACAO:"#3730a3",   CADASTRO:"#115e59",   ESTOQUE:"#1e3a8a",
-    EXPEDICAO:"#0c4a6e",    OUTROS:"#475569",
+    EXPEDICAO:"#0c4a6e",    OUTROS:"#475569",   ATENCAO:"#64748b",
   };
   const ehTemaClaro = () => document.documentElement.getAttribute("data-theme") === "light";
   const catCor = k => (ehTemaClaro() ? (CAT_COR_LIGHT[k] || PAL.p4) : (CAT_COR[k] || PAL.p4));
@@ -849,8 +871,12 @@
     BARRADAS_SAP:"Barrada SAP", MARKETING:"Marketing", CANCELAMENTO:"Cancelamento",
     RASTREIO:"Rastreio", CADASTRO:"Cadastro", ESTOQUE:"Estoque",
     EXPEDICAO:"Separação e embarque", INTEGRACAO:"Integração",
-    OUTROS:"Outros",
+    OUTROS:"Outros", ATENCAO:"Pontos de atenção",
   };
+  // ---- pontos de atenção (12/11/2026, Marcelo): "não é uma coisa que travou, é só para se olhar que está mais demorado".
+  // A categoria e a frase vêm do nomes-alertas.js (alertas_texto.py do robô), as mesmas do e-mail.
+  const ATENCAO = (window.ALERTA_ATENCAO || {}).categoria || "ATENCAO";
+  const ehAtencao = n => catKey(n) === ATENCAO;
 
   function tempoDesde(iso){
     if(!iso) return null;
@@ -902,6 +928,18 @@
       + ((tempo || n.data_faturamento) ? `<div class="meta">${n.data_faturamento ? `<span>Faturada em ${esc(dataBR(n.data_faturamento))}</span> ` : ""}${tempo}</div>` : "")
       + `</div>`;
   }
+  // ponto de atenção: card neutro (sem a cor da categoria nem o cronômetro "velho"), abre o mesmo painel
+  function cardAtencao(n){
+    const t = tempoDesde(n.travada_desde);
+    return `<div class="nf atencao-card" onclick="abrirTravada('${esc(n.id)}')">`
+      + `<div class="top"><span class="num">NF ${esc(n.nf)}</span>`
+      + `<span class="fil">${esc(n.filial||"")}</span>`
+      + `<span class="tag" title="Código: ${esc(n.problema_codigo||"")}">${esc(nomeAlerta(n))}</span>`
+      + `<span class="carrier">${esc(n.transportadora)}</span></div>`
+      + `<div class="desc">${esc(n.problema_descricao||"")}</div>`
+      + (t ? `<div class="meta"><span class="tempo" data-sem-alarme="1" data-iso="${esc(n.travada_desde)}">◷ ${t.texto}</span></div>` : "")
+      + `</div>`;
+  }
   // situação da NF na Unilog (só NF que o robô mandou à Unilog — campo operador)
   function seloUnilog(n){
     if(n.operador !== "Unilog") return "";
@@ -950,11 +988,27 @@
     mostrarOcultas = !mostrarOcultas; limiteTravadas = PASSO_TRAVADAS; render();
   });
 
+  // Pontos de atenção: fora da lista e do contador de Travadas, num bloco recolhido em tom neutro. Mostra todos (sem os
+  // ocultos), do mais antigo ao mais novo; some quando não há nenhum.
+  let _atenHTML = "";
+  function renderAtencao(){
+    const box = $("#atencao"); if(!box) return;
+    const lista = [...stuck.values()].filter(n => ehAtencao(n) && !ocultas.has(n.id) && travadaAtual(n))
+      .sort((a,b) => String(a.travada_desde||"").localeCompare(String(b.travada_desde||"")));
+    box.hidden = !lista.length;
+    $("#c-aten").textContent = lista.length;
+    $("#aten-txt").textContent = (window.ALERTA_ATENCAO || {}).texto || "";
+    const html = lista.map(cardAtencao).join("");
+    if(html !== _atenHTML){ $("#aten-lista").innerHTML = html; _atenHTML = html; }
+  }
+
   function renderTravadas(){
     renderOcultasChip();
     // lista-base: as visíveis (sem as ocultas) ou, no modo "ocultas", só as ocultas
     sincronizarOperador();
-    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas && travadaAtual(n));   // 11/11: todos os TIPOS de travada (SAP/SEFAZ, marketing, cancelamento, Unilog...); só a B4You antiga (< corte) fica fora
+    const base = [...stuck.values()].filter(n => ocultas.has(n.id) === mostrarOcultas && travadaAtual(n)   // 11/11: todos os TIPOS de travada (SAP/SEFAZ, marketing, cancelamento, Unilog...); só a B4You antiga (< corte) fica fora
+      && (mostrarOcultas || !ehAtencao(n)));   // 12/11: ponto de atenção não é travada (bloco próprio, renderAtencao)
+    renderAtencao();
     const cont = new Map();
     for(const n of base){ const k = catKey(n); cont.set(k,(cont.get(k)||0)+1); }
     const cats = [...cont.keys()].sort((a,b)=> (CAT_LABEL[a]||a).localeCompare(CAT_LABEL[b]||b));
@@ -1101,7 +1155,7 @@
     const fases = FASES_UNILOG.map(f => ({ t:f.t, e:f.e.filter(e => !e.opcional || (por.get(e.nome)||[]).length) }));
     if(extras.length) fases.push({ t:"Outras", e:extras });
     const etapas = fases.flatMap(f => f.e);
-    const travN = [...stuck.values()].filter(n => opDe(n) === "Unilog" && !ocultas.has(n.id)).length;
+    const travN = [...stuck.values()].filter(n => opDe(n) === "Unilog" && !ocultas.has(n.id) && !ehAtencao(n)).length;
     $("#fk-trav").textContent = travN;
     $("#flow-total").textContent = lista.length;
     $("#flow-sub").textContent = lista.length ? "" : "Nenhuma nota com esses filtros.";
@@ -1255,7 +1309,8 @@
     const n = stuck.get(id); if(!n) return;
     abertaId = id; tipoAberto = "travada";
     const cor = corDe(n);
-    $("#dw-eyebrow").textContent = "Nota travada";
+    const aten = ehAtencao(n);    // ponto de atenção: mesmo painel, sem cara de alarme
+    $("#dw-eyebrow").textContent = aten ? "Ponto de atenção · não travou" : "Nota travada";
     $("#dw-num").textContent = "NF " + (n.nf||"—");
     $("#dw-pills").innerHTML =
       `<span class="pill" style="background:${cor}22;color:${cor}">${esc(catLabel(n))}</span>`
@@ -1267,7 +1322,7 @@
       ["Pedido", esc(n.pedido||"—"), false, null],
       ["Cliente", esc(n.cliente||"—"), false, null],
       ["Faturada em", esc(dataBR(n.data_faturamento) || "—"), false, null],
-      ["Travada há", t?("◷ "+t.texto):"—", t&&t.velho, n.travada_desde||null],
+      [aten ? "Parado há" : "Travada há", t?("◷ "+t.texto):"—", t&&t.velho&&!aten, n.travada_desde||null],
       ["Código", `<span style="font-family:ui-monospace,monospace;font-size:12px">${esc(n.problema_codigo||"—")}</span>`, false, null],
     ];
     // texto em tópicos (Unilog, 11/11/2026): a 1ª linha é a frase do que aconteceu (título); o resto vai no corpo,
@@ -1281,9 +1336,9 @@
 
     let corpo = rows.map(([l,v,velho,iso]) =>
         `<div class="info-row"><span class="lbl">${l}</span>`
-        + `<span class="val ${velho?"velho":""}"${iso?` id="dw-tempo" data-iso="${esc(iso)}"`:""}>${v}</span></div>`).join("")
+        + `<span class="val ${velho?"velho":""}"${iso?` id="dw-tempo" data-iso="${esc(iso)}"${aten?' data-sem-alarme="1"':""}`:""}>${v}</span></div>`).join("")
       + `<div class="alert" style="background:${cor}14;border-left:4px solid ${cor}">`
-        + `<div class="at" style="color:${cor}">⚠️ ${alertTitulo}</div>`
+        + `<div class="at" style="color:${cor}">${aten ? "⏳" : "⚠️"} ${alertTitulo}</div>`
         + `<div class="ax">${alertTexto}</div></div>`;
 
     if(ehBoleto){
@@ -1463,7 +1518,7 @@
       const t = tempoDesde(el.dataset.iso);
       if(!t) return;
       el.textContent = "◷ " + t.texto;
-      el.classList.toggle("velho", t.velho);
+      el.classList.toggle("velho", t.velho && el.dataset.semAlarme !== "1");   // ponto de atenção não fica vermelho
     });
   }, 1000);
 
