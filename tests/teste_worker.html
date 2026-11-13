@@ -150,6 +150,22 @@ try {
   r = await api(TI, "POST", "usuarios/lote", { itens: [{ email: "novo@x.com", perfil: "leitor", niveis: { monitor: "ver" } }] });
   r = await api(TI, "GET", "acessos-log?limite=3");
   log(r.j.some(x => x.alvo === "novo@x.com" && x.tipo === "adicionou" && x.detalhe[0] === "Pessoa adicionada"), "lote: pessoa adicionada registrada", r.j);
+
+  // 13. uso do portal (13/11/2026): carimbo cria a tabela sozinho, 1 linha por pessoa/dia/ferramenta, atualiza o ultimo acesso
+  r = await api("l@x.com", "POST", "uso", { f: "monitor" });
+  log(r.status === 204, "carimbo de uso (cria a tabela sozinho)", r);
+  await api("l@x.com", "POST", "uso", { f: "monitor" });
+  await api("l@x.com", "POST", "uso", { f: "painel" });
+  r = await api("l@x.com", "POST", "uso", { f: "qualquer" });
+  log(r.status === 400, "ferramenta desconhecida recusada (400)", r.status);
+  const linhasUso = db.exec("SELECT ferramenta, vezes FROM uso_diario WHERE email = 'l@x.com' ORDER BY ferramenta")[0].values;
+  log(JSON.stringify(linhasUso) === '[["monitor",2],["painel",1]]', "1 linha por ferramenta/dia, conta as vezes", linhasUso);
+  const ult = db.exec("SELECT ultimo_acesso FROM usuarios WHERE email = 'l@x.com'")[0].values[0][0];
+  log(ult > 1000, "carimbo atualiza o ultimo acesso", ult);
+  r = await api(TI, "GET", "uso?dias=30");
+  log(r.status === 200 && r.j.dias === 30 && r.j.linhas.length === 2 && r.j.linhas[0].email === "l@x.com", "TI le o uso", r.j);
+  r = await api("l@x.com", "GET", "uso");
+  log(r.status === 403, "uso so para admin (403)", r.status);
 } catch (e) { out.push("ERRO NO TESTE: " + (e && e.stack || e)); }
 window.__r = out; document.getElementById("out").textContent = out.join("\n") + "\n\n" + (out.filter(x => x.startsWith("FALHA") || x.startsWith("ERRO")).length + " falha(s)");
 window.__pronto = true;

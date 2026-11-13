@@ -79,7 +79,19 @@ window.PortalGateCF = (function () {
       if (e.message === "sem-acesso") { try { sessionStorage.setItem("portal_sem_acesso", "1"); } catch (_) {} }
       else if (e.message !== "sem-sessao") erroCarga = true;
       return null;
-    }).then((p) => { usuarioAtual = p; return p; });
+    }).then((p) => { usuarioAtual = p; if (p) carimbarUso(); return p; });
+
+    // uso do portal (13/11/2026): 1 POST /api/uso por ferramenta por dia em cada aba (sessionStorage evita repetir),
+    // para o TI ver quem usa o quê em Usuários e permissões. Falha aqui nunca atrapalha a página.
+    function carimbarUso() {
+      const pag = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "");
+      const f = { "": "painel", index: "painel", painel: "painel", monitor: "monitor", custo: "custo",
+                  pedidos: "pedidos", usuarios: "usuarios", assistente: "assistente" }[pag];
+      if (!f) return;
+      const k = "cf_uso_" + f + "_" + new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+      try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch (_) {}
+      req("POST", "/uso", { f }).catch(() => {});
+    }
 
     // ---- ações (ignorar/reativar NF): sem tempo real nativo → consulta a cada 15 s enquanto houver ouvinte ----
     let ultimaLeitura = 0;

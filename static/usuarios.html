@@ -127,6 +127,34 @@
     #pf-corpo td[data-l]::before{content:attr(data-l);color:var(--soft);font-size:12px;font-weight:700}
     #pf-corpo tr{border-bottom:1px solid var(--line);padding:8px 4px}
   }
+  /* abas + uso do portal (13/11/2026) */
+  .abas{display:flex;gap:4px;margin:12px 0 18px;border-bottom:1px solid var(--line)}
+  .abas button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font-weight:700;font-size:14px;color:var(--soft);cursor:pointer;margin-bottom:-1px}
+  .abas button[aria-selected=true]{color:var(--brand);border-bottom-color:var(--brand)}
+  .uso-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .uso-top select{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+  .chip{display:inline-flex;gap:6px;align-items:center;font-size:13px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;background:var(--card)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .kpi b{display:block;font-size:26px;line-height:1.1} .kpi span{font-size:12.5px;color:var(--soft)}
+  .card-uso{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .barras{display:flex;align-items:flex-end;gap:3px;height:90px}
+  .barras i{flex:1;min-width:3px;background:var(--brand);border-radius:3px 3px 0 0;opacity:.85}
+  .barras i.zero{background:var(--line);height:2px!important}
+  .sit{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;white-space:nowrap}
+  .sit::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c)}
+  .av{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--brand) 22%,transparent);color:var(--brand);font-weight:800;font-size:12px;margin-right:8px;flex:none}
+  .pes{display:flex;align-items:center} .pes small{display:block;color:var(--soft);font-size:12px}
+  .tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:2px 4px 2px 0}
+  .tag.falta{border-style:dashed;color:var(--soft)}
+  @media (max-width:720px){
+    #u-tab,#u-tab thead,#u-tab tbody,#u-tab tr,#u-tab td{display:block;width:100%} #u-tab{min-width:0}
+    #u-tab thead{position:absolute;left:-9999px}
+    #u-tab tr{border-bottom:1px solid var(--line);padding:10px 12px}
+    #u-tab td{border:0;padding:4px 0;display:flex;justify-content:space-between;gap:12px;text-align:right}
+    #u-tab td[data-l]::before{content:attr(data-l);color:var(--soft);font-size:12px;font-weight:700;text-align:left;flex:none}
+    #u-tab td[data-l="Pessoa"]{display:block;text-align:left} #u-tab td[data-l="Pessoa"]::before{content:none}
+  }
 </style>
 <link rel="stylesheet" href="./ui.css?v=20261026c">
 </head>
@@ -140,6 +168,28 @@
 </header>
 <main>
   <h1>Quem entra e o que pode fazer</h1>
+  <nav class="abas" role="tablist" aria-label="Seções">
+    <button type="button" role="tab" id="t-pessoas" aria-selected="true" aria-controls="aba-pessoas">👥 Pessoas e permissões</button>
+    <button type="button" role="tab" id="t-uso" aria-selected="false" aria-controls="aba-uso">📊 Uso do portal</button>
+  </nav>
+  <section id="aba-uso" role="tabpanel" aria-labelledby="t-uso" hidden>
+    <div class="uso-top">
+      <p class="sub" style="margin:0">Quem está usando o portal. O TI fica fora da conta.</p>
+      <span class="esp"></span>
+      <label class="chip"><input type="checkbox" id="u-ti"> mostrar TI</label>
+      <select id="u-dias" aria-label="Período"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select>
+      <button class="btn" id="u-csv" type="button">⬇ CSV</button>
+    </div>
+    <div class="kpis" id="u-kpis"></div>
+    <div class="card-uso"><div class="mini-sub" style="margin:0 0 8px">Pessoas ativas por dia</div><div class="barras" id="u-barras"></div></div>
+    <div class="tools" style="margin-top:14px">
+      <input id="u-busca" type="search" placeholder="Buscar e-mail…" aria-label="Buscar e-mail no uso">
+      <select id="u-sit" aria-label="Situação"><option value="">todas as situações</option><option value="ativo">🟢 Ativo</option><option value="sumido">🟡 Sumido</option><option value="parado">🔴 Parado</option><option value="nunca">⚪ Nunca entrou</option></select>
+    </div>
+    <div class="scroll"><table id="u-tab"><thead><tr><th>Pessoa</th><th>Situação</th><th>Último acesso</th><th class="c">Dias ativos (7 d)</th><th class="c">Dias ativos (período)</th><th>Usa</th><th>Liberado e não usa</th></tr></thead><tbody id="u-corpo"><tr><td class="vazio" colspan="7">carregando…</td></tr></tbody></table></div>
+    <p class="mini-sub" id="u-nota" style="margin-top:8px"></p>
+  </section>
+  <section id="aba-pessoas" role="tabpanel" aria-labelledby="t-pessoas">
   <p class="sub">Cada pessoa tem um <b>perfil</b> (o modelo de acesso) e um <b>nível por ferramenta</b>: <b>Sem acesso</b>, <b>Ver</b> ou <b>Editar</b>. Ao trocar o perfil, os níveis do modelo são aplicados; depois dá para ajustar uma pessoa (ela fica marcada como "personalizado").</p>
 
   <details class="add" id="legenda" open><summary>ℹ️ O que cada nível permite</summary>
@@ -194,6 +244,7 @@
     <div class="linha" style="margin-top:10px"><input id="hist-q" type="search" placeholder="Filtrar por pessoa ou por quem alterou…" aria-label="Filtrar o histórico" style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px"></div>
     <div id="hist-corpo" style="margin-top:10px"><p class="mini-sub">abra para carregar</p></div>
   </details>
+  </section>
 </main>
 <div id="toasts" aria-live="polite"></div>
 <script>
@@ -443,6 +494,95 @@ if(window.PortalGate && PortalGate.ativo() && CF){
   opcoesPerfil();
   $("#corpo").innerHTML = '<tr><td class="vazio" colspan="9">Os níveis de acesso funcionam no portal da Cloudflare (pages.dev). Abra o portal por lá para administrar pessoas.</td></tr>';
 }
+})();
+</script>
+<script>
+// Aba "Uso do portal" (13/11/2026): lê /api/usuarios + /api/uso (só TI) e mostra quem usa, quem sumiu e quem nunca entrou.
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const NOME = { painel:"Painel", monitor:"Monitor", custo:"Custo de Frete", pedidos:"Pedidos", usuarios:"Usuários", assistente:"Assistente" };
+const SIT = { ativo:["Ativo","#22c55e"], sumido:["Sumido","#f4a72c"], parado:["Parado","#ef4444"], nunca:["Nunca entrou","#94a3b8"] };
+const DIA = 86400000;
+let dados = null, pessoas = [];
+const diaBR = ms => new Date(ms - 3 * 3600000).toISOString().slice(0, 10);
+function ha(ms){
+  if(!ms) return "—";
+  const d = Math.floor((Date.now() - ms) / DIA);
+  const hora = new Date(ms).toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"});
+  return d <= 0 ? "hoje, " + hora : d === 1 ? "ontem, " + hora : "há " + d + " dias";
+}
+function situacao(ult){ if(!ult) return "nunca"; const d = (Date.now() - ult) / DIA; return d <= 7 ? "ativo" : d <= 30 ? "sumido" : "parado"; }
+function iniciais(e){ const n = e.split("@")[0].split(/[._-]/).filter(Boolean); return ((n[0]||"?")[0] + ((n[1]||"")[0]||"")).toUpperCase(); }
+
+function trocarAba(qual){
+  const uso = qual === "uso";
+  $("#t-uso").setAttribute("aria-selected", uso); $("#t-pessoas").setAttribute("aria-selected", !uso);
+  $("#aba-uso").hidden = !uso; $("#aba-pessoas").hidden = uso;
+  try { localStorage.setItem("usuarios_aba", qual); } catch(_) {}
+  if(uso) carregar();
+}
+async function api(c){ const r = await fetch("/api" + c, {credentials:"same-origin"}); if(!r.ok) throw new Error("http-" + r.status); return r.json(); }
+async function carregar(forcar){
+  if(dados && !forcar) return montar();
+  const CF = typeof PortalGate.modo === "function" && PortalGate.modo() === "cloudflare";
+  if(!CF){ $("#u-corpo").innerHTML = '<tr><td class="vazio" colspan="7">O uso só é medido no portal da Cloudflare (pages.dev).</td></tr>'; return; }
+  $("#u-corpo").innerHTML = '<tr><td class="vazio" colspan="7">carregando…</td></tr>';
+  try {
+    const [us, uso] = await Promise.all([api("/usuarios"), api("/uso?dias=" + $("#u-dias").value)]);
+    dados = uso;
+    const d7 = diaBR(Date.now() - 6 * DIA);
+    pessoas = us.map(u => {
+      const minhas = uso.linhas.filter(l => l.email === u.email);
+      const dias = new Set(minhas.map(l => l.dia));
+      const usa = [...new Set(minhas.map(l => l.ferramenta))];
+      const lib = u.perfil === "ti" ? ["monitor","custo","pedidos"] : (u.ferramentas || []);
+      return { email: u.email, perfil: u.perfil, ult: u.ultimoAcesso || 0, sit: situacao(u.ultimoAcesso),
+               dias: dias.size, dias7: [...dias].filter(d => d >= d7).length, usa, naoUsa: lib.filter(f => !usa.includes(f)) };
+    });
+    montar();
+  } catch(e){ console.error(e); $("#u-corpo").innerHTML = '<tr><td class="vazio" colspan="7">Não deu para carregar o uso. Tente de novo.</td></tr>'; }
+}
+function visiveis(){ return pessoas.filter(p => $("#u-ti").checked || p.perfil !== "ti"); }
+function montar(){
+  const base = visiveis(), q = $("#u-busca").value.trim().toLowerCase(), fs = $("#u-sit").value;
+  const n = s => base.filter(p => p.sit === s).length;
+  $("#u-kpis").innerHTML = [[base.length,"pessoas cadastradas"],[n("ativo"),"🟢 entraram nos últimos 7 dias"],[n("sumido") + n("parado"),"🟡🔴 sumidas há mais de 7 dias"],[n("nunca"),"⚪ nunca entraram"]]
+    .map(([v,t]) => '<div class="kpi"><b>' + v + "</b><span>" + t + "</span></div>").join("");
+  const emails = new Set(base.map(p => p.email)), porDia = {};
+  dados.linhas.forEach(l => { if(emails.has(l.email)) (porDia[l.dia] = porDia[l.dia] || new Set()).add(l.email); });
+  const dias = []; for(let i = dados.dias - 1; i >= 0; i--) dias.push(diaBR(Date.now() - i * DIA));
+  const max = Math.max(1, ...dias.map(d => porDia[d] ? porDia[d].size : 0));
+  $("#u-barras").innerHTML = dias.map(d => { const v = porDia[d] ? porDia[d].size : 0;
+    return '<i class="' + (v ? "" : "zero") + '" style="height:' + (v / max * 100) + '%" title="' + d.split("-").reverse().join("/") + ": " + v + ' pessoa(s)"></i>'; }).join("");
+  const ordem = { nunca:0, parado:1, sumido:2, ativo:3 };
+  const lin = base.filter(p => (!q || p.email.includes(q)) && (!fs || p.sit === fs))
+    .sort((a,b) => ordem[a.sit] - ordem[b.sit] || a.ult - b.ult);
+  $("#u-corpo").innerHTML = lin.length ? lin.map(p => { const [rot, cor] = SIT[p.sit];
+    return '<tr><td data-l="Pessoa"><div class="pes"><span class="av">' + esc(iniciais(p.email)) + "</span><div>" + esc(p.email) + "<small>" + esc(p.perfil) + "</small></div></div></td>"
+      + '<td data-l="Situação"><span class="sit" style="--c:' + cor + '">' + rot + "</span></td>"
+      + '<td data-l="Último acesso">' + ha(p.ult) + "</td>"
+      + '<td class="c" data-l="Dias ativos (7 d)">' + p.dias7 + "</td>"
+      + '<td class="c" data-l="Dias ativos (período)">' + p.dias + "</td>"
+      + '<td data-l="Usa">' + (p.usa.map(f => '<span class="tag">' + esc(NOME[f] || f) + "</span>").join("") || "—") + "</td>"
+      + '<td data-l="Liberado e não usa">' + (p.naoUsa.map(f => '<span class="tag falta">' + esc(NOME[f] || f) + "</span>").join("") || "—") + "</td></tr>"; }).join("")
+    : '<tr><td class="vazio" colspan="7">Ninguém neste filtro.</td></tr>';
+  $("#u-nota").textContent = "Uso por ferramenta medido desde " + (dados.linhas[0] ? dados.linhas[0].dia.split("-").reverse().join("/") : "hoje") + ". Antes disso, só o último login.";
+}
+function csv(){
+  const linhas = [["email","perfil","situacao","ultimo_acesso","dias_ativos_7d","dias_ativos_periodo","usa","liberado_nao_usa"]]
+    .concat(visiveis().map(p => [p.email, p.perfil, SIT[p.sit][0], p.ult ? new Date(p.ult).toLocaleString("pt-BR") : "", p.dias7, p.dias, p.usa.map(f => NOME[f]||f).join(" | "), p.naoUsa.map(f => NOME[f]||f).join(" | ")]));
+  const txt = "﻿" + linhas.map(l => l.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(";")).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], {type:"text/csv"})); a.download = "uso-portal-" + diaBR(Date.now()) + ".csv"; a.click();
+}
+$("#t-uso").addEventListener("click", () => trocarAba("uso"));
+$("#t-pessoas").addEventListener("click", () => trocarAba("pessoas"));
+["#u-ti","#u-sit"].forEach(s => $(s).addEventListener("change", () => dados && montar()));
+$("#u-busca").addEventListener("input", () => dados && montar());
+$("#u-dias").addEventListener("change", () => carregar(true));
+$("#u-csv").addEventListener("click", () => pessoas.length && csv());
+PortalGate.pronto.then(u => { if(!u) return; let a = null; try { a = localStorage.getItem("usuarios_aba"); } catch(_) {} if(a === "uso") trocarAba("uso"); });
 })();
 </script>
 </body>

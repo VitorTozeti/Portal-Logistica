@@ -82,3 +82,14 @@ CREATE TABLE IF NOT EXISTS acessos_log (
   detalhe TEXT,                    -- JSON: lista de frases ("Custo de Frete: Ver → Editar")
   em INTEGER NOT NULL
 );
+
+-- Uso do portal (13/11/2026): 1 linha por pessoa/dia/ferramenta (dia no fuso de Brasília). O Worker também cria sozinho.
+CREATE TABLE IF NOT EXISTS uso_diario (
+  email TEXT NOT NULL,
+  dia TEXT NOT NULL,
+  ferramenta TEXT NOT NULL,
+  primeira INTEGER NOT NULL,
+  ultima INTEGER NOT NULL,
+  vezes INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (email, dia, ferramenta)
+);
