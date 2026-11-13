@@ -255,22 +255,24 @@ def coletar_unilog() -> list:
 
     por_nf: dict = {}
 
-    def add(filial, nf, cod, tipo, mensagem, desde, detalhe=""):
+    def add(filial, nf, cod, tipo, mensagem, desde, detalhe="", nf_tipo=""):
         """Uma travada por NF: a 1ª causa dá o código e a categoria; cada tipo vira um bloco do texto (alertas_texto:
-        o que aconteceu, um tópico por item, o que fazer). O texto é montado no fim, com todos os alertas da NF."""
+        o que aconteceu, um tópico por item, o que fazer). O texto é montado no fim, com todos os alertas da NF.
+        `nf_tipo` (13/11/2026): transferência com aviso de estoque fica em Entrada e transferência."""
         k = (filial, nf)
         if k not in por_nf:
-            por_nf[k] = {"ev": _ev(filial, nf, cod, alertas_texto.categoria(tipo, detalhe), "", desde), "blocos": {},
-                         "origem": {}}
+            por_nf[k] = {"ev": _ev(filial, nf, cod, alertas_texto.categoria(tipo, detalhe, nf_tipo), "", desde),
+                         "blocos": {}, "origem": {}}
         canon = alertas_texto.canonico(tipo)
         bloco = por_nf[k]["blocos"].setdefault(canon, (tipo, []))
-        por_nf[k]["origem"].setdefault(canon, (cod, alertas_texto.categoria(tipo, detalhe), desde))
+        por_nf[k]["origem"].setdefault(canon, (cod, alertas_texto.categoria(tipo, detalhe, nf_tipo), desde))
         if (mensagem, detalhe) not in bloco[1]:
             bloco[1].append((mensagem, detalhe))
 
     finais = set()
     faturadas = set()      # billing OK: o alerta de arquivo faltando para a fatura ja foi resolvido
     enviadas = {}          # (filial, nf) -> quando o pedido foi aceito (request_id): resolve os avisos _ANTES_DO_ENVIO
+    tipos_nf = {}          # (filial, nf) -> tipo da NF que o robô registrou no envio (aviso antigo sem `nf_tipo`)
     # "Ignorar no robo" do Portal (secao `ignoradas` do estado): sai da lista na hora
     ignoradas = {(i.get("filial"), _limpar(i.get("serial"))) for i in (dados.get("ignoradas") or {}).values()}
     # entrada da Matriz ja enviada: o aviso ENTRADA_MATRIZ_PENDENTE do ciclo anterior ficava ate 3 h (49671, 11/11)
@@ -284,6 +286,8 @@ def coletar_unilog() -> list:
             faturadas.add((filial, nf))
         if reg.get("request_id") and _timestamp(reg.get("enviado_em")) is not None:
             enviadas[(filial, nf)] = _timestamp(reg.get("enviado_em"))
+        if reg.get("tipo"):
+            tipos_nf[(filial, nf)] = str(reg.get("tipo"))
         code = str(reg.get("status_code") or "")
         etapa = str(reg.get("etapa") or "")
         desde = reg.get("status_desde") or reg.get("enviado_em")
@@ -332,8 +336,10 @@ def coletar_unilog() -> list:
         # enquanto o e-mail (alertas do ciclo) ja nao a mostrava
         if tipo == "BILLING_SEM_ARQUIVO" and (filial, nf) in faturadas:
             continue
-        # categoria pelo tipo (BILLING_SEM_ARQUIVO: detalhe = o que falta no share; só boleto = Financeiro)
-        add(filial, nf, f"UNILOG_{tipo}", tipo, str(a.get("mensagem") or ""), a.get("primeiro"), str(a.get("detalhe") or ""))
+        # categoria pelo tipo (BILLING_SEM_ARQUIVO: detalhe = o que falta no share; só boleto = Financeiro) e, no estoque,
+        # pelo tipo da NF (transferência = Entrada e transferência, 13/11/2026)
+        add(filial, nf, f"UNILOG_{tipo}", tipo, str(a.get("mensagem") or ""), a.get("primeiro"), str(a.get("detalhe") or ""),
+            str(a.get("nf_tipo") or tipos_nf.get((filial, nf), "")))
 
     out = []
     for item in por_nf.values():
