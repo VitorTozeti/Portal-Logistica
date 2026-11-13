@@ -247,6 +247,9 @@ async function autoMigrar(db) {
     "ALTER TABLE perfis ADD COLUMN modelo TEXT",
     `CREATE TABLE IF NOT EXISTS acessos_log (id INTEGER PRIMARY KEY AUTOINCREMENT, alvo TEXT NOT NULL, por TEXT NOT NULL,
        tipo TEXT NOT NULL, detalhe TEXT, em INTEGER NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS uso_diario (email TEXT NOT NULL, dia TEXT NOT NULL, ferramenta TEXT NOT NULL,
+       primeira INTEGER NOT NULL, ultima INTEGER NOT NULL, vezes INTEGER NOT NULL DEFAULT 1,
+       PRIMARY KEY (email, dia, ferramenta))`,
   ];
   for (const c of cmds) {
     try { await db.prepare(c).run(); } catch (e) { if (!/duplicate column|already exists/i.test(String(e && e.message))) throw e; }
@@ -491,6 +494,10 @@ async function saude(env) {
 }
 
 // ---------- roteador ----------
+const USO_IDS = new Set(["painel", "monitor", "custo", "pedidos", "usuarios", "assistente"]);
+// dia no fuso de Brasília (sem horário de verão desde 2019): AAAA-MM-DD
+function diaBR(ms) { return new Date(ms - 3 * 3600000).toISOString().slice(0, 10); }
+
 export async function onRequest(ctx) {
   try {
     return await rotear(ctx);
@@ -535,6 +542,30 @@ async function rotear(ctx) {
                                                    pv: !!(u.pode && u.pode.pedidos_ver), px: !!(u.pode && u.pode.pedidos_excluir),
                                                    ce: !!(u.pode && u.pode.custo_editar), exp });
     return json({ token, exp });
+  }
+
+  // uso do portal (13/11/2026): a página manda 1 carimbo por ferramenta por dia por aba (portal-auth-cf.js);
+  // aqui vira 1 linha por pessoa/dia/ferramenta e atualiza o último acesso (antes só o login gravava).
+  if (a === "uso" && m === "POST") {
+    const f = String((await corpo()).f || "");
+    if (!USO_IDS.has(f)) throw new Falha(400, "ferramenta-invalida");
+    const agora = Date.now(), dia = diaBR(agora);
+    await comMigracao(env.DB, () => env.DB.batch([
+      env.DB.prepare(`INSERT INTO uso_diario (email, dia, ferramenta, primeira, ultima, vezes) VALUES (?,?,?,?,?,1)
+                      ON CONFLICT(email, dia, ferramenta) DO UPDATE SET ultima = excluded.ultima, vezes = vezes + 1`)
+        .bind(u.email, dia, f, agora, agora),
+      env.DB.prepare("UPDATE usuarios SET ultimo_acesso = ? WHERE email = ?").bind(agora, u.email),
+    ]));
+    return json(null, 204);
+  }
+  if (a === "uso" && m === "GET") {
+    exigir(u, "admin");
+    const dias = Math.min(Math.max(parseInt(new URL(request.url).searchParams.get("dias") || "30", 10) || 30, 1), 180);
+    const desde = diaBR(Date.now() - (dias - 1) * 86400000);
+    let rows = [];
+    try { rows = (await env.DB.prepare("SELECT email, dia, ferramenta, vezes, ultima FROM uso_diario WHERE dia >= ? ORDER BY dia").bind(desde).all()).results; }
+    catch (e) { if (!FALTA_ESTRUTURA.test(String(e && e.message))) throw e; }      // tabela ainda não criada: sem uso
+    return json({ desde, hoje: diaBR(Date.now()), dias, linhas: rows });
   }
 
   if (a === "acessos-log" && m === "GET") {
